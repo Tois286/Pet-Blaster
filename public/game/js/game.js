@@ -180,6 +180,9 @@ class Base extends Phaser.Scene {
     // Monster dan pet = sprite sheet animasi (dibuat tools/make_sprites.py; ukuran frame ada di SPR, js/sprites-data.js)
     Object.keys(MON).forEach(i => { const k = 'mon' + i, s = SPR[k]; if (!this.textures.exists(k)) this.load.spritesheet(k, 'assets/' + s.file, { frameWidth: s.fw, frameHeight: s.fh }); });
     ELS.forEach(el => [1, 2, 3].forEach(n => { const k = 'pet_' + el + n, s = SPR[k]; if (!this.textures.exists(k)) this.load.spritesheet(k, 'assets/' + s.file, { frameWidth: s.fw, frameHeight: s.fh }); }));
+    // Efek skill api custom: tebasan untuk evolusi 1-2, bola api untuk evolusi 3.
+    if (!this.textures.exists('fire_slash')) this.load.spritesheet('fire_slash', 'assets/pet-actions/fire_slash.png', { frameWidth: 256, frameHeight: 256 });
+    if (!this.textures.exists('fire_orb')) this.load.spritesheet('fire_orb', 'assets/pet-actions/fire_orb.png', { frameWidth: 128, frameHeight: 455 });
   }
   // Pasang karakter Tois dengan tinggi tampilan h (piksel game), berpijak di (x, y).
   heroAnim() { if (!this.anims.exists('tois_idle')) this.anims.create({ key: 'tois_idle', frames: this.anims.generateFrameNumbers('tois_anim', { start: 0, end: TOIS_ANIM.frames - 1 }), frameRate: TOIS_ANIM.fps, repeat: -1 }); }
@@ -190,7 +193,10 @@ class Base extends Phaser.Scene {
   makeAnims() {   // animasi monster: move (loop), hit (sekali), die (sekali); pet: idle (loop), cast (sekali)
     const A = this.anims, mk = (key, k, start, end, fps, repeat) => { if (!A.exists(key)) A.create({ key, frames: A.generateFrameNumbers(k, { start, end }), frameRate: fps, repeat }); };
     Object.keys(MON).forEach(i => { const k = 'mon' + i, s = SPR[k]; mk(k + '_move', k, 0, s.move - 1, 10, -1); mk(k + '_hit', k, s.move, s.move + s.hit - 1, 24, 0); mk(k + '_die', k, s.move + s.hit, s.move + s.hit + s.die - 1, 18, 0); });
-    ELS.forEach(el => [1, 2, 3].forEach(n => { const k = 'pet_' + el + n, s = SPR[k]; mk(k + '_idle', k, 0, s.idle - 1, 8, -1); mk(k + '_cast', k, s.idle, s.idle + s.cast - 1, 16, 0); }));
+    ELS.forEach(el => [1, 2, 3].forEach(n => { const k = 'pet_' + el + n, s = SPR[k]; mk(k + '_idle', k, 0, s.idle - 1, s.idle, -1); mk(k + '_cast', k, s.idle, s.idle + s.cast - 1, 16, 0); }));
+    // Animasi frame-by-frame dari sprite sheet efek skill api.
+    mk('fire_slash_anim', 'fire_slash', 0, 5, 18, 0);
+    mk('fire_orb_anim', 'fire_orb', 0, 7, 18, 0);
   }
   petOrigin(k) { const s = SPR[k]; return (s.fh + s.ih) / 2 / s.fh; }   // kaki pet ada di bawah gambar asli, bukan di dasar frame yang berbantalan
   makeTextures() {
@@ -480,16 +486,40 @@ class Battle extends Base {
     });
 
     if (el === 'api') {
-      if (sk.t === 'bolt') {   // Cakar Terbang / Cakar Api Membara: sabetan cakar api meluncur ke tiap target
+      if (sk.t === 'bolt') {   // Cakar Api: berkedip langsung pada posisi target, tanpa animasi meluncur
         const big = st > 1;
-        targets.forEach((t, i) => fly('slash', ox, oy, t.x, t.y, 220 + i * 25, { sc: big ? 1.4 : 1, tint: big ? 0xff4a1e : 0xffb347, delay: i * 55, trail: s => burst(s.x, s.y, 1), done: () => claw(t.x, t.y, big ? 0xff5a1e : 0xffd34d, big ? 1.5 : 1.1) }));
-      } else {   // Bola Lava: bola magma melengkung, meledak dengan kawah
-        const o = this.add.image(ox, oy, 'orb').setTint(0xff5a1e).setDepth(860).setScale(.8);
-        this.tweens.add({ targets: o, scale: 1.5, x: cx, y: cy, duration: 420, ease: 'Quad.In', onUpdate: () => burst(o.x, o.y, 1), onComplete: () => {
+        targets.forEach((t, i) => {
+          this.time.delayedCall(i * 55 / this.speed, () => {
+            // Efek sabetan muncul tepat di monster yang sudah ditargetkan.
+            const slash = this.add.sprite(t.x, t.y, 'fire_slash', 0)
+              .setOrigin(.5, .5)
+              .setDepth(870)
+              .setBlendMode(Phaser.BlendModes.ADD)
+              .setRotation(-.22)
+              .setScale(big ? .38 : .32)
+              .setAlpha(0);
+            // Sprite sheet diputar frame demi frame; posisi tetap di target.
+            slash.play('fire_slash_anim');
+            this.tweens.add({
+              targets: slash,
+              alpha: { from: 0, to: 1 },
+              duration: 70,
+              yoyo: true,
+              hold: 230,
+              repeat: 0,
+              onComplete: () => { if (slash.active) slash.destroy(); }
+            });
+            claw(t.x, t.y, big ? 0xff5a1e : 0xffd34d, big ? 1.5 : 1.1);
+          });
+        });
+      } else {   // Evolusi 3 saja: proyektil bola api custom, lalu ledakan area
+        const o = this.add.sprite(ox, oy, 'fire_orb', 0).setOrigin(.5, .15).setDepth(860).setScale(.30);
+        o.play('fire_orb_anim');
+        this.tweens.add({ targets: o, scale: .34, x: cx, y: cy, duration: 420, ease: 'Quad.In', onUpdate: () => burst(o.x, o.y + 20, 1), onComplete: () => {
           o.destroy(); ring(cx, cy, R * 1.3, 0xff6a2e, 480); ring(cx, cy, R * .7, 0xffd34d, 320); impact(cx, cy, 0xff762e, 2.0); burst(cx, cy, 28); area(0xff6a2e, .3);
           const cr = this.add.ellipse(cx, cy + 6, R * 1.5, R * .6, 0x2b1208, .65).setDepth(840); fade(cr, 500, 350); this.cameras.main.shake(90, .004);
         } });
-        this.tweens.add({ targets: o, angle: 360, duration: 420 });
+        this.tweens.add({ targets: o, angle: 12, duration: 420 });
       }
     } else if (el === 'air') {
       if (st === 1) {   // Gelembung Air: rentetan gelembung, pecah menjadi percikan lalu melayang naik

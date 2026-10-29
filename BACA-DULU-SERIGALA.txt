@@ -1,0 +1,22 @@
+Animasi baru Srigala Api (pet_api2) dan Serigala Lava (pet_api3), dari dua GIF yang dikirim.
+
+Cara pasang: ekstrak zip ini ke folder pet-blaster (timpa file yang sama), lalu hard refresh browser (Ctrl+Shift+R).
+File yang berubah:
+  public/game/assets/sprites/pet_api2.webp   sprite sheet Srigala Api (18 frame idle + 20 frame serang, 224x116 per frame)
+  public/game/assets/sprites/pet_api3.webp   sprite sheet Serigala Lava (18 frame idle + 24 frame serang, 216x136 per frame)
+  public/game/assets/pets/api2.png           gambar statis 128x128 untuk kartu, evolusi, menu Pet
+  public/game/assets/pets/api3.png           gambar statis 128x128 untuk kartu, evolusi, menu Pet
+  public/game/js/sprites-data.js             data frame pet_api2 dan pet_api3 (game.js tidak diubah)
+  tools/make_sprites.py                      pet_api2 dan pet_api3 dilewati saat generate semua, supaya sheet ini tidak tertimpa
+  tools/make_wolf_sheets.py                  skrip pembuat sheet dari GIF (baru)
+  tools/source/srigala_api.gif               GIF sumber Srigala Api (baru)
+  tools/source/serigala_lava.gif             GIF sumber Serigala Lava (baru)
+  tools/README.md                            catatan pemakaian skrip
+
+Isi animasi:
+  Srigala Api    idle bernapas, serang = cakaran api (cocok dengan skill Cakar Api Membara).
+  Serigala Lava  idle bernapas, serang = menyemburkan bola lava (cocok dengan skill Bola Lava).
+  Bola api yang terbang jauh di GIF dipotong, karena efek bola dan ledakannya sudah digambar oleh game.
+
+Kembali ke yang lama: salin isi backup-lama-serigala/ ke lokasi aslinya
+  (sprites/ -> public/game/assets/sprites/, pets/ -> public/game/assets/pets/, js/ -> public/game/js/, tools/ -> tools/).

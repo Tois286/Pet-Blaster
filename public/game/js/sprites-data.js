@@ -265,22 +265,22 @@ const SPR = {
   "cast": 21
  },
  "pet_api2": {
-  "file": "sprites/pet_api2.webp",
-  "fw": 174,
-  "fh": 174,
-  "iw": 128,
-  "ih": 128,
-  "idle": 8,
-  "cast": 6
+  "file": "sprites/pet_api2.webp?v=wolf1",
+  "fw": 224,
+  "fh": 116,
+  "iw": 141,
+  "ih": 102,
+  "idle": 18,
+  "cast": 20
  },
  "pet_api3": {
-  "file": "sprites/pet_api3.webp",
-  "fw": 174,
-  "fh": 174,
-  "iw": 128,
+  "file": "sprites/pet_api3.webp?v=wolf1",
+  "fw": 216,
+  "fh": 136,
+  "iw": 159,
   "ih": 128,
-  "idle": 8,
-  "cast": 6
+  "idle": 18,
+  "cast": 24
  },
  "pet_tanah1": {
   "file": "sprites/pet_tanah1.webp",
@@ -288,7 +288,7 @@ const SPR = {
   "fh": 174,
   "iw": 128,
   "ih": 128,
-  "idle": 8,
+  "idle": 16,
   "cast": 6
  },
  "pet_tanah2": {
@@ -297,7 +297,7 @@ const SPR = {
   "fh": 174,
   "iw": 128,
   "ih": 128,
-  "idle": 8,
+  "idle": 16,
   "cast": 6
  },
  "pet_tanah3": {
@@ -306,7 +306,7 @@ const SPR = {
   "fh": 174,
   "iw": 128,
   "ih": 128,
-  "idle": 8,
+  "idle": 16,
   "cast": 6
  }
 };

@@ -24,7 +24,7 @@ OUT = os.environ.get('SPRITE_OUT', os.path.join(ASSETS, 'sprites'))
 DATA_JS = os.environ.get('SPRITE_DATA', os.path.join(ROOT, 'public', 'game', 'js', 'sprites-data.js'))
 PREVIEW = os.environ.get('SPRITE_PREVIEW')            # folder opsional untuk GIF pratinjau
 PI = math.pi
-CUSTOM = {'pet_api1'}   # sprite sheet dibuat dari video (bukan dari tools ini): dilewati kecuali disebut eksplisit, mis. `make_sprites.py pet_api1`
+CUSTOM = {'pet_api1', 'pet_api2', 'pet_api3'}   # sprite sheet dibuat dari video/GIF (api2 & api3 lewat tools/make_wolf_sheets.py): dilewati kecuali disebut eksplisit, mis. `make_sprites.py pet_api1`
 
 # ------------------------------------------------------------------ MONSTER ----
 # id: (berkas, tinggi tampil terbesar (px game), efek gerak, mode pukulan, jenis mati, tanda pukulan)
@@ -222,7 +222,10 @@ def make_pet(name):
     src = os.path.join(ASSETS, 'pets', fname + '.png')
     c = Canvas(src, scale=1.0, pad=.18)
     eff = fx()
-    idle = make_move(c, eff, N_MOVE, glow_fx)
+    # Pet tanah memakai dua kali sampling frame idle agar gerak tubuh/ekor tidak
+    # terlihat meloncat. Durasi loop tetap 1 detik; pet lain tidak berubah.
+    idle_n = 16 if name.startswith('tanah') else N_MOVE
+    idle = make_move(c, eff, idle_n, glow_fx)
     cast = []
     mode = cast_kw.get('mode', 'pounce')
     kw = {k: v for k, v in cast_kw.items() if k != 'mode'}
@@ -249,7 +252,7 @@ def make_pet(name):
     if PREVIEW:
         gif_preview(idle, os.path.join(PREVIEW, key + '_idle.gif'), 110)
         gif_preview(cast + [idle[0]], os.path.join(PREVIEW, key + '_cast.gif'), 110)
-    return key, dict(file='sprites/%s.webp' % key, fw=cw, fh=ch, iw=c.W, ih=c.H, idle=N_MOVE, cast=len(CAST_S)), frames
+    return key, dict(file='sprites/%s.webp' % key, fw=cw, fh=ch, iw=c.W, ih=c.H, idle=idle_n, cast=len(CAST_S)), frames
 
 
 def main():

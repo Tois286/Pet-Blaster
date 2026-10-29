@@ -72,6 +72,7 @@ function showProfile(d) {
     b.querySelector('.val').textContent = p[t]; b.querySelector('.cost').textContent = '🪙 ' + COST[t];
     b.disabled = +p.coins < COST[t];
   });
+  $('hubCoins').textContent = p.coins; if (!$('hub').hidden) renderHub();   // panel menu bawah ikut diperbarui
 }
 async function refreshProfile() { showProfile(await api('/profile')); }
 async function enterGame() {
@@ -671,12 +672,71 @@ function say(t) { const m = $('gameMessage'); m.textContent = t; clearTimeout(sa
 function toLobby() { $('result').hidden = true; $('gamePanel').classList.remove('battle'); game.scene.stop('Battle'); game.scene.start('Lobby'); }
 const menu = (el, items) => items.forEach(([ic, label, act]) => {
   const b = document.createElement('button'); b.className = 'ico'; b.innerHTML = `<i>${ic}</i><span>${label}</span>`;
-  b.onclick = () => act === 'shop' ? ($('shop').hidden = false) : say('Fitur ' + label + ' segera hadir.'); $(el).appendChild(b);
+  b.onclick = () => act ? openHub(act) : say('Fitur ' + label + ' segera hadir.'); $(el).appendChild(b);
 });
 menu('sideL', [['🎖️', 'Battle Pass'], ['🎁', 'Hadiah'], ['📜', 'Event']]);
 menu('sideR', [['📢', 'Info'], ['✉️', 'Surat'], ['👥', 'Teman'], ['📋', 'Misi']]);
-menu('botNav', [['🛒', 'Toko', 'shop'], ['🐾', 'Pet'], ['🎸', 'Karakter'], ['🏰', 'Wilayah'], ['🛡️', 'Guild']]);
-$('shopClose').onclick = () => { $('shop').hidden = true; };
+const HUB = [['shop', '🛒', 'Toko'], ['pet', '🐾', 'Pet'], ['char', '🎸', 'Karakter'], ['zone', '🏰', 'Wilayah'], ['guild', '🛡️', 'Guild']];
+menu('botNav', HUB.map(([k, ic, n]) => [ic, n, k]));
+
+// ---- Panel menu bawah: Toko, Pet, Karakter, Wilayah, Guild (hanya tampilan; data dari profil dan konstanta game) ----
+let hubKey = 'shop';
+const hex = n => '#' + n.toString(16).padStart(6, '0');
+const evoStage = bw => bw >= 8 ? 3 : bw >= 4 ? 2 : 1;   // sama dengan evolusi pet di lobi
+const HUB_VIEW = {
+  pet() {
+    const bw = +profile.progress.best_wave, st = evoStage(bw);
+    return `<p class="hint">Tahap evolusi di lobi mengikuti rekor gelombang: tahap 2 di gelombang 4, tahap 3 di gelombang 8. Saat bertempur, evolusi didapat lewat kartu upgrade.</p>` + ELS.map(el => `
+      <article class="pcard" style="--c:${hex(EL[el])}"><h4>${ELNAME[el]}</h4>
+        <div class="evos">${[1, 2, 3].map(n => `<div class="evo${n > st ? ' lock' : ''}${n === st ? ' cur' : ''}"><img src="assets/pets/${el}${n}.png" alt=""><b>${EVO[el][n - 1]}</b><small>${n > st ? '🔒 Gel. ' + (n === 2 ? 4 : 8) : SK[el][n - 1].n}</small></div>`).join('')}</div>
+        <p>${PET_DESC[el][st - 1]}</p></article>`).join('');
+  },
+  char() {
+    const p = profile.progress, bar = (ic, n, v, max) => `<div class="stat"><i>${ic}</i><span>${n}</span><div class="sbar"><i style="width:${Math.min(100, v / max * 100)}%"></i></div><b>${v}</b></div>`;
+    return `<article class="ccard"><img src="assets/characters/tois-avatar.png" alt="Tois"><div><h4>Tois</h4><span class="tag">Level ${p.level}</span><p>Penjaga markas yang menembak otomatis dengan gatling.</p></div></article>
+      <h5>Statistik</h5><div class="stats">${bar('💥', 'Damage', +p.damage, 1000)}${bar('⚡', 'Kecepatan', +p.fire_rate, 10)}${bar('🛡️', 'HP markas', +p.max_hp, 10000)}</div>
+      <h5>Senjata & skill</h5>
+      <ul class="shoplist">
+        <li><i>🔫</i><span><b>Gatling</b>Magasin ${MAG_SIZE} peluru, reload ${RELOAD_MS / 1000} detik. Tahan layar untuk menembak 2x lebih cepat.</span></li>
+        <li><i>💥</i><span><b>Badai Peluru</b>4x damage ke semua musuh di layar. Cooldown 15 detik.</span></li>
+        <li><i>⭐</i><span><b>Level</b>Naik setiap kelipatan 3 gelombang yang dicapai.</span></li>
+      </ul>`;
+  },
+  zone() {
+    const bw = +profile.progress.best_wave;
+    return `<p class="hint">Arena berganti mengikuti gelombang. Rekor kamu: gelombang ${bw}.</p>` + ARENAS.map((n, i) => {
+      const from = ARENA_AT[i], to = (ARENA_AT[i + 1] || WAVES + 1) - 1, done = bw >= to, open = bw >= from - 1, boss = Object.keys(BOSS).map(Number).find(w => w >= from && w <= to);
+      const mons = [...new Set(POOL[i])].slice(0, 6).map(id => `<img src="assets/monsters/${MON[id].f}.png" alt="${MON[id].n}" title="${MON[id].n}">`).join('');
+      return `<article class="zcard${open ? '' : ' lock'}" style="background-image:linear-gradient(90deg,#150d2bee 30%,#150d2b66),url(assets/backgrounds/arena${i + 1}.jpg)">
+        <h4>${n}</h4><span class="tag">Gelombang ${from}${to > from ? '–' + to : ''}</span>
+        <div class="mons">${mons}</div>
+        <small>${boss ? '👑 Bos gelombang ' + boss + ': ' + MON[BOSS[boss]].n : 'Tanpa bos'}</small>
+        <em>${done ? '✅ Ditaklukkan' : open ? '⚔️ Terbuka' : '🔒 Selesaikan gelombang ' + (from - 1)}</em></article>`;
+    }).join('');
+  },
+  guild() {
+    return `<article class="gcard"><i>🛡️</i><h4>Belum bergabung guild</h4><p>Berkumpul dengan pemain lain, selesaikan misi bersama, dan raih hadiah guild.</p>
+      <div class="row"><button class="btn main" disabled>Buat Guild</button><button class="btn alt" disabled>Cari Guild</button></div><small>Fitur guild segera hadir.</small></article>
+      <h5>Yang akan hadir</h5>
+      <ul class="shoplist">
+        <li><i>📋</i><span><b>Misi guild</b>Selesaikan target mingguan bersama anggota.</span></li>
+        <li><i>🪙</i><span><b>Bonus koin</b>Hadiah koin tambahan dari kontribusi guild.</span></li>
+        <li><i>💬</i><span><b>Obrolan guild</b>Ngobrol dan saling bantu strategi.</span></li>
+        <li><i>🏆</i><span><b>Peringkat</b>Bandingkan guild kamu dengan guild lain.</span></li>
+      </ul>`;
+  }
+};
+function renderHub(key = hubKey) {
+  hubKey = key; const t = HUB.find(h => h[0] === key);
+  $('hubTitle').textContent = t[2];
+  document.querySelectorAll('.hview').forEach(v => { v.hidden = v.id !== 'v-' + key; });
+  if (HUB_VIEW[key] && profile) $('v-' + key).innerHTML = HUB_VIEW[key]();
+  document.querySelectorAll('#hubTabs button').forEach(b => b.classList.toggle('on', b.dataset.k === key));
+}
+function openHub(key) { $('hub').hidden = false; $('hubBody').scrollTop = 0; renderHub(key); }
+$('hubTabs').innerHTML = HUB.map(([k, ic, n]) => `<button data-k="${k}"><i>${ic}</i><span>${n}</span></button>`).join('');
+$('hubTabs').onclick = e => { const b = e.target.closest('button'); if (b) { $('hubBody').scrollTop = 0; renderHub(b.dataset.k); } };
+$('hubClose').onclick = () => { $('hub').hidden = true; };
 $('startBtn').onclick = () => { $('gamePanel').classList.add('battle'); game.scene.stop('Lobby'); game.scene.start('Battle'); };
 $('quitBtn').onclick = toLobby; $('lobbyBtn').onclick = toLobby;
 

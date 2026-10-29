@@ -120,3 +120,38 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--gold); outl
 .evocard .desc { margin: .2em 0 .5em; font-size: .85em; opacity: .92; }
 .evocard dl { display: grid; grid-template-columns: auto 1fr; gap: .25em .8em; margin: 0 0 .5em; padding: .5em .7em; border-radius: .8em; background: rgba(0,0,0,.28); text-align: left; font-size: .82em; } .evocard dt { color: var(--mint); font-weight: 700; } .evocard dd { margin: 0; } .evocard dd b { color: var(--gold); }
 .evocard .next { margin: 0 0 .5em; font-size: .8em; opacity: .85; } .evocard .btn { width: 100%; }
+
+/* ---- v16: panel menu bawah (Toko, Pet, Karakter, Wilayah, Guild) ---- */
+.hub { position: absolute; inset: 0; z-index: 7; display: flex; flex-direction: column; background: radial-gradient(circle at 50% 0%, #3a2866, #150d2b 70%); animation: hubIn .22s ease-out; }
+@keyframes hubIn { from { transform: translateY(4%); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .hub { animation: none; } }
+.hhead { display: flex; align-items: center; gap: .6em; padding: max(2.5%, env(safe-area-inset-top)) 3% .6em; border-bottom: .15em solid #d9a05b55; }
+.hhead h3 { flex: 1; margin: 0; font-size: 1.4em; color: var(--gold); text-shadow: 0 2px 4px #000; }
+.hbody { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; padding: .8em 3%; }
+.hview > * + * { margin-top: .6em; } .hview h5 { margin: .9em 0 .3em; font-size: .95em; color: var(--mint); }
+.hint { margin: 0; font-size: .8em; opacity: .85; line-height: 1.35; }
+.tag { display: inline-block; padding: .05em .7em; border-radius: 1em; background: rgba(0,0,0,.35); font-size: .8em; }
+.htabs { display: flex; height: 10.5%; padding-bottom: env(safe-area-inset-bottom); background: linear-gradient(#5a3a2a, #3a2418); border-top: .25em solid #d9a05b; }
+.htabs button { flex: 1; display: grid; place-items: center; align-content: center; border: 0; background: none; color: #fff; font: inherit; font-size: .8em; opacity: .65; }
+.htabs button i { font-style: normal; font-size: 1.7em; } .htabs button.on { opacity: 1; background: rgba(255,211,77,.18); box-shadow: inset 0 .25em 0 var(--gold); }
+.shoplist { list-style: none; margin: 0; padding: 0; display: grid; gap: .45em; }
+.shoplist li { display: flex; gap: .7em; align-items: center; padding: .55em .7em; border-radius: .9em; background: rgba(255,255,255,.07); font-size: .85em; }
+.shoplist li > i { font-style: normal; font-size: 1.8em; } .shoplist b { display: block; color: var(--gold); }
+.pcard { padding: .6em; border-radius: 1em; border: .12em solid var(--c); background: linear-gradient(#ffffff14, #00000030); }
+.pcard h4, .ccard h4, .zcard h4, .gcard h4 { margin: 0 0 .3em; font-size: 1.05em; } .pcard h4 { color: var(--c); } .pcard p { margin: .4em 0 0; font-size: .8em; opacity: .9; }
+.evos { display: grid; grid-template-columns: repeat(3, 1fr); gap: .4em; }
+.evo { display: grid; justify-items: center; gap: .1em; padding: .4em .2em; border-radius: .8em; background: rgba(0,0,0,.28); text-align: center; }
+.evo img { width: 4em; height: 4em; object-fit: contain; } .evo b { font-size: .8em; } .evo small { font-size: .7em; opacity: .85; }
+.evo.cur { outline: .13em solid var(--gold); } .evo.lock img { filter: grayscale(1) brightness(.5); } .evo.lock { opacity: .75; }
+.ccard { display: flex; gap: .8em; align-items: center; padding: .7em; border-radius: 1em; background: linear-gradient(#5a41a0, #3a2866); border: .12em solid #fff3c4; }
+.ccard img { width: 6em; height: 6em; object-fit: contain; filter: drop-shadow(0 3px 4px #0008); } .ccard p { margin: .3em 0 0; font-size: .82em; opacity: .9; }
+.stats { display: grid; gap: .45em; } .stat { display: grid; grid-template-columns: 1.6em 5.2em 1fr 3.4em; gap: .4em; align-items: center; font-size: .85em; }
+.stat > i { font-style: normal; } .stat b { text-align: right; color: var(--gold); }
+.sbar { height: .7em; background: rgba(0,0,0,.45); border-radius: .4em; overflow: hidden; } .sbar i { display: block; height: 100%; min-width: .5em; background: linear-gradient(90deg, var(--mint), #4fe0b0); }
+.zcard { position: relative; padding: .7em .8em; border-radius: 1em; border: .12em solid #fff3c4; background-size: cover; background-position: center; display: grid; gap: .3em; }
+.zcard.lock { filter: grayscale(.85) brightness(.75); border-color: #ffffff44; }
+.zcard small, .zcard em { font-size: .8em; font-style: normal; } .zcard em { color: var(--gold); font-weight: 800; }
+.mons { display: flex; gap: .3em; } .mons img { width: 2.4em; height: 2.4em; object-fit: contain; filter: drop-shadow(0 1px 2px #000); }
+.gcard { display: grid; justify-items: center; gap: .4em; padding: 1em; text-align: center; border-radius: 1em; background: linear-gradient(#5a41a0, #3a2866); border: .12em dashed #fff3c4aa; }
+.gcard > i { font-style: normal; font-size: 3em; opacity: .85; } .gcard p { margin: 0; font-size: .85em; opacity: .9; } .gcard small { opacity: .7; }
+.gcard .row { width: 100%; } .gcard .btn:disabled { opacity: .5; }

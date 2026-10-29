@@ -202,31 +202,31 @@ const SPR = {
   "die": 5
  },
  "pet_air1": {
-  "file": "sprites/pet_air1.webp",
-  "fw": 174,
-  "fh": 174,
-  "iw": 128,
-  "ih": 128,
-  "idle": 8,
-  "cast": 6
+  "file": "sprites/pet_air1.webp?v=air1",
+  "fw": 170,
+  "fh": 126,
+  "iw": 121,
+  "ih": 102,
+  "idle": 14,
+  "cast": 20
  },
  "pet_air2": {
-  "file": "sprites/pet_air2.webp",
-  "fw": 174,
-  "fh": 174,
-  "iw": 128,
-  "ih": 128,
-  "idle": 8,
-  "cast": 6
+  "file": "sprites/pet_air2.webp?v=air1",
+  "fw": 204,
+  "fh": 130,
+  "iw": 175,
+  "ih": 106,
+  "idle": 16,
+  "cast": 19
  },
  "pet_air3": {
-  "file": "sprites/pet_air3.webp",
-  "fw": 174,
-  "fh": 174,
-  "iw": 128,
-  "ih": 128,
-  "idle": 8,
-  "cast": 6
+  "file": "sprites/pet_air3.webp?v=air1",
+  "fw": 246,
+  "fh": 147,
+  "iw": 175,
+  "ih": 123,
+  "idle": 16,
+  "cast": 15
  },
  "pet_angin1": {
   "file": "sprites/pet_angin1.webp",

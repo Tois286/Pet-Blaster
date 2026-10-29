@@ -24,7 +24,7 @@ OUT = os.environ.get('SPRITE_OUT', os.path.join(ASSETS, 'sprites'))
 DATA_JS = os.environ.get('SPRITE_DATA', os.path.join(ROOT, 'public', 'game', 'js', 'sprites-data.js'))
 PREVIEW = os.environ.get('SPRITE_PREVIEW')            # folder opsional untuk GIF pratinjau
 PI = math.pi
-CUSTOM = {'pet_api1', 'pet_api2', 'pet_api3'}   # sprite sheet dibuat dari video/GIF (api2 & api3 lewat tools/make_wolf_sheets.py): dilewati kecuali disebut eksplisit, mis. `make_sprites.py pet_api1`
+CUSTOM = {'pet_api1', 'pet_api2', 'pet_api3', 'pet_air1', 'pet_air2', 'pet_air3'}   # sprite sheet dibuat dari video/GIF/sheet sendiri (api2 & api3 lewat tools/make_wolf_sheets.py, air1-3 lewat tools/make_air_sheets.py): dilewati kecuali disebut eksplisit, mis. `make_sprites.py pet_api1`
 
 # ------------------------------------------------------------------ MONSTER ----
 # id: (berkas, tinggi tampil terbesar (px game), efek gerak, mode pukulan, jenis mati, tanda pukulan)

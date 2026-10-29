@@ -1,99 +1,133 @@
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#2b1d4a">
-<meta name="mobile-web-app-capable" content="yes">
-<title>Pet Blaster: Wild Guardians</title>
-<link rel="stylesheet" href="css/game.css?v=menu1">
-<script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#2b1d4a">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>Pet Blaster: Wild Guardians</title>
+  <link rel="stylesheet" href="css/game.css?v=menu1">
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
 </head>
+
 <body>
-<main class="app">
-  <section id="authPanel" class="auth">
-    <div class="card">
-      <img class="logo" src="assets/characters/tois-avatar.png" alt="Tois" width="96" height="96">
-      <h1>Pet Blaster</h1>
-      <p class="sub">Wild Guardians: lindungi markas dari gelombang monster!</p>
-      <form id="authForm">
-        <input id="username" placeholder="Username" autocomplete="username">
-        <input id="email" type="email" placeholder="Email (hanya untuk daftar)" autocomplete="email">
-        <input id="password" type="password" placeholder="Kata sandi (min. 8 karakter)" required minlength="8" autocomplete="current-password">
-        <div class="row"><button type="submit" class="btn main" data-mode="login">Login</button><button type="submit" class="btn alt" data-mode="register">Daftar</button></div>
-      </form>
-      <p id="authMessage" role="status"></p>
-    </div>
-  </section>
-  <section id="gamePanel" hidden>
-    <div class="frame">
-      <div id="game-container"></div>
-      <div class="lobby-ui">
-        <div class="hud">
-          <div class="ava"><img src="assets/characters/tois-avatar.png" alt="Tois"><i id="level">1</i></div>
-          <div class="hud-mid">
-            <div class="pills"><span class="pill">🪙 <b id="coins">0</b></span><span class="pill">🏆 <b id="bestWave">0</b>/10</span></div>
-            <div class="name"><b id="playerName">-</b></div>
-            <div class="xp"><i id="xpBar"></i></div>
+  <main class="app">
+    <section id="authPanel" class="auth">
+      <div class="card">
+        <img class="logo" src="assets/characters/tois-avatar.png" alt="Tois" width="96" height="96">
+        <h1>Pet Blaster</h1>
+        <p class="sub">Wild Guardians: lindungi markas dari gelombang monster!</p>
+        <form id="authForm">
+          <input id="username" placeholder="Username" autocomplete="username">
+          <input id="email" type="email" placeholder="Email (hanya untuk daftar)" autocomplete="email">
+          <input id="password" type="password" placeholder="Kata sandi (min. 8 karakter)" required minlength="8"
+            autocomplete="current-password">
+          <div class="row"><button type="submit" class="btn main" data-mode="login">Login</button><button type="submit"
+              class="btn alt" data-mode="register">Daftar</button></div>
+        </form>
+        <p id="authMessage" role="status"></p>
+      </div>
+    </section>
+    <section id="gamePanel" hidden>
+      <div class="frame">
+        <div id="game-container"></div>
+        <div class="lobby-ui">
+          <div class="hud">
+            <div class="ava"><img src="assets/characters/tois-avatar.png" alt="Tois"><i id="level">1</i></div>
+            <div class="hud-mid">
+              <div class="pills"><span class="pill">🪙 <b id="coins">0</b></span><span class="pill">🏆 <b
+                    id="bestWave">0</b>/10</span></div>
+              <div class="name"><b id="playerName">-</b></div>
+              <div class="xp"><i id="xpBar"></i></div>
+            </div>
+            <button class="icon" id="fsBtn" aria-label="Layar penuh">⛶</button>
+            <button class="icon" id="logoutButton" aria-label="Keluar akun">⎋</button>
           </div>
-          <button class="icon" id="fsBtn" aria-label="Layar penuh">⛶</button>
-          <button class="icon" id="logoutButton" aria-label="Keluar akun">⎋</button>
+          <div class="side left" id="sideL"></div>
+          <div class="side right" id="sideR"></div>
+          <div class="stage-info">
+            <div class="badge" id="stageNo">1</div>
+            <div>
+              <h2>Raja Golem Lava</h2>
+              <p id="stageSub">Belum ditaklukkan</p>
+            </div>
+          </div>
+          <div class="goal"><span id="goalTxt"></span>
+            <div class="ms" id="miles"></div>
+          </div>
+          <button id="startBtn" class="start">Mulai Game</button>
+          <button id="afkBtn" class="afk" disabled>🌙 Hadiah AFK <b id="afkAmt">0</b> 🪙</button>
+          <nav class="bottom" id="botNav"></nav>
         </div>
-        <div class="side left" id="sideL"></div>
-        <div class="side right" id="sideR"></div>
-        <div class="stage-info"><div class="badge" id="stageNo">1</div><div><h2>Raja Golem Lava</h2><p id="stageSub">Belum ditaklukkan</p></div></div>
-        <div class="goal"><span id="goalTxt"></span><div class="ms" id="miles"></div></div>
-        <button id="startBtn" class="start">Mulai Game</button>
-        <button id="afkBtn" class="afk" disabled>🌙 Hadiah AFK <b id="afkAmt">0</b> 🪙</button>
-        <nav class="bottom" id="botNav"></nav>
-      </div>
-      <button id="skillBtn" class="skill" aria-label="Skill">💥</button>
-      <div class="bui">
-        <div class="btop"><span id="bTime" class="pill">00:00</span><div class="bmid"><b id="bStage">1. Garis Pertahanan</b><div class="bxp"><i id="bXpBar"></i><span id="bXpTxt"></span></div></div></div>
-        <div class="bleft"><button id="pauseBtn" aria-label="Jeda">⏸</button><button id="speedBtn" aria-label="Kecepatan">x1</button><button id="quitBtn" aria-label="Keluar"><svg viewBox="0 0 24 24" width="1.5em" height="1.5em" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg></button></div>
-      </div>
-      <div id="upgrade" class="upgrade" hidden>
-        <h3>Naik Level! <span id="upLv"></span></h3>
-        <p>Pilih 1 upgrade</p>
-        <div id="cards" class="cards"></div>
-      </div>
-      <div id="evo" class="upgrade evo" hidden><div id="evoCard" class="evocard"></div></div>
-      <div id="result" class="result" hidden>
-        <div class="card"><h2 id="resultTitle"></h2><p id="resultText"></p>
-          <div class="row"><button id="againButton" class="btn main">Main lagi</button><button id="lobbyBtn" class="btn alt">Ke lobi</button></div></div>
-      </div>
-      <div id="hub" class="hub" hidden>
-        <header class="hhead">
-          <h3 id="hubTitle">Toko</h3>
-          <span class="pill">🪙 <b id="hubCoins">0</b></span>
-          <button id="hubClose" class="icon" aria-label="Tutup">✕</button>
-        </header>
-        <div class="hbody" id="hubBody">
-          <section id="v-shop" class="hview">
-            <p class="hint">Tingkatkan Tois. Upgrade berlaku di pertempuran berikutnya.</p>
-            <nav class="dock">
-              <button data-upgrade="damage"><i>💥</i><span>Damage</span><b class="val">10</b><em class="cost"></em></button>
-              <button data-upgrade="fire_rate"><i>⚡</i><span>Kecepatan</span><b class="val">1</b><em class="cost"></em></button>
-              <button data-upgrade="max_hp"><i>🛡️</i><span>HP markas</span><b class="val">100</b><em class="cost"></em></button>
-            </nav>
-            <ul class="shoplist">
-              <li><i>💥</i><span><b>Damage +5</b>Tiap peluru Tois lebih kuat. Maksimal 1000.</span></li>
-              <li><i>⚡</i><span><b>Kecepatan +1</b>Tois menembak lebih sering. Maksimal 10.</span></li>
-              <li><i>🛡️</i><span><b>HP markas +10</b>Markas lebih tahan serangan monster. Maksimal 10000.</span></li>
-            </ul>
-          </section>
-          <section id="v-pet" class="hview" hidden></section>
-          <section id="v-char" class="hview" hidden></section>
-          <section id="v-zone" class="hview" hidden></section>
-          <section id="v-guild" class="hview" hidden></section>
+        <button id="skillBtn" class="skill" aria-label="Skill">💥</button>
+        <div class="bui">
+          <div class="btop"><span id="bTime" class="pill">00:00</span>
+            <div class="bmid"><b id="bStage">1. Garis Pertahanan</b>
+              <div class="bxp"><i id="bXpBar"></i><span id="bXpTxt"></span></div>
+            </div>
+          </div>
+          <div class="bleft"><button id="pauseBtn" aria-label="Jeda">⏸</button><button id="speedBtn"
+              aria-label="Kecepatan">x1</button><button id="quitBtn" aria-label="Keluar"><svg viewBox="0 0 24 24"
+                width="1.5em" height="1.5em" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"
+                stroke-linejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <path d="M16 17l5-5-5-5" />
+                <path d="M21 12H9" />
+              </svg></button></div>
         </div>
-        <nav class="htabs" id="hubTabs"></nav>
+        <div id="upgrade" class="upgrade" hidden>
+          <h3>Naik Level! <span id="upLv"></span></h3>
+          <p>Pilih 1 upgrade</p>
+          <div id="cards" class="cards"></div>
+        </div>
+        <div id="evo" class="upgrade evo" hidden>
+          <div id="evoCard" class="evocard"></div>
+        </div>
+        <div id="result" class="result" hidden>
+          <div class="card">
+            <h2 id="resultTitle"></h2>
+            <p id="resultText"></p>
+            <div class="row"><button id="againButton" class="btn main">Main lagi</button><button id="lobbyBtn"
+                class="btn alt">Ke lobi</button></div>
+          </div>
+        </div>
+        <div id="hub" class="hub" hidden>
+          <header class="hhead">
+            <h3 id="hubTitle">Toko</h3>
+            <span class="pill">🪙 <b id="hubCoins">0</b></span>
+            <button id="hubClose" class="icon" aria-label="Tutup">✕</button>
+          </header>
+          <div class="hbody" id="hubBody">
+            <section id="v-shop" class="hview">
+              <p class="hint">Tingkatkan Tois. Upgrade berlaku di pertempuran berikutnya.</p>
+              <nav class="dock">
+                <button data-upgrade="damage"><i>💥</i><span>Damage</span><b class="val">10</b><em
+                    class="cost"></em></button>
+                <button data-upgrade="fire_rate"><i>⚡</i><span>Kecepatan</span><b class="val">1</b><em
+                    class="cost"></em></button>
+                <button data-upgrade="max_hp"><i>🛡️</i><span>HP markas</span><b class="val">100</b><em
+                    class="cost"></em></button>
+              </nav>
+              <ul class="shoplist">
+                <li><i>💥</i><span><b>Damage +5</b>Tiap peluru Tois lebih kuat. Maksimal 1000.</span></li>
+                <li><i>⚡</i><span><b>Kecepatan +1</b>Tois menembak lebih sering. Maksimal 10.</span></li>
+                <li><i>🛡️</i><span><b>HP markas +10</b>Markas lebih tahan serangan monster. Maksimal 10000.</span></li>
+              </ul>
+            </section>
+            <section id="v-pet" class="hview" hidden></section>
+            <section id="v-char" class="hview" hidden></section>
+            <section id="v-zone" class="hview" hidden></section>
+            <section id="v-guild" class="hview" hidden></section>
+          </div>
+          <nav class="htabs" id="hubTabs"></nav>
+        </div>
+        <div id="gameMessage" class="toast" role="status"></div>
       </div>
-      <div id="gameMessage" class="toast" role="status"></div>
-    </div>
-  </section>
-</main>
-<script src="js/sprites-data.js"></script>
-<script src="js/game.js?v=menu1"></script>
+    </section>
+  </main>
+  <script src="js/sprites-data.js"></script>
+  <script src="js/game.js?v=menu1"></script>
 </body>
+
 </html>

@@ -193,7 +193,7 @@ class Base extends Phaser.Scene {
   makeAnims() {   // animasi monster: move (loop), hit (sekali), die (sekali); pet: idle (loop), cast (sekali)
     const A = this.anims, mk = (key, k, start, end, fps, repeat) => { if (!A.exists(key)) A.create({ key, frames: A.generateFrameNumbers(k, { start, end }), frameRate: fps, repeat }); };
     Object.keys(MON).forEach(i => { const k = 'mon' + i, s = SPR[k]; mk(k + '_move', k, 0, s.move - 1, 10, -1); mk(k + '_hit', k, s.move, s.move + s.hit - 1, 24, 0); mk(k + '_die', k, s.move + s.hit, s.move + s.hit + s.die - 1, 18, 0); });
-    ELS.forEach(el => [1, 2, 3].forEach(n => { const k = 'pet_' + el + n, s = SPR[k]; mk(k + '_idle', k, 0, s.idle - 1, s.idle, -1); mk(k + '_cast', k, s.idle, s.idle + s.cast - 1, 16, 0); }));
+    ELS.forEach(el => [1, 2, 3].forEach(n => { const k = 'pet_' + el + n, s = SPR[k]; const idleFps = el === 'air' ? 10 : 8; mk(k + '_idle', k, 0, s.idle - 1, idleFps, -1); mk(k + '_cast', k, s.idle, s.idle + s.cast - 1, 16, 0); }));
     // Animasi frame-by-frame dari sprite sheet efek skill api.
     mk('fire_slash_anim', 'fire_slash', 0, 5, 18, 0);
     mk('fire_orb_anim', 'fire_orb', 0, 7, 18, 0);
@@ -211,7 +211,7 @@ class Base extends Phaser.Scene {
     // tekstur efek skill (putih, diwarnai lewat tint saat dipakai)
     const para = (g, x0, w, h, bulgeO, bulgeI, a) => { const pts = []; for (let i = 0; i <= 12; i++) { const t = i / 6 - 1; pts.push({ x: x0 + bulgeO * (1 - t * t), y: h / 2 + t * w / 2 }); } for (let i = 12; i >= 0; i--) { const t = i / 6 - 1; pts.push({ x: x0 + bulgeI * (1 - t * t), y: h / 2 + t * w / 2 }); } g.fillStyle(0xffffff, a).fillPoints(pts, true); };
     T('slash', 72, 64, g => { para(g, 6, 60, 64, 58, 26, .3); para(g, 6, 56, 64, 52, 40, 1); });                  // sabetan bulan sabit (menghadap kanan)
-    T('claw', 48, 48, g => { g.fillStyle(0xffffff); [0, 1, 2].forEach(i => g.fillTriangle(6 + i * 13, 2, 13 + i * 13, 2, 20 + i * 13 - 8, 46)); });   // tiga bekas cakar
+    T('claw', 48, 48, g => { g.fillStyle(0xffffff);[0, 1, 2].forEach(i => g.fillTriangle(6 + i * 13, 2, 13 + i * 13, 2, 20 + i * 13 - 8, 46)); });   // tiga bekas cakar
     T('bubble', 28, 28, g => { g.fillStyle(0xbdefff, .3).fillCircle(14, 14, 13); g.lineStyle(2, 0xffffff, .95).strokeCircle(14, 14, 12); g.fillStyle(0xffffff, .95).fillCircle(9, 9, 3); });
     T('orb', 56, 56, g => { g.fillStyle(0xffffff, .22).fillCircle(28, 28, 27); g.fillStyle(0xffffff, .55).fillCircle(28, 28, 19); g.fillStyle(0xffffff).fillCircle(28, 28, 11); });
     T('shard', 22, 48, g => { g.fillStyle(0xffffff).fillTriangle(11, 0, 22, 42, 0, 42); g.fillStyle(0xffffff, .55).fillTriangle(11, 0, 11, 48, 0, 42); g.lineStyle(1, 0x6fb8e8, .8).strokeTriangle(11, 0, 22, 42, 0, 42); });
@@ -233,25 +233,25 @@ const PET_Y = 568, PET_SLOTS = [140, 220, 88, 272];   // kaki pet berpijak di ja
 const ELNAME = { api: '🔥 Api', air: '💧 Air', tanah: '🪨 Tanah', angin: '🌪️ Angin' };
 // Deskripsi karakter pet per tahap evolusi
 const PET_DESC = {
-  api:   ['Rubah kecil berbulu jingga yang lincah. Cakarnya melesat jauh sebagai Cakar Terbang.', 'Srigala berapi dengan cakar membara. Menyambar lebih banyak musuh sekaligus.', 'Serigala lava berbadan magma. Melontarkan Bola Lava yang meledak di kerumunan musuh.'],
-  air:   ['Salamander mungil yang meniup gelembung air. Musuh yang terkena bergerak lambat.', 'Naga air yang melontarkan bola air besar. Area lebih luas, musuh makin lambat.', 'Naga es penguasa dingin. Kristal Es membekukan musuh di area luas.'],
+  api: ['Rubah kecil berbulu jingga yang lincah. Cakarnya melesat jauh sebagai Cakar Terbang.', 'Srigala berapi dengan cakar membara. Menyambar lebih banyak musuh sekaligus.', 'Serigala lava berbadan magma. Melontarkan Bola Lava yang meledak di kerumunan musuh.'],
+  air: ['Salamander mungil yang meniup gelembung air. Musuh yang terkena bergerak lambat.', 'Naga air yang melontarkan bola air besar. Area lebih luas, musuh makin lambat.', 'Naga es penguasa dingin. Kristal Es membekukan musuh di area luas.'],
   tanah: ['Tikus tanah penggali. Lubang galiannya membuat musuh terjebak sesaat.', 'Tikus berkulit batu yang menggelinding seperti trenggiling, menghantam satu lajur musuh.', 'Tikus berlian yang menggali lalu menabrak. Kuat, menyetrum, dan membuat musuh terhenti.'],
   angin: ['Burung pipit mungil. Kepakan sayapnya menghempas satu lajur musuh dan memperlambatnya.', 'Elang yang tajam. Cakaran Terbang mengincar banyak musuh sekaligus.', 'Garuda penguasa langit. Puting beliung bersayatan menyapu area sangat luas.']
 };
 const skillInfo = (p, sk) => sk.t === 'bolt' ? 'Menyerang ' + (sk.k + p.extra) + ' musuh terdepan' : sk.t === 'aoe' ? 'Ledakan area (radius ' + Math.round(sk.r * p.reach) + ')' : 'Menghantam satu lajur (lebar ' + Math.round(sk.w * 2 * p.reach) + ')';
 // Kartu upgrade khusus per pet (tiap kartu dihitung sebagai 1 progres evolusi pet tersebut)
 const PET_CARDS = [
-  { ic: '💥', n: 'Damage',         d: p => 'Damage skill +25%',                                   ok: p => true,           go: p => { p.pow *= 1.25; } },
-  { ic: '⏱️', n: 'Cooldown',       d: p => 'Cooldown skill -15%',                                 ok: p => p.cdMul > .45,  go: p => { p.cdMul *= .85; } },
-  { ic: '✌️', n: 'Tembakan Ganda', d: p => 'Skill ditembakkan ' + (p.volley + 2) + 'x beruntun', ok: p => p.volley < 2,  go: p => { p.volley++; } },
-  { ic: '🎯', n: 'Jangkauan',      d: p => SK[p.el][p.stage - 1].t === 'bolt' ? '+1 target tembakan' : 'Area serangan +20%', ok: p => p.extra + p.reach < 4, go: p => { if (SK[p.el][p.stage - 1].t === 'bolt') p.extra++; else p.reach *= 1.2; } }
+  { ic: '💥', n: 'Damage', d: p => 'Damage skill +25%', ok: p => true, go: p => { p.pow *= 1.25; } },
+  { ic: '⏱️', n: 'Cooldown', d: p => 'Cooldown skill -15%', ok: p => p.cdMul > .45, go: p => { p.cdMul *= .85; } },
+  { ic: '✌️', n: 'Tembakan Ganda', d: p => 'Skill ditembakkan ' + (p.volley + 2) + 'x beruntun', ok: p => p.volley < 2, go: p => { p.volley++; } },
+  { ic: '🎯', n: 'Jangkauan', d: p => SK[p.el][p.stage - 1].t === 'bolt' ? '+1 target tembakan' : 'Area serangan +20%', ok: p => p.extra + p.reach < 4, go: p => { if (SK[p.el][p.stage - 1].t === 'bolt') p.extra++; else p.reach *= 1.2; } }
 ];
 const UPGRADES = [
-  { id: 'dmg',   ic: '💥', n: 'Damage',            d: 'Damage tembakan +20%',        ok: b => true,                  go: b => { b.dmg = Math.ceil(b.dmg * 1.2); } },
-  { id: 'rate',  ic: '⚡', n: 'Kecepatan Tembak',  d: 'Tembak 15% lebih cepat',      ok: b => 700 / b.rate > 125,    go: b => { b.rate *= 1.15; } },
-  { id: 'hp',    ic: '🛡️', n: 'HP Markas',         d: 'HP maks +20 dan pulih +20',   ok: b => true,                  go: b => { b.baseMax += 20; b.baseHp += 20; } },
-  { id: 'heal',  ic: '❤️', n: 'Pulihkan Markas',   d: 'Pulihkan 40% HP maks',        ok: b => b.baseHp < b.baseMax,  go: b => { b.baseHp = Math.min(b.baseMax, b.baseHp + Math.ceil(b.baseMax * .4)); } },
-  { id: 'storm', ic: '🌪️', n: 'Badai Peluru Cepat', d: 'Cooldown Badai Peluru -2 dtk', ok: b => b.skillMax > 5000,    go: b => { b.skillMax -= 2000; } }
+  { id: 'dmg', ic: '💥', n: 'Damage', d: 'Damage tembakan +20%', ok: b => true, go: b => { b.dmg = Math.ceil(b.dmg * 1.2); } },
+  { id: 'rate', ic: '⚡', n: 'Kecepatan Tembak', d: 'Tembak 15% lebih cepat', ok: b => 700 / b.rate > 125, go: b => { b.rate *= 1.15; } },
+  { id: 'hp', ic: '🛡️', n: 'HP Markas', d: 'HP maks +20 dan pulih +20', ok: b => true, go: b => { b.baseMax += 20; b.baseHp += 20; } },
+  { id: 'heal', ic: '❤️', n: 'Pulihkan Markas', d: 'Pulihkan 40% HP maks', ok: b => b.baseHp < b.baseMax, go: b => { b.baseHp = Math.min(b.baseMax, b.baseHp + Math.ceil(b.baseMax * .4)); } },
+  { id: 'storm', ic: '🌪️', n: 'Badai Peluru Cepat', d: 'Cooldown Badai Peluru -2 dtk', ok: b => b.skillMax > 5000, go: b => { b.skillMax -= 2000; } }
 ];
 
 class Battle extends Base {
@@ -340,7 +340,8 @@ class Battle extends Base {
     const sh = a => Phaser.Utils.Array.Shuffle([...a]);
     const petCards = this.pets.filter(p => !p.on).map(p => ({ img: 'assets/pets/' + p.el + '1.png', n: 'Panggil ' + EVO[p.el][0], d: 'Skill: ' + SK[p.el][0].n, go: b => b.addPet(p.el) }));
     const upCards = this.pets.filter(p => p.on && p.stage < 3).flatMap(p => PET_CARDS.filter(c => c.ok(p)).map(c => ({
-      img: 'assets/pets/' + p.el + p.stage + '.png', n: EVO[p.el][p.stage - 1] + ': ' + c.n, d: c.d(p), tag: 'Evolusi ' + (p.prog + 1) + '/' + EVO_NEED[p.stage - 1], go: b => b.petCard(p, c) })));
+      img: 'assets/pets/' + p.el + p.stage + '.png', n: EVO[p.el][p.stage - 1] + ': ' + c.n, d: c.d(p), tag: 'Evolusi ' + (p.prog + 1) + '/' + EVO_NEED[p.stage - 1], go: b => b.petCard(p, c)
+    })));
     const stat = UPGRADES.filter(u => u.ok(this));
     let picks = sh([...petCards, ...upCards, ...stat]).slice(0, XP_CARDS);
     if (!this.petsSeen && petCards.length && !picks.some(u => u.img)) picks = sh([petCards[0], ...picks.slice(1)]);   // undian pertama pasti ada kartu pet
@@ -515,20 +516,24 @@ class Battle extends Base {
       } else {   // Evolusi 3 saja: proyektil bola api custom, lalu ledakan area
         const o = this.add.sprite(ox, oy, 'fire_orb', 0).setOrigin(.5, .15).setDepth(860).setScale(.30);
         o.play('fire_orb_anim');
-        this.tweens.add({ targets: o, scale: .34, x: cx, y: cy, duration: 420, ease: 'Quad.In', onUpdate: () => burst(o.x, o.y + 20, 1), onComplete: () => {
-          o.destroy(); ring(cx, cy, R * 1.3, 0xff6a2e, 480); ring(cx, cy, R * .7, 0xffd34d, 320); impact(cx, cy, 0xff762e, 2.0); burst(cx, cy, 28); area(0xff6a2e, .3);
-          const cr = this.add.ellipse(cx, cy + 6, R * 1.5, R * .6, 0x2b1208, .65).setDepth(840); fade(cr, 500, 350); this.cameras.main.shake(90, .004);
-        } });
+        this.tweens.add({
+          targets: o, scale: .34, x: cx, y: cy, duration: 420, ease: 'Quad.In', onUpdate: () => burst(o.x, o.y + 20, 1), onComplete: () => {
+            o.destroy(); ring(cx, cy, R * 1.3, 0xff6a2e, 480); ring(cx, cy, R * .7, 0xffd34d, 320); impact(cx, cy, 0xff762e, 2.0); burst(cx, cy, 28); area(0xff6a2e, .3);
+            const cr = this.add.ellipse(cx, cy + 6, R * 1.5, R * .6, 0x2b1208, .65).setDepth(840); fade(cr, 500, 350); this.cameras.main.shake(90, .004);
+          }
+        });
         this.tweens.add({ targets: o, angle: 12, duration: 420 });
       }
     } else if (el === 'air') {
       if (st === 1) {   // Gelembung Air: rentetan gelembung, pecah menjadi percikan lalu melayang naik
         for (let i = 0; i < 6; i++) {
           const tx = cx + rnd(-R * .7, R * .7), ty = cy + rnd(-R * .5, R * .5);
-          fly('bubble', ox, oy, tx, ty, 380 + i * 30, { rot: 0, sc: rnd(.7, 1.2), tint: 0xbdefff, delay: i * 70, ease: 'Sine.Out', done: s => {
-            ring(s.x, s.y, 26, 0x9fe6ff, 300); burst(s.x, s.y, 5);
-            const b = this.add.image(s.x, s.y, 'bubble').setScale(.5).setAlpha(.85).setDepth(861); this.tweens.add({ targets: b, y: s.y - 26, alpha: 0, duration: 700, onComplete: () => b.destroy() });
-          } });
+          fly('bubble', ox, oy, tx, ty, 380 + i * 30, {
+            rot: 0, sc: rnd(.7, 1.2), tint: 0xbdefff, delay: i * 70, ease: 'Sine.Out', done: s => {
+              ring(s.x, s.y, 26, 0x9fe6ff, 300); burst(s.x, s.y, 5);
+              const b = this.add.image(s.x, s.y, 'bubble').setScale(.5).setAlpha(.85).setDepth(861); this.tweens.add({ targets: b, y: s.y - 26, alpha: 0, duration: 700, onComplete: () => b.destroy() });
+            }
+          });
         }
         this.time.delayedCall(500 / this.speed, () => area(0x3ec6ff, .18));
       } else if (st === 2) {   // Bola Air: bola air besar, pecah menjadi cipratan
@@ -596,11 +601,11 @@ class Battle extends Base {
     this.tweens.add({ targets: t, y: y - 36, alpha: 0, duration: 700, onComplete: () => t.destroy() });
   }
   kill(e) {   // mati: animasi khas tiap monster (hancur, jatuh, meleleh, menguap), lalu sprite dihapus
-    e.dead = true; [e.sh, e.bg, e.fg].forEach(o => o.destroy());
+    e.dead = true;[e.sh, e.bg, e.fg].forEach(o => o.destroy());
     e.s.clearTint(); e.s.setAngle(0).setScale(e.sc); e.s.anims.timeScale = this.speed;
     e.s.play('mon' + e.id + '_die'); e.s.once('animationcomplete', () => e.s.destroy());
   }
-  drop(e) { e.dead = true; [e.s, e.sh, e.bg, e.fg].forEach(o => o.destroy()); }
+  drop(e) { e.dead = true;[e.s, e.sh, e.bg, e.fg].forEach(o => o.destroy()); }
   hit(e, b) {
     b.dead = true; b.s.destroy(); this.dmgTo(e, b.d || this.dmg);
   }

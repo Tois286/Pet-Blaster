@@ -256,13 +256,13 @@ const SPR = {
   "cast": 6
  },
  "pet_api1": {
-  "file": "sprites/pet_api1.webp",
-  "fw": 174,
+  "file": "sprites/pet_api1.webp?v=fox1",
+  "fw": 272,
   "fh": 174,
-  "iw": 128,
+  "iw": 130,
   "ih": 128,
-  "idle": 8,
-  "cast": 6
+  "idle": 14,
+  "cast": 21
  },
  "pet_api2": {
   "file": "sprites/pet_api2.webp",

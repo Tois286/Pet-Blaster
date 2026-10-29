@@ -1,0 +1,9 @@
+Rubah Api baru (dari video Fire_fox_claw_attack_animation)
+
+Cara pasang: ekstrak zip ini ke folder pet-blaster (timpa file yang sama), lalu hard refresh browser (Ctrl+Shift+R).
+File yang berubah:
+  public/game/assets/sprites/pet_api1.webp   sprite sheet baru (35 frame: 14 idle + 21 serang, 272x174 per frame)
+  public/game/assets/pets/api1.png           gambar statis untuk kartu, evolusi, menu Pet
+  public/game/js/sprites-data.js             data frame pet_api1 (game.js tidak diubah)
+  tools/make_sprites.py                      pet_api1 dilewati saat generate semua, supaya sheet ini tidak tertimpa
+Kembali ke yang lama: salin isi backup-lama/ ke lokasi aslinya.

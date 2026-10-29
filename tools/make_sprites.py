@@ -24,6 +24,7 @@ OUT = os.environ.get('SPRITE_OUT', os.path.join(ASSETS, 'sprites'))
 DATA_JS = os.environ.get('SPRITE_DATA', os.path.join(ROOT, 'public', 'game', 'js', 'sprites-data.js'))
 PREVIEW = os.environ.get('SPRITE_PREVIEW')            # folder opsional untuk GIF pratinjau
 PI = math.pi
+CUSTOM = {'pet_api1'}   # sprite sheet dibuat dari video (bukan dari tools ini): dilewati kecuali disebut eksplisit, mis. `make_sprites.py pet_api1`
 
 # ------------------------------------------------------------------ MONSTER ----
 # id: (berkas, tinggi tampil terbesar (px game), efek gerak, mode pukulan, jenis mati, tanda pukulan)
@@ -257,7 +258,7 @@ def main():
         os.makedirs(PREVIEW, exist_ok=True)
     want = set(sys.argv[1:])
     meta = {}
-    if want and os.path.exists(DATA_JS):      # generate sebagian: pertahankan data karakter lain
+    if os.path.exists(DATA_JS):      # pertahankan data karakter lain dan karakter CUSTOM
         txt = open(DATA_JS).read()
         meta = json.loads(txt[txt.index('{'):txt.rindex('}') + 1])
     for mid in MON:
@@ -269,7 +270,7 @@ def main():
         print('ok', key, m['fw'], 'x', m['fh'])
     for name in PET:
         k = 'pet_' + name
-        if want and k not in want:
+        if (want and k not in want) or (k in CUSTOM and k not in want):
             continue
         key, m, _ = make_pet(name)
         meta[key] = m

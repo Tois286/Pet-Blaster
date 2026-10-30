@@ -14,7 +14,7 @@ input { width: 100%; margin: 5px 0; padding: 14px; font: inherit; border: 0; bor
 .btn.main { background: var(--gold); color: #3a2866; } .btn.alt { background: var(--mint); color: #12412a; }
 #authMessage { min-height: 22px; color: #ffb3a1; }
 #gamePanel { display: grid; place-items: center; min-height: 0; }
-.frame { position: relative; container-type: inline-size; aspect-ratio: 9 / 16; width: min(100vw, calc(100vh * 9 / 16)); width: min(100vw, calc(100dvh * 9 / 16)); overflow: hidden; background: #3a4f8f; }
+.frame { position: relative; container-type: inline-size; aspect-ratio: 39 / 64; width: min(100vw, calc(100vh * 39 / 64)); width: min(100vw, calc(100dvh * 39 / 64)); overflow: hidden; background: #3a4f8f; }
 .frame > * { font-size: 3.9cqw; }
 #game-container { position: absolute; inset: 0; } #game-container canvas { touch-action: none; }
 .lobby-ui { position: absolute; inset: 0; pointer-events: none; } .lobby-ui > * { pointer-events: auto; }
@@ -64,7 +64,7 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--gold); outl
 /* Desktop / layar lebar: bingkai game di tengah dengan bayangan dan sudut membulat */
 @media (min-width: 700px) and (min-height: 600px) {
   #gamePanel { padding: 12px 0; }
-  .frame { width: min(100vw, calc((100vh - 24px) * 9 / 16), 540px); width: min(100vw, calc((100dvh - 24px) * 9 / 16), 540px); border-radius: 18px; box-shadow: 0 20px 60px rgba(0,0,0,.55); }
+  .frame { width: min(100vw, calc((100vh - 24px) * 39 / 64), 540px); width: min(100vw, calc((100dvh - 24px) * 39 / 64), 540px); border-radius: 18px; box-shadow: 0 20px 60px rgba(0,0,0,.55); }
 }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
 

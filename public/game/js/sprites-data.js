@@ -242,23 +242,27 @@ const SPR = {
   "rel": 5
  },
  "pet_angin2": {
-  "file": "sprites/pet_angin2.webp",
+  "file": "sprites/pet_angin2.webp?v=angin2c",
   "fw": 174,
   "fh": 174,
   "iw": 128,
   "ih": 128,
-  "idle": 8,
-  "cast": 6
+  "idle": 16,
+  "cast": 23,
+  "rel": 12
  },
+
  "pet_angin3": {
-  "file": "sprites/pet_angin3.webp",
+  "file": "sprites/pet_angin3.webp?v=angin3b",
   "fw": 174,
   "fh": 174,
   "iw": 128,
   "ih": 128,
-  "idle": 8,
-  "cast": 6
+  "idle": 24,
+  "cast": 23,
+  "rel": 17
  },
+
  "pet_api1": {
   "file": "sprites/pet_api1.webp?v=fox1",
   "fw": 272,
@@ -307,12 +311,13 @@ const SPR = {
   "rel": 8
  },
  "pet_tanah3": {
-  "file": "sprites/pet_tanah3.webp",
+  "file": "sprites/pet_tanah3.webp?v=tanah3c",
   "fw": 174,
   "fh": 174,
   "iw": 128,
   "ih": 128,
-  "idle": 16,
-  "cast": 6
+  "idle": 24,
+  "cast": 22,
+  "rel": 10
  }
 };

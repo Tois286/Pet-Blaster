@@ -1,7 +1,8 @@
 // Pet Blaster: tampilan portrait untuk Android. Tois, pet, monster musuh, dan latar memakai gambar PNG/JPG di assets/.
 const API = '/api';
 const $ = id => document.getElementById(id);
-const W = 360, H = 640, BASE_Y = 490, WAVES = 10;
+// Kanvas 390x640 (rasio latar arena baru 1270x2090). Tata letak lobi lama dirancang untuk lebar 360, jadi digeser OX = 15 px ke kanan.
+const W = 390, H = 640, OX = (W - 360) / 2, HX = (W - 220) / 2, BASE_Y = 490, WAVES = 10;
 const COST = { damage: 100, fire_rate: 150, max_hp: 120 };      // hanya tampilan; harga asli dicek server
 // Monster musuh (20 sprite di assets/monsters). el = indeks ELS, h = tinggi tampil (px), hp/sp = pengali HP dan kecepatan, fly = melayang.
 const MON = {
@@ -36,6 +37,13 @@ const BATTLE_HERO_KEY = 'tois_battle_gatling', BATTLE_HERO_SRC = 'assets/charact
 const BATTLE_SHEET = { fw: 166, fh: 382, burst: 8, reload: 51, ready: 59, charH: 269.3, anchorX: .5, anchorY: .9933, tipUp: 272.5 };
 const MAG_SIZE = 35, RELOAD_MS = 2400;   // 35 peluru per magasin; habis -> reload 2,4 dtk -> penuh lagi, berulang sampai pertempuran selesai
 const ELS = ['api', 'air', 'tanah', 'angin'];
+// Ukuran pet per evolusi: evo 1 = ukuran dasar (paling kecil), evo 2 dan evo 3 makin besar. Ubah PET_GROW untuk mengatur seberapa besar.
+const PET_GROW = [0.5, 0.8, 1.3];   // pengali ukuran tampil karakter untuk evo 1, 2, 3
+// Ukuran karakter yang terlihat di tiap sprite sheet (px, akar dari lebar x tinggi gambar karakter di dalam frame, rata-rata frame idle);
+// dipakai agar ukuran tampil tidak bergantung pada seberapa penuh gambar mengisi frame. Hitung ulang bila sprite diganti.
+const PET_VIS = { pet_api1: 129.5, pet_api2: 118.8, pet_api3: 136.3, pet_air1: 117.7, pet_air2: 114.4, pet_air3: 112, pet_tanah1: 111.4, pet_tanah2: 115.4, pet_tanah3: 124.9, pet_angin1: 96.9, pet_angin2: 106.5, pet_angin3: 127.8 };
+const petScale = (el, st) => PET_VIS['pet_' + el + '1'] * .5 * PET_GROW[st - 1] / PET_VIS['pet_' + el + st];   // evo 1 tetap .5 seperti semula
+const petH = p => PET_VIS['pet_' + p.el + p.stage] * p.scaleY;   // tinggi karakter yang tampak di layar (px)
 const EL = { api: 0xff6a2e, air: 0x3ec6ff, tanah: 0xc89a5a, angin: 0x7fe0ff };
 const EVO = { api: ['Rubah', 'Srigala Api', 'Serigala Lava'], air: ['Salamander', 'Naga Air', 'Naga Es'], tanah: ['Tikus Tanah', 'Tikus Batu', 'Tikus Berlian'], angin: ['Burung Pipit', 'Burung Elang', 'Burung Garuda'] };
 // Skill evolusi: t = jenis (bolt: k musuh terdepan, aoe: lingkaran r, line: lajur lebar w), m = pengali damage, cd = jeda (ms)
@@ -229,7 +237,7 @@ class Base extends Phaser.Scene {
 const XP_BASE = 150, XP_GROWTH = 1.2, XP_CARDS = 3;
 // Evolusi pet: jumlah kartu milik pet itu sendiri yang dibutuhkan. Evolusi 1 -> 2 butuh 4 kartu, lalu 2 -> 3 butuh 6 kartu baru.
 const EVO_NEED = [4, 6];
-const PET_Y = 568, PET_SLOTS = [140, 220, 88, 272];   // kaki pet berpijak di jalan kayu benteng (y 537-575, x 57-302); tengah dikosongkan untuk Tois
+const PET_Y = 568, PET_SLOTS = [151, 239, 95, 295];   // urutan: api, air, tanah, angin. Kaki pet berpijak di jalan kayu benteng arena baru (y 540-572, x 63-325); tengah (x 195) dikosongkan untuk Tois
 const ELNAME = { api: '🔥 Api', air: '💧 Air', tanah: '🪨 Tanah', angin: '🌪️ Angin' };
 // Deskripsi karakter pet per tahap evolusi
 const PET_DESC = {
@@ -275,10 +283,10 @@ class Battle extends Base {
   create() {
     this.over = true;
     this.makeTextures(); this.makeWorld();
-    this.hero = new HeroRig(this, 180, 632, 98);   // Tois tampak belakang, tubuh lentur
+    this.hero = new HeroRig(this, W / 2, 632, 98);   // Tois tampak belakang, tubuh lentur
     this.shells = this.add.particles(0, 0, 'shell', { speedX: { min: 30, max: 90 }, speedY: { min: -110, max: -40 }, gravityY: 420, lifespan: 650, rotate: { start: 0, end: 540 }, alpha: { start: 1, end: 0 }, emitting: false }).setDepth(705);
     this.mflash = this.add.image(0, 0, 'mflash').setOrigin(.08, .5).setDepth(710).setAlpha(0);
-    this.pets = ELS.map((el, i) => { const p = this.add.sprite(PET_SLOTS[i], PET_Y, 'pet_' + el + '1').setOrigin(.5, this.petOrigin('pet_' + el + '1')).setScale(.5).setDepth(699); p.play({ key: 'pet_' + el + '1_idle', startFrame: i * 2 }); p.el = el; p.cd = 1500 + i * 700; p.by = p.y; p.on = false; p.setVisible(false); Object.assign(p, { stage: 1, prog: 0, pow: 1, cdMul: 1, volley: 0, reach: 1, extra: 0 }); p.lbl = this.add.text(p.x, PET_Y + 7, '', TS(9, '#ffffff')).setOrigin(.5).setDepth(702).setVisible(false); return p; });   // pet baru muncul setelah dipilih lewat kartu
+    this.pets = ELS.map((el, i) => { const p = this.add.sprite(PET_SLOTS[i], PET_Y, 'pet_' + el + '1').setOrigin(.5, this.petOrigin('pet_' + el + '1')).setScale(petScale(el, 1)).setDepth(699); p.play({ key: 'pet_' + el + '1_idle', startFrame: i * 2 }); p.el = el; p.cd = 1500 + i * 700; p.by = p.y; p.on = false; p.setVisible(false); Object.assign(p, { stage: 1, prog: 0, pow: 1, cdMul: 1, volley: 0, reach: 1, extra: 0 }); p.lbl = this.add.text(p.x, PET_Y + 7, '', TS(9, '#ffffff')).setOrigin(.5).setDepth(702).setVisible(false); return p; });   // pet baru muncul setelah dipilih lewat kartu
     $('skillBtn').onclick = () => this.skill();
     this.choosing = false; $('upgrade').hidden = true; $('evo').hidden = true;
     this.events.once('shutdown', () => { this.choosing = false; $('upgrade').hidden = true; $('evo').hidden = true; });
@@ -357,7 +365,7 @@ class Battle extends Base {
         this.choosing = false; $('upgrade').hidden = true;
         if (!this.paused) { this.tweens.resumeAll(); this.anims.resumeAll(); }
         u.go(this);
-        this.pop(180, 300, u.n + '!', '#ffd34d', 18);
+        this.pop(W / 2, 300, u.n + '!', '#ffd34d', 18);
         if (this.evoQ.length) this.showEvo(this.evoQ.shift()); else this.checkLevel();   // evolusi: tampilkan kartu detail dulu
       };
       box.appendChild(b);
@@ -401,14 +409,14 @@ class Battle extends Base {
     for (const e of this.enemies) if (!t || e.s.y > t.s.y) t = e;
     if (!t) return;
     const tip = this.hero.tip(); this.shoot(tip.x, tip.y, t, this.dmg);
-    this.hero.aimGoal = Phaser.Math.Clamp((t.s.x - 180) / 150, -1, 1); this.hero.fireKick();
+    this.hero.aimGoal = Phaser.Math.Clamp((t.s.x - W / 2) / 150, -1, 1); this.hero.fireKick();
     this.hero.shootAnim();   // kilatan moncong sudah ada di animasi Tois
     const ej = this.hero.eject(); this.shells.emitParticleAt(ej.x, ej.y, 1);
     if (--this.ammo <= 0) this.startReload();   // peluru di bar status habis -> reload
   }
   startReload() {
     this.reloading = true; this.reloadT = 0; this.hero.startReload();
-    this.pop(180, 548, 'RELOAD', '#8fd8ff', 13);
+    this.pop(W / 2, 548, 'RELOAD', '#8fd8ff', 13);
   }
   petTick(p, dt) {
     if (!p.on) return; p.cd -= dt; if (p.cd > 0 || !this.enemies.length) return;
@@ -419,15 +427,16 @@ class Battle extends Base {
   petCard(p, c) {   // 1 kartu = 1 progres evolusi pet; cukup kartu -> evolusi (stage berikutnya, progres mulai dari 0 lagi)
     c.go(p); p.prog++;
     if (p.prog >= EVO_NEED[p.stage - 1]) {
-      p.stage++; p.prog = 0; p.setOrigin(.5, this.petOrigin('pet_' + p.el + p.stage)); p.play('pet_' + p.el + p.stage + '_idle');
-      this.flash.emitParticleAt(p.x, p.y - 30, 24); this.pop(p.x, p.y - 64, 'Evolusi ' + p.stage + '!', '#ffd34d', 13); this.evoQ.push(p);
+      p.stage++; p.prog = 0; p.setOrigin(.5, this.petOrigin('pet_' + p.el + p.stage)).setScale(petScale(p.el, p.stage)); p.play('pet_' + p.el + p.stage + '_idle');
+      this.tweens.add({ targets: p, scaleX: p.scaleX * 1.25, scaleY: p.scaleY * 1.25, duration: 160, yoyo: true, ease: 'Quad.Out' });   // sedikit membesar sesaat saat evolusi
+      this.flash.emitParticleAt(p.x, p.y - petH(p) * .47, 24); this.pop(p.x, p.y - petH(p) - 2, 'Evolusi ' + p.stage + '!', '#ffd34d', 13); this.evoQ.push(p);
     }
     this.petLbl(p);
   }
   cast(p, sk, quiet) {
     const col = EL[p.el], lst = this.enemies.filter(e => !e.dead && e.s.y > 10); if (!lst.length) return;   // hanya musuh yang sudah terlihat di layar
     const pk = 'pet_' + p.el + p.stage; p.play(pk + '_cast').chain(pk + '_idle');   // animasi serang pet (bersiap, melonjak, kembali)
-    if (!quiet) this.pop(p.x, p.by - 64, sk.n, '#' + col.toString(16).padStart(6, '0'), 11);
+    if (!quiet) this.pop(p.x, p.by - petH(p) - 2, sk.n, '#' + col.toString(16).padStart(6, '0'), 11);
     // SPR[pk].rel = frame animasi serang tempat serangan dilepas (mis. saat mulut terbuka). Animasi pet berjalan 16 fps dan tidak ikut x2.
     const rel = SPR[pk].rel;
     if (rel) this.time.delayedCall(rel * 1000 / 16, () => { if (!this.over && p.active) this.release(p, sk); });
@@ -462,7 +471,7 @@ class Battle extends Base {
   }
   // Efek visual tiap skill pet. targets = posisi musuh yang kena (bolt), (cx, cy) = pusat ledakan (aoe), lx = lajur (line).
   skillFx(p, sk, targets, cx, cy, lx) {
-    const el = p.el, st = p.stage, ox = p.x, oy = p.y - 34, R = (sk.r || 0) * p.reach, rnd = (a, b) => Phaser.Math.FloatBetween(a, b);
+    const el = p.el, st = p.stage, ox = p.x, oy = p.y - petH(p) * .52, R = (sk.r || 0) * p.reach, rnd = (a, b) => Phaser.Math.FloatBetween(a, b);
     const bi = ELS.indexOf(el), burst = (x, y, n) => this.burst[bi].emitParticleAt(x, y, n);
     const ring = (x, y, r, color, ms = 380) => { const g = this.add.image(x, y, 'ring').setTint(color).setDepth(852).setScale(.15).setAlpha(.95); this.tweens.add({ targets: g, scale: r / 32, alpha: 0, duration: ms, ease: 'Quad.Out', onComplete: () => g.destroy() }); };
     const fade = (o, ms = 300, delay = 0) => this.tweens.add({ targets: o, alpha: 0, delay, duration: ms, onComplete: () => o.destroy() });
@@ -676,12 +685,12 @@ class Battle extends Base {
     }
     this.bullets = this.bullets.filter(b => !b.dead); this.enemies = this.enemies.filter(e => !e.dead);
     const r = Math.max(0, this.baseHp / this.baseMax);
-    this.hud.clear().fillStyle(0x1b1230, .9).fillRoundedRect(70, 59, 220, 14, 7)
-      .fillStyle(r > .35 ? 0x4cd964 : 0xff6b6b).fillRoundedRect(72, 61, Math.max(0, 216 * r), 10, 5);
+    this.hud.clear().fillStyle(0x1b1230, .9).fillRoundedRect(HX, 59, 220, 14, 7)
+      .fillStyle(r > .35 ? 0x4cd964 : 0xff6b6b).fillRoundedRect(HX + 2, 61, Math.max(0, 216 * r), 10, 5);
     const ar = this.reloading ? this.reloadT / RELOAD_MS : this.ammo / MAG_SIZE;
-    this.hud.fillStyle(0x1b1230, .9).fillRoundedRect(70, 77, 220, 13, 6)
-      .fillStyle(this.reloading ? 0x5ec8ff : 0xffc233).fillRoundedRect(72, 79, Math.max(0, 216 * ar), 9, 4);
-    for (let i = 5; i < MAG_SIZE; i += 5) this.hud.fillStyle(0x1b1230, .7).fillRect(72 + 216 * i / MAG_SIZE - .5, 79, 1, 9);
+    this.hud.fillStyle(0x1b1230, .9).fillRoundedRect(HX, 77, 220, 13, 6)
+      .fillStyle(this.reloading ? 0x5ec8ff : 0xffc233).fillRoundedRect(HX + 2, 79, Math.max(0, 216 * ar), 9, 4);
+    for (let i = 5; i < MAG_SIZE; i += 5) this.hud.fillStyle(0x1b1230, .7).fillRect(HX + 2 + 216 * i / MAG_SIZE - .5, 79, 1, 9);
     this.ammoTxt.setText(this.reloading ? 'RELOAD...' : '🔫 ' + this.ammo + '/' + MAG_SIZE);
     this.hpTxt.setText('❤ ' + Math.max(0, this.baseHp)); this.waveTxt.setText(''); this.killTxt.setText('💀 ' + this.kills);
     this.ui();
@@ -786,7 +795,7 @@ class Lobby extends Base {
   constructor() { super('Lobby'); }
   create() {
     this.makeTextures();
-    // Latar lobi: gerbang kastil (bos), jembatan, panggung kayu (karakter), lantai batu (tombol). Gambar 720x1280 = 2x kanvas 360x640.
+    // Latar lobi: gerbang kastil (bos), jembatan, panggung kayu (karakter), lantai batu (tombol). Gambar 780x1280 = 2x kanvas 390x640 (asli 720x1280 dilebarkan dengan cermin, cadangan di tools/).
     this.add.image(W / 2, H / 2, 'lobby_bg').setDisplaySize(W, H).setDepth(-1000);
     const mkTex = (k, w, h, f) => { if (this.textures.exists(k)) return; const g = this.make.graphics({ add: false }); f(g); g.generateTexture(k, w, h); g.destroy(); };
     mkTex('leaf', 10, 6, g => { g.fillStyle(0xffffff).fillEllipse(5, 3, 10, 5); g.fillStyle(0x000000, .25).fillRect(1, 3, 8, 1); });
@@ -801,18 +810,18 @@ class Lobby extends Base {
       this.tweens.add({ targets: c, x: W + 90, duration: dur, delay, repeat: -1 });
     });
     // cahaya hangat di belakang karakter (berdenyut pelan)
-    const glow = this.add.image(180, 372, 'glow').setScale(3.4, 1.7).setAlpha(.3).setBlendMode(Phaser.BlendModes.ADD).setDepth(-800);
+    const glow = this.add.image(W / 2, 372, 'glow').setScale(3.4, 1.7).setAlpha(.3).setBlendMode(Phaser.BlendModes.ADD).setDepth(-800);
     this.tweens.add({ targets: glow, alpha: .18, duration: 2200, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
     const FEET = 402, PFEET = 396;                                  // garis pijak di papan panggung
-    this.add.image(180, FEET - 3, 'shadow').setScale(1.1).setAlpha(.9);
+    this.add.image(W / 2, FEET - 3, 'shadow').setScale(1.1).setAlpha(.9);
     const bw = profile ? +profile.progress.best_wave : 0, st = bw >= 8 ? 3 : bw >= 4 ? 2 : 1;   // evolusi mengikuti rekor gelombang
-    const PX = [52, 110, 250, 308];
-    const pets = ELS.map((el, i) => { this.add.image(PX[i], PFEET - 2, 'shadow').setScale(.7).setAlpha(.8); return this.add.sprite(PX[i], PFEET, 'pet_' + el + st).setOrigin(.5, this.petOrigin('pet_' + el + st)).setScale(.5).play({ key: 'pet_' + el + st + '_idle', startFrame: i * 2 }); });
+    const PX = [52, 110, 250, 308].map(x => x + OX);   // tata letak lama (lebar 360) digeser ke tengah
+    const pets = ELS.map((el, i) => { this.add.image(PX[i], PFEET - 2, 'shadow').setScale(.7).setAlpha(.8); return this.add.sprite(PX[i], PFEET, 'pet_' + el + st).setOrigin(.5, this.petOrigin('pet_' + el + st)).setScale(petScale(el, st)).play({ key: 'pet_' + el + st + '_idle', startFrame: i * 2 }); });
     this.heroAnim();
-    this.add.sprite(180, FEET, 'tois_anim').setOrigin(.5, 1).setScale(118 / TOIS_ANIM.fh).play('tois_idle');   // Tois animasi (GIF), berpijak di panggung
+    this.add.sprite(W / 2, FEET, 'tois_anim').setOrigin(.5, 1).setScale(118 / TOIS_ANIM.fh).play('tois_idle');   // Tois animasi (GIF), berpijak di panggung
     // bos berdiri di depan gerbang
-    const bs = 118 / SPR.mon5.ih, boss = this.add.sprite(180, 176, 'mon5').setScale(bs).play('mon5_move');   // golem lava animasi (langkah, lengan, api)
-    this.add.particles(180, 120, 'spark', { x: { min: -48, max: 48 }, speedY: { min: -120, max: -45 }, speedX: { min: -22, max: 22 }, lifespan: 900, scale: { start: 1.5, end: 0 }, tint: [0xff7a2e, 0xffc233, 0xff4d2e], frequency: 38, blendMode: 'ADD' });
+    const bs = 118 / SPR.mon5.ih, boss = this.add.sprite(W / 2, 176, 'mon5').setScale(bs).play('mon5_move');   // golem lava animasi (langkah, lengan, api)
+    this.add.particles(W / 2, 120, 'spark', { x: { min: -48, max: 48 }, speedY: { min: -120, max: -45 }, speedX: { min: -22, max: 22 }, lifespan: 900, scale: { start: 1.5, end: 0 }, tint: [0xff7a2e, 0xffc233, 0xff4d2e], frequency: 38, blendMode: 'ADD' });
     // daun yang melayang dan debu cahaya
     this.add.particles(0, 0, 'leaf', { x: { min: -20, max: W }, y: -10, speedX: { min: 12, max: 38 }, speedY: { min: 20, max: 40 }, rotate: { start: 0, end: 360 }, lifespan: 9000, scale: { start: 1, end: .7 }, alpha: { start: .95, end: .25 }, tint: [0x8fd36a, 0xc8e07a, 0xf2c14e, 0x6fbf5a], frequency: 1400 }).setDepth(900);
     this.add.particles(0, 0, 'spark', { x: { min: 0, max: W }, y: { min: 250, max: 640 }, speedY: { min: -40, max: -15 }, lifespan: 3000, scale: { start: .5, end: 0 }, alpha: { start: .7, end: 0 }, tint: 0xffe3b8, frequency: 160 });

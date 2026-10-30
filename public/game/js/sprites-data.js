@@ -202,40 +202,44 @@ const SPR = {
   "die": 5
  },
  "pet_air1": {
-  "file": "sprites/pet_air1.webp?v=air1",
-  "fw": 170,
-  "fh": 126,
-  "iw": 121,
-  "ih": 102,
+  "file": "sprites/pet_air1.webp?v=air6",
+  "fw": 272,
+  "fh": 174,
+  "iw": 105,
+  "ih": 128,
   "idle": 14,
-  "cast": 20
+  "cast": 21,
+  "rel": 10
  },
  "pet_air2": {
-  "file": "sprites/pet_air2.webp?v=air1",
-  "fw": 204,
-  "fh": 130,
-  "iw": 175,
-  "ih": 106,
-  "idle": 16,
-  "cast": 19
+  "file": "sprites/pet_air2.webp?v=air2b",
+  "fw": 224,
+  "fh": 116,
+  "iw": 133,
+  "ih": 102,
+  "idle": 18,
+  "cast": 20,
+  "rel": 7
  },
  "pet_air3": {
-  "file": "sprites/pet_air3.webp?v=air1",
-  "fw": 246,
-  "fh": 147,
-  "iw": 175,
-  "ih": 123,
-  "idle": 16,
-  "cast": 15
+  "file": "sprites/pet_air3.webp?v=air3c",
+  "fw": 224,
+  "fh": 116,
+  "iw": 133,
+  "ih": 102,
+  "idle": 18,
+  "cast": 20,
+  "rel": 9
  },
  "pet_angin1": {
-  "file": "sprites/pet_angin1.webp",
+  "file": "sprites/pet_angin1.webp?v=angin1b",
   "fw": 174,
   "fh": 174,
   "iw": 128,
   "ih": 128,
-  "idle": 8,
-  "cast": 6
+  "idle": 16,
+  "cast": 8,
+  "rel": 5
  },
  "pet_angin2": {
   "file": "sprites/pet_angin2.webp",
@@ -283,22 +287,24 @@ const SPR = {
   "cast": 24
  },
  "pet_tanah1": {
-  "file": "sprites/pet_tanah1.webp",
+  "file": "sprites/pet_tanah1.webp?v=tanah1b",
   "fw": 174,
   "fh": 174,
   "iw": 128,
   "ih": 128,
-  "idle": 16,
-  "cast": 6
+  "idle": 11,
+  "cast": 16,
+  "rel": 7
  },
  "pet_tanah2": {
-  "file": "sprites/pet_tanah2.webp",
+  "file": "sprites/pet_tanah2.webp?v=tanah2b",
   "fw": 174,
   "fh": 174,
   "iw": 128,
   "ih": 128,
-  "idle": 16,
-  "cast": 6
+  "idle": 18,
+  "cast": 21,
+  "rel": 8
  },
  "pet_tanah3": {
   "file": "sprites/pet_tanah3.webp",

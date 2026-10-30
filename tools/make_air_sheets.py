@@ -282,7 +282,7 @@ def main():
     ap.add_argument('--preview')
     args = ap.parse_args()
     os.makedirs(SPR_DIR, exist_ok=True)
-    entries = [build(evo, args.src, args.preview) for evo in (1, 2, 3) if args.only in (None, evo)]
+    entries = [build(evo, args.src, args.preview) for evo in (1, 2, 3) if (args.only == evo or (args.only is None and evo != 2))]   # evolusi 2 (Naga Air) dibuat make_air2_sheet.py
     update_data(entries)
 
 

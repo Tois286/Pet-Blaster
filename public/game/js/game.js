@@ -428,6 +428,13 @@ class Battle extends Base {
     const col = EL[p.el], lst = this.enemies.filter(e => !e.dead && e.s.y > 10); if (!lst.length) return;   // hanya musuh yang sudah terlihat di layar
     const pk = 'pet_' + p.el + p.stage; p.play(pk + '_cast').chain(pk + '_idle');   // animasi serang pet (bersiap, melonjak, kembali)
     if (!quiet) this.pop(p.x, p.by - 64, sk.n, '#' + col.toString(16).padStart(6, '0'), 11);
+    // SPR[pk].rel = frame animasi serang tempat serangan dilepas (mis. saat mulut terbuka). Animasi pet berjalan 16 fps dan tidak ikut x2.
+    const rel = SPR[pk].rel;
+    if (rel) this.time.delayedCall(rel * 1000 / 16, () => { if (!this.over && p.active) this.release(p, sk); });
+    else this.release(p, sk);
+  }
+  release(p, sk) {   // bagian serangan yang benar-benar melepas efek + damage (musuh dipilih ulang pada saat dilepas)
+    const lst = this.enemies.filter(e => !e.dead && e.s.y > 10); if (!lst.length) return;
     const d = Math.ceil(this.dmg * sk.m * .6 * p.pow);
     let hit, cx = 0, cy = 0, lx = 0;
     if (sk.t === 'bolt') {

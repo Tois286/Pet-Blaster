@@ -28,3 +28,12 @@ Idle dibuat bolak-balik dari sebagian frame (`idle_step` di tabel `CFG` di atas 
 Tinggi karakter (`ih`) dan batas lebar (`iw_cap`) tiap evolusi juga ada di `CFG`.
 Tambahkan `--preview folder` untuk GIF pratinjau, `--only 1|2|3` untuk satu evolusi saja, `--src folder` bila sumbernya di tempat lain.
 Butuh `numpy`, `scipy`, `scikit-image`, `opencv-python`, `pillow`.
+
+## Naga Air (pet_air2) - format sama dengan Srigala Api (pet_api2)
+
+`python3 tools/make_air2_sheet.py [--src sheet.png] [--preview folder]`
+
+Membaca satu sprite sheet PNG transparan `tools/source/air/air_evol2_sheet.png` (38 frame: 18 idle + 20 serang, 6 kolom x 7 baris),
+lalu menulis `pet_air2.webp`, `pets/air2.png`, dan entri `pet_air2` di `sprites-data.js` dengan format yang sama dengan `pet_api2`:
+frame 224x116, karakter maks 102 px, kaki di baris (fh+ih)/2, idle 18 frame (ping-pong dari 10 frame tenang), serang 20 frame,
+gambar statis 128x128 lebar 122, tanpa `rel`. Satu skala dipakai untuk semua frame. `make_air_sheets.py` tidak lagi membuat evolusi 2 kecuali `--only 2`.

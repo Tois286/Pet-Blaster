@@ -48,7 +48,7 @@ const EL = { api: 0xff6a2e, air: 0x3ec6ff, tanah: 0xc89a5a, angin: 0x7fe0ff };
 const EVO = { api: ['Rubah', 'Srigala Api', 'Serigala Lava'], air: ['Salamander', 'Naga Air', 'Naga Es'], tanah: ['Tikus Tanah', 'Tikus Batu', 'Tikus Berlian'], angin: ['Burung Pipit', 'Burung Elang', 'Burung Garuda'] };
 // Skill evolusi: t = jenis (bolt: k musuh terdepan, aoe: lingkaran r, line: lajur lebar w), m = pengali damage, cd = jeda (ms)
 const SK = {
-  api: [{ n: 'Cakar Terbang', t: 'bolt', k: 3, m: 1.2, cd: 3500 }, { n: 'Cakar Api Membara', t: 'bolt', k: 4, m: 1.8, cd: 3500 }, { n: 'Bola Lava', t: 'aoe', r: 70, m: 4, cd: 5000 }],
+  api: [{ n: 'Cakar Terbang', t: 'bolt', k: 3, sp: 45, m: 1.2, cd: 3500 }, { n: 'Cakar Api Membara', t: 'bolt', k: 4, sp: 45, m: 1.8, cd: 3500 },{ n: 'Bola Lava', t: 'aoe', r: 70, m: 4, cd: 5000 }],
   air: [{ n: 'Gelembung Air', t: 'aoe', r: 40, m: 1.5, slow: 2000, cd: 3000 }, { n: 'Bola Air', t: 'aoe', r: 60, m: 2.5, slow: 2500, cd: 3500 }, { n: 'Kristal Es', t: 'aoe', r: 80, m: 3.5, stun: 2000, cd: 5000 }],
   tanah: [{ n: 'Penggalian Lubang', t: 'aoe', r: 45, m: 1.5, stun: 1500, cd: 3500 }, { n: 'Menggelinding', t: 'line', w: 40, m: 2.5, cd: 4500 }, { n: 'Gali & Tabrak', t: 'line', w: 50, m: 3, stun: 1000, cd: 5000 }],
   angin: [{ n: 'Kepakan Sayap', t: 'line', w: 30, m: 1.2, slow: 1500, cd: 2500 }, { n: 'Cakaran Terbang', t: 'bolt', k: 5, m: 1.4, cd: 3000 }, { n: 'Puting Beliung', t: 'aoe', r: 90, m: 3, slow: 3000, cd: 5000 }]
@@ -190,7 +190,18 @@ class Base extends Phaser.Scene {
     ELS.forEach(el => [1, 2, 3].forEach(n => { const k = 'pet_' + el + n, s = SPR[k]; if (!this.textures.exists(k)) this.load.spritesheet(k, 'assets/' + s.file, { frameWidth: s.fw, frameHeight: s.fh }); }));
     // Efek skill api custom: tebasan untuk evolusi 1-2, bola api untuk evolusi 3.
     if (!this.textures.exists('fire_slash')) this.load.spritesheet('fire_slash', 'assets/pet-actions/fire_slash.png', { frameWidth: 256, frameHeight: 256 });
-    if (!this.textures.exists('fire_orb')) this.load.spritesheet('fire_orb', 'assets/pet-actions/fire_orb.png', { frameWidth: 128, frameHeight: 455 });
+    if (!this.textures.exists('fire_orb')) this.load.spritesheet('fire_orb', 'assets/pet-actions/fire_orb.png', { frameWidth: 160, frameHeight: 400 });
+    if (!this.textures.exists('ice_arrow')) this.load.spritesheet('ice_arrow', 'assets/pet-actions/ice_arrow.png', { frameWidth: 320, frameHeight: 240 });   // efek Kristal Es (air evolusi 3)
+    if (!this.textures.exists('ice_freeze')) this.load.spritesheet('ice_freeze', 'assets/pet-actions/ice_freeze.png', { frameWidth: 320, frameHeight: 300 });
+    if (!this.textures.exists('water_fx')) this.load.spritesheet('water_fx', 'assets/pet-actions/water_fx.png', { frameWidth: 320, frameHeight: 240 });   // efek Bola Air (air evolusi 2)
+    console.log('[GAME] game.js build wind-v3c');
+    this.load.on('loaderror', f => console.warn('[GAME] gagal memuat aset:', f && f.src));
+    if (!this.textures.exists('wind_blade')) this.load.spritesheet('wind_blade', 'assets/pet-actions/wind_blade.png?v=w2', { frameWidth: 384, frameHeight: 216 });   // efek Cakaran Terbang (angin evolusi 2)
+    if (!this.textures.exists('wind_tornado')) this.load.spritesheet('wind_tornado', 'assets/pet-actions/wind_tornado.png?v=w3', { frameWidth: 452, frameHeight: 252 });   // efek Puting Beliung (angin evolusi 3)
+    if (!this.textures.exists('earth_hole')) this.load.image('earth_hole', 'assets/pet-actions/earth_hole.png?v=t1');   // lubang Penggalian Lubang (tanah evolusi 1)
+    if (!this.textures.exists('earth_ball')) this.load.spritesheet('earth_ball', 'assets/pet-actions/earth_ball.png?v=t2', { frameWidth: 280, frameHeight: 280 });   // bola batu Menggelinding (tanah evolusi 2)
+    if (!this.textures.exists('earth_crystal')) this.load.spritesheet('earth_crystal', 'assets/pet-actions/earth_crystal.png?v=t3', { frameWidth: 500, frameHeight: 440 });   // efek kristal Gali & Tabrak (tanah evolusi 3)
+    if (!this.textures.exists('fire_lava_claw')) this.load.spritesheet('fire_lava_claw', 'assets/pet-actions/fire_lava_claw.png', { frameWidth: 256, frameHeight: 256 });
   }
   // Pasang karakter Tois dengan tinggi tampilan h (piksel game), berpijak di (x, y).
   heroAnim() { if (!this.anims.exists('tois_idle')) this.anims.create({ key: 'tois_idle', frames: this.anims.generateFrameNumbers('tois_anim', { start: 0, end: TOIS_ANIM.frames - 1 }), frameRate: TOIS_ANIM.fps, repeat: -1 }); }
@@ -203,8 +214,18 @@ class Base extends Phaser.Scene {
     Object.keys(MON).forEach(i => { const k = 'mon' + i, s = SPR[k]; mk(k + '_move', k, 0, s.move - 1, 10, -1); mk(k + '_hit', k, s.move, s.move + s.hit - 1, 24, 0); mk(k + '_die', k, s.move + s.hit, s.move + s.hit + s.die - 1, 18, 0); });
     ELS.forEach(el => [1, 2, 3].forEach(n => { const k = 'pet_' + el + n, s = SPR[k]; const idleFps = el === 'air' ? 10 : 8; mk(k + '_idle', k, 0, s.idle - 1, idleFps, -1); mk(k + '_cast', k, s.idle, s.idle + s.cast - 1, 16, 0); }));
     // Animasi frame-by-frame dari sprite sheet efek skill api.
-    mk('fire_slash_anim', 'fire_slash', 0, 5, 18, 0);
-    mk('fire_orb_anim', 'fire_orb', 0, 7, 18, 0);
+    mk('fire_slash_anim', 'fire_slash', 0, 4, 16, 0);   // fire_slash.png = 5 frame @ 256x256
+    mk('fire_orb_anim', 'fire_orb', 0, 5, 14, -1);   // bola magma terbang: 6 frame diulang selama meluncur
+    mk('ice_charge_anim', 'ice_arrow', 0, 2, 18, 0); mk('ice_arrow_anim', 'ice_arrow', 3, 14, 28, -1); mk('ice_burst_anim', 'ice_arrow', 15, 18, 16, 0);
+    mk('ice_freeze_anim', 'ice_freeze', 0, 12, 24, 0); mk('ice_glow_anim', 'ice_freeze', 13, 15, 6, -1);
+    mk('water_charge_anim', 'water_fx', 0, 5, 24, 0); mk('water_muzzle_anim', 'water_fx', 6, 7, 20, 0); mk('water_bullet_anim', 'water_fx', 8, 16, 24, -1);
+    mk('water_hit_anim', 'water_fx', 17, 18, 20, 0); mk('water_splash_anim', 'water_fx', 19, 22, 14, 0);
+    // wind_blade.png = 16 frame (384x216, 4 kolom): 0-3 pusaran terbentuk, 4-11 bilah angin melesat (ujung di x=335), 12-15 serpihan daun pecah (pusat di tengah frame).
+    mk('wind_charge_anim', 'wind_blade', 0, 3, 22, 0); mk('wind_fly_anim', 'wind_blade', 4, 11, 28, -1); mk('wind_hit_anim', 'wind_blade', 12, 15, 20, 0);
+    // wind_tornado.png = 16 frame (452x252, 4 kolom): 0-2 pusaran di tanah, 3-12 tornado tumbuh & berputar (ujung bawah di y=240), 13-15 buyar.
+    mk('wind_tornado_anim', 'wind_tornado', 0, 15, 18, 0);
+    mk('earth_ball_anim', 'earth_ball', 0, 3, 20, -1);   // bola batu berputar: 4 frame diulang selama menggelinding
+    mk('fire_lava_claw_anim', 'fire_lava_claw', 0, 4, 16, 0);   // cakar lava: 5 frame, sekali
   }
   petOrigin(k) { const s = SPR[k]; return (s.fh + s.ih) / 2 / s.fh; }   // kaki pet ada di bawah gambar asli, bukan di dasar frame yang berbantalan
   makeTextures() {
@@ -246,7 +267,7 @@ const PET_DESC = {
   tanah: ['Tikus tanah penggali. Lubang galiannya membuat musuh terjebak sesaat.', 'Tikus berkulit batu yang menggelinding seperti trenggiling, menghantam satu lajur musuh.', 'Tikus berlian yang menggali lalu menabrak. Kuat, menyetrum, dan membuat musuh terhenti.'],
   angin: ['Burung pipit mungil. Kepakan sayapnya menghempas satu lajur musuh dan memperlambatnya.', 'Elang yang tajam. Cakaran Terbang mengincar banyak musuh sekaligus.', 'Garuda penguasa langit. Puting beliung bersayatan menyapu area sangat luas.']
 };
-const skillInfo = (p, sk) => sk.t === 'bolt' ? 'Menyerang ' + (sk.k + p.extra) + ' musuh terdepan' : sk.t === 'aoe' ? 'Ledakan area (radius ' + Math.round(sk.r * p.reach) + ')' : 'Menghantam satu lajur (lebar ' + Math.round(sk.w * 2 * p.reach) + ')';
+const skillInfo = (p, sk) => sk.t === 'bolt' ? 'Menyerang ' + (sk.k + p.extra) + ' musuh terdepan' + (sk.sp ? ' + musuh di sekitarnya' : '') : sk.t === 'aoe' ? 'Ledakan area (radius ' + Math.round(sk.r * p.reach) + ')' : 'Menghantam satu lajur (lebar ' + Math.round(sk.w * 2 * p.reach) + ')';
 // Kartu upgrade khusus per pet (tiap kartu dihitung sebagai 1 progres evolusi pet tersebut)
 const PET_CARDS = [
   { ic: '💥', n: 'Damage', d: p => 'Damage skill +25%', ok: p => true, go: p => { p.pow *= 1.25; } },
@@ -319,7 +340,7 @@ class Battle extends Base {
   }
   showEvo(p) {   // kartu detail setiap evolusi; game berhenti sampai pemain menekan Lanjut
     const sk = SK[p.el][p.stage - 1], old = SK[p.el][p.stage - 2], st = p.stage, box = $('evoCard');
-    const eff = [sk.stun ? 'Menyetrum ' + sk.stun / 1000 + ' dtk' : '', sk.slow ? 'Memperlambat ' + sk.slow / 1000 + ' dtk' : ''].filter(Boolean).join(', ') || '-';
+    const eff = [sk.stun ? (p.el === 'air' ? 'Membekukan ' : 'Menyetrum ') + sk.stun / 1000 + ' dtk' : '', sk.slow ? 'Memperlambat ' + sk.slow / 1000 + ' dtk' : ''].filter(Boolean).join(', ') || '-';
     const next = st >= 3 ? 'Evolusi maksimal tercapai!' : 'Evolusi berikutnya: kumpulkan ' + EVO_NEED[st - 1] + ' kartu ' + EVO[p.el][st - 1];
     box.innerHTML = `<h3>Evolusi ${st}!</h3>
       <div class="evoimg"><img src="assets/pets/${p.el}${st - 1}.png" alt=""><span>➜</span><img class="big" src="assets/pets/${p.el}${st}.png" alt=""></div>
@@ -445,9 +466,11 @@ class Battle extends Base {
   release(p, sk) {   // bagian serangan yang benar-benar melepas efek + damage (musuh dipilih ulang pada saat dilepas)
     const lst = this.enemies.filter(e => !e.dead && e.s.y > 10); if (!lst.length) return;
     const d = Math.ceil(this.dmg * sk.m * .6 * p.pow);
-    let hit, cx = 0, cy = 0, lx = 0;
+    let hit, front = null, cx = 0, cy = 0, lx = 0;
     if (sk.t === 'bolt') {
-      hit = [...lst].sort((a, b) => b.s.y - a.s.y).slice(0, (sk.k || 0) + p.extra);
+      front = [...lst].sort((a, b) => b.s.y - a.s.y).slice(0, (sk.k || 0) + p.extra);   // musuh terdepan = titik sabetan
+      const sp = (sk.sp || 0) * p.reach;   // sp = radius percikan: musuh di dekat sabetan ikut terkena
+      hit = sp ? lst.filter(e => front.includes(e) || front.some(f => Math.hypot(e.s.x - f.s.x, e.s.y - f.s.y) < sp)) : front;
     } else if (sk.t === 'aoe') {
       const near = (a, b) => Math.hypot(a.s.x - b.s.x, a.s.y - b.s.y) < sk.r * p.reach;
       const c = lst.reduce((b, e) => { const n = lst.filter(o => near(o, e)).length; return n > b.n ? { e, n } : b; }, { e: lst[0], n: 0 }).e;
@@ -456,11 +479,12 @@ class Battle extends Base {
       lx = lst.reduce((b, e) => e.s.y > b.s.y ? e : b).s.x;
       hit = lst.filter(e => Math.abs(e.s.x - lx) < sk.w * p.reach);
     }
-    const targets = hit.map(e => ({ x: e.s.x, y: e.s.y }));   // posisi saat dilepas (musuh bisa mati/bergeser)
-    this.skillFx(p, sk, targets, cx, cy, lx);
+    const targets = (front || hit).map(e => ({ x: e.s.x, y: e.s.y }));   // posisi saat dilepas (musuh bisa mati/bergeser)
+    this.skillFx(p, sk, targets, cx, cy, lx, hit);
     hit.forEach(e => {
       this.dmgTo(e, d);
       if (e.dead) return;
+      if (sk.stun && p.el === 'air') e.frz = sk.stun;   // air: terkunci dalam es (balok es mengikuti musuh sampai pecah)
       if (sk.stun) { e.stun = sk.stun; this.tintFor(e, p.el === 'air' ? 0x9fdcff : 0xc9a06a, sk.stun); }   // beku (es) atau terjebak tanah
       if (sk.slow) { e.slow = sk.slow; this.tintFor(e, p.el === 'angin' ? 0xdff6ff : 0x8fd0ff, sk.slow); }
     });
@@ -470,7 +494,12 @@ class Battle extends Base {
     this.time.delayedCall(ms, () => { if (e.s.active && !e.dead) e.s.clearTint(); });
   }
   // Efek visual tiap skill pet. targets = posisi musuh yang kena (bolt), (cx, cy) = pusat ledakan (aoe), lx = lajur (line).
-  skillFx(p, sk, targets, cx, cy, lx) {
+  thaw(e) {   // balok es pecah: serpihan beterbangan lalu menghilang
+    const ic = e.ice; if (!ic) return; e.ice = null;
+    this.burst[1].emitParticleAt(ic.x, ic.y - 14, 12);
+    this.tweens.add({ targets: ic, alpha: 0, scaleX: ic.scaleX * 1.12, scaleY: ic.scaleY * 1.12, duration: 160, onComplete: () => ic.destroy() });
+  }
+  skillFx(p, sk, targets, cx, cy, lx, ens = []) {   // ens = musuh yang benar-benar terkena (untuk efek yang menempel di musuh, mis. beku)
     const el = p.el, st = p.stage, ox = p.x, oy = p.y - petH(p) * .52, R = (sk.r || 0) * p.reach, rnd = (a, b) => Phaser.Math.FloatBetween(a, b);
     const bi = ELS.indexOf(el), burst = (x, y, n) => this.burst[bi].emitParticleAt(x, y, n);
     const ring = (x, y, r, color, ms = 380) => { const g = this.add.image(x, y, 'ring').setTint(color).setDepth(852).setScale(.15).setAlpha(.95); this.tweens.add({ targets: g, scale: r / 32, alpha: 0, duration: ms, ease: 'Quad.Out', onComplete: () => g.destroy() }); };
@@ -504,41 +533,39 @@ class Battle extends Base {
 
     if (el === 'api') {
       if (sk.t === 'bolt') {   // Cakar Api: berkedip langsung pada posisi target, tanpa animasi meluncur
-        const big = st > 1;
+        // Ukuran efek sama untuk evolusi 1 dan 2 (ubah FIRE_SLASH_SCALE untuk membesarkan/mengecilkan keduanya).
+        const FIRE_SLASH_SCALE = .5;
         targets.forEach((t, i) => {
           this.time.delayedCall(i * 55 / this.speed, () => {
-            // Efek sabetan muncul tepat di monster yang sudah ditargetkan.
+            // Satu sabetan per target, muncul tepat di monster yang dituju; sprite sheet diputar frame demi frame.
             const slash = this.add.sprite(t.x, t.y, 'fire_slash', 0)
-              .setOrigin(.5, .5)
               .setDepth(870)
               .setBlendMode(Phaser.BlendModes.ADD)
-              .setRotation(-.22)
-              .setScale(big ? .38 : .32)
-              .setAlpha(0);
-            // Sprite sheet diputar frame demi frame; posisi tetap di target.
+              .setScale(FIRE_SLASH_SCALE);
             slash.play('fire_slash_anim');
-            this.tweens.add({
-              targets: slash,
-              alpha: { from: 0, to: 1 },
-              duration: 70,
-              yoyo: true,
-              hold: 230,
-              repeat: 0,
-              onComplete: () => { if (slash.active) slash.destroy(); }
-            });
-            claw(t.x, t.y, big ? 0xff5a1e : 0xffd34d, big ? 1.5 : 1.1);
+            slash.once('animationcomplete', () => this.tweens.add({ targets: slash, alpha: 0, duration: 80, onComplete: () => { if (slash.active) slash.destroy(); } }));
+            impact(t.x, t.y, 0xff762e, 1.2);   // kilatan + percikan, ukuran sama untuk semua evolusi
           });
         });
       } else {   // Evolusi 3 saja: proyektil bola api custom, lalu ledakan area
-        const o = this.add.sprite(ox, oy, 'fire_orb', 0).setOrigin(.5, .15).setDepth(860).setScale(.30);
+        // Bola magma: fire_orb.png = 6 frame (160x400), bola ada di titik (80,56) tiap frame, ekor ke arah bawah -> diputar agar kepala bola menghadap target.
+        const FIRE_ORB_SCALE = .6, LAVA_CLAW_SCALE = .7;
+        const o = this.add.sprite(ox, oy, 'fire_orb', 0).setOrigin(.5, 56 / 400).setDepth(860).setScale(FIRE_ORB_SCALE).setRotation(Math.atan2(cx - ox, oy - cy));
         o.play('fire_orb_anim');
+        // Cakar lava: satu sabetan di tiap monster yang terkena ledakan (maks 6), yang di pusat ledakan lebih besar.
+        const lavaClaw = (x, y, sc, delay) => this.time.delayedCall(delay / this.speed, () => {
+          const c = this.add.sprite(x, y, 'fire_lava_claw', 0).setDepth(871).setScale(sc).setRotation(rnd(-.12, .12));
+          c.play('fire_lava_claw_anim');
+          c.once('animationcomplete', () => this.tweens.add({ targets: c, alpha: 0, duration: 80, onComplete: () => { if (c.active) c.destroy(); } }));
+        });
         this.tweens.add({
-          targets: o, scale: .34, x: cx, y: cy, duration: 420, ease: 'Quad.In', onUpdate: () => burst(o.x, o.y + 20, 1), onComplete: () => {
+          targets: o, scale: FIRE_ORB_SCALE * 1.15, x: cx, y: cy, duration: 420, ease: 'Quad.In', onUpdate: () => burst(o.x, o.y + 20, 1), onComplete: () => {
             o.destroy(); ring(cx, cy, R * 1.3, 0xff6a2e, 480); ring(cx, cy, R * .7, 0xffd34d, 320); impact(cx, cy, 0xff762e, 2.0); burst(cx, cy, 28); area(0xff6a2e, .3);
             const cr = this.add.ellipse(cx, cy + 6, R * 1.5, R * .6, 0x2b1208, .65).setDepth(840); fade(cr, 500, 350); this.cameras.main.shake(90, .004);
+            lavaClaw(cx, cy, LAVA_CLAW_SCALE * 1.2, 0);
+            targets.filter(t => Math.hypot(t.x - cx, t.y - cy) > 4).slice(0, 5).forEach((t, i) => lavaClaw(t.x, t.y, LAVA_CLAW_SCALE, 70 + i * 55));
           }
         });
-        this.tweens.add({ targets: o, angle: 12, duration: 420 });
       }
     } else if (el === 'air') {
       if (st === 1) {   // Gelembung Air: rentetan gelembung, pecah menjadi percikan lalu melayang naik
@@ -553,19 +580,72 @@ class Battle extends Base {
         }
         this.time.delayedCall(500 / this.speed, () => area(0x3ec6ff, .18));
       } else if (st === 2) {   // Bola Air: bola air besar, pecah menjadi cipratan
-        fly('orb', ox, oy, cx, cy, 440, { rot: 0, sc: 1.2, tint: 0x3ec6ff, ease: 'Sine.In', spin: 360, trail: s => burst(s.x, s.y, 1), done: () => { ring(cx, cy, R * 1.3, 0x7fdcff, 480); ring(cx, cy, R * .7, 0xffffff, 300); impact(cx, cy, 0x63d9ff, 1.8); burst(cx, cy, 20); targetImpacts(0.75); area(0x3ec6ff, .28); } });
-      } else {   // Kristal Es: pecahan es mencuat dari tanah, embun beku menyebar
-        ring(cx, cy, R * 1.25, 0xcdf3ff, 520); ring(cx, cy, R * .6, 0xffffff, 340); impact(cx, cy, 0x9fdcff, 1.8); burst(cx, cy, 16); targetImpacts(0.8); area(0x9fdcff, .3);
-        for (let i = 0; i < 9; i++) {
-          const a = i / 9 * 6.283 + rnd(-.3, .3), rr = R * (i % 2 ? .35 : .72), sx = cx + Math.cos(a) * rr, sy = cy + Math.sin(a) * rr * .55 + 8;
-          const sh = this.add.image(sx, sy, 'shard').setOrigin(.5, 1).setTint(i % 3 ? 0xbfeaff : 0xffffff).setDepth(855 + sy / 1000).setScale(.3, 0).setRotation(rnd(-.35, .35));
-          const k = rnd(.8, 1.5); this.tweens.add({ targets: sh, scaleX: k * .8, scaleY: k, delay: i * 28, duration: 200, ease: 'Back.Out', onComplete: () => fade(sh, 400, 450) });
-        }
+        // water_fx.png = 23 frame (320x240, 6 kolom): 0-5 pusaran, 6-7 semburan awal, 8-16 peluru air, 17-18 benturan, 19-22 cipratan mahkota.
+        // Titik jangkar tiap jenis frame sudah dibakar di sheet: peluru/benturan = kepala di (290,120), semburan = pangkal di (30,120), cipratan = dasar di (160,200).
+        const WATER_SCALE = .32, wr = Math.atan2(cy - oy, cx - ox);
+        const wfx = (frame, x, y, anim, origin, rot, sc, depth) => {   // sprite sekali-putar yang menghilang sendiri
+          const s = this.add.sprite(x, y, 'water_fx', frame).setOrigin(origin[0], origin[1]).setRotation(rot).setScale(sc).setDepth(depth);
+          s.play(anim); s.once('animationcomplete', () => this.tweens.add({ targets: s, alpha: 0, duration: 90, onComplete: () => { if (s.active) s.destroy(); } }));
+          return s;
+        };
+        wfx(0, ox, oy, 'water_charge_anim', [.5, .5], 0, WATER_SCALE, 862);                       // pusaran air terbentuk di depan mulut naga
+        wfx(6, ox, oy, 'water_muzzle_anim', [30 / 320, .5], wr, WATER_SCALE, 862);                // semburan awal ke arah target
+        this.time.delayedCall(130 / this.speed, () => {   // peluru air melesat setelah pusaran terkumpul
+          if (this.over) return;
+          const b = this.add.sprite(ox, oy, 'water_fx', 8).setOrigin(290 / 320, .5).setRotation(wr).setScale(WATER_SCALE).setDepth(861);
+          b.play('water_bullet_anim');
+          this.tweens.add({ targets: b, x: cx, y: cy, duration: 380, ease: 'Sine.In', onUpdate: () => burst(b.x, b.y, 1), onComplete: () => {
+            b.destroy();
+            wfx(17, cx, cy, 'water_hit_anim', [290 / 320, .5], wr, WATER_SCALE * 1.2, 872);       // peluru menghantam
+            const crown = (x, y, sc, delay) => this.time.delayedCall(delay / this.speed, () => wfx(19, x, y + 6, 'water_splash_anim', [.5, 200 / 240], 0, sc, 873));
+            crown(cx, cy, Math.max(.3, R * 2.4 / 300), 60);                                       // cipratan besar menutupi area
+            targets.filter(t => Math.hypot(t.x - cx, t.y - cy) > 4).slice(0, 5).forEach((t, i) => crown(t.x, t.y, WATER_SCALE * .9, 110 + i * 45));   // cipratan kecil di tiap monster lain
+            ring(cx, cy, R * 1.3, 0x7fdcff, 480); ring(cx, cy, R * .7, 0xffffff, 300); impact(cx, cy, 0x63d9ff, 1.4); burst(cx, cy, 14); targetImpacts(0.6); area(0x3ec6ff, .22);
+          } });
+        });
+      } else {   // Kristal Es: panah es melesat, meledak jadi kristal, lalu tiap musuh yang kena terkurung balok es
+        // ice_arrow.png = 19 frame (320x240, 6 kolom): 0-2 pusaran dingin, 3-14 panah terbang (ujung di (290,120)), 15-18 ledakan kristal (pusat di (160,120)).
+        // ice_freeze.png = 16 frame (320x300, 4 kolom): 0-12 es tumbuh, 13-15 kubah es berkilau (dasar di (160,270)).
+        const ICE_SCALE = .34, ar = Math.atan2(cy - oy, cx - ox);
+        const ifx = (frame, x, y, anim, origin, rot, sc, depth) => {   // sprite sekali-putar yang menghilang sendiri
+          const s = this.add.sprite(x, y, 'ice_arrow', frame).setOrigin(origin[0], origin[1]).setRotation(rot).setScale(sc).setDepth(depth);
+          s.play(anim); s.once('animationcomplete', () => this.tweens.add({ targets: s, alpha: 0, duration: 90, onComplete: () => { if (s.active) s.destroy(); } }));
+          return s;
+        };
+        const freezeIce = e => {   // balok es menempel di musuh; posisinya diikuti di update() dan pecah saat beku habis
+          if (e.dead || !e.s.active || !(e.frz > 600)) return;
+          if (e.ice) e.ice.destroy();
+          const ic = this.add.sprite(e.s.x, e.py + e.h * .46, 'ice_freeze', 0).setOrigin(.5, 270 / 300).setScale(Math.max(e.h * 1.45, 52) / 270).setDepth(e.py + 2).setAlpha(.95);
+          e.ice = ic; ic.play('ice_freeze_anim');
+          ic.once('animationcomplete', () => { if (ic.active) ic.play('ice_glow_anim'); });
+        };
+        ifx(0, ox, oy, 'ice_charge_anim', [.5, .5], 0, ICE_SCALE, 862);   // pusaran dingin di depan mulut naga
+        this.time.delayedCall(110 / this.speed, () => {
+          if (this.over) return;
+          const b = this.add.sprite(ox, oy, 'ice_arrow', 3).setOrigin(290 / 320, .5).setRotation(ar).setScale(ICE_SCALE).setDepth(861);
+          b.play('ice_arrow_anim');
+          this.tweens.add({ targets: b, x: cx, y: cy, duration: 360, ease: 'Sine.In', onUpdate: () => burst(b.x, b.y, 1), onComplete: () => {
+            b.destroy();
+            ifx(15, cx, cy, 'ice_burst_anim', [.5, .5], 0, Math.max(.45, R * 2.4 / 220), 873);   // ledakan kristal menutupi area
+            ring(cx, cy, R * 1.25, 0xcdf3ff, 520); impact(cx, cy, 0x9fdcff, 1.5); burst(cx, cy, 12); targetImpacts(0.7); area(0x9fdcff, .22);
+            ens.slice(0, 10).forEach((e, i) => this.time.delayedCall((90 + i * 35) / this.speed, () => freezeIce(e)));
+          } });
+        });
       }
     } else if (el === 'tanah') {
       if (st === 1) {   // Penggalian Lubang: lubang gelap muncul, tanah & batu terlempar
-        const hole = this.add.ellipse(cx, cy + 6, R * 1.6, R * .65, 0x24140a, .92).setDepth(845).setScale(0);
-        this.tweens.add({ targets: hole, scale: 1, duration: 160, ease: 'Back.Out' }); fade(hole, 300, 650);
+        // Lubang: gambar earth_hole.png (287x94). Ubah EARTH_HOLE_W untuk melebarkan/menyempitkan lubang (dalam piksel game).
+        const EARTH_HOLE_W = R * 1.9;
+        let hole;
+        if (this.textures.exists('earth_hole')) {
+          const hs = EARTH_HOLE_W / 287;
+          hole = this.add.image(cx, cy + 8, 'earth_hole').setOrigin(.5, .6).setDepth(845).setScale(0, 0);
+          this.tweens.add({ targets: hole, scaleX: hs, scaleY: hs, duration: 170, ease: 'Back.Out' });
+        } else {   // cadangan bila gambar belum termuat
+          hole = this.add.ellipse(cx, cy + 6, R * 1.6, R * .65, 0x24140a, .92).setDepth(845).setScale(0);
+          this.tweens.add({ targets: hole, scale: 1, duration: 160, ease: 'Back.Out' });
+        }
+        fade(hole, 300, 650);
         ring(cx, cy + 6, R * 1.2, 0xc89a5a, 380); impact(cx, cy + 6, 0xd6a56a, 1.5); burst(cx, cy, 18); targetImpacts(.7); area(0xc89a5a, .25);
         for (let i = 0; i < 5; i++) {
           const r = this.add.image(cx, cy, 'rock').setScale(rnd(.35, .6)).setDepth(856);
@@ -573,36 +653,104 @@ class Battle extends Base {
           this.tweens.add({ targets: r, x: cx + rnd(-R, R), angle: rnd(-200, 200), duration: 480, onComplete: () => r.destroy() });
         }
       } else if (st === 2) {   // Menggelinding: batu besar menggelinding di sepanjang lajur sambil berdebu
-        const bl = this.add.image(ox, oy + 12, 'rock').setScale(1.5).setDepth(860);
-        this.tweens.add({ targets: bl, x: lx, y: 10, angle: 900, duration: 560, ease: 'Quad.In', onUpdate: () => burst(bl.x, bl.y + 12, 1), onComplete: () => { burst(lx, 14, 16); bl.destroy(); } });
-        this.time.delayedCall(80 / this.speed, () => { const lane = this.add.rectangle(lx, BASE_Y / 2, sk.w * p.reach * 2, BASE_Y, 0xc89a5a, .16).setDepth(850); fade(lane, 400, 200); });
-      } else {   // Gali & Tabrak: tikus berlian menyeruduk lewat tanah; kristal mencuat di sepanjang lajur
-        const n = 9;
-        for (let i = 0; i < n; i++) {
-          const f = i / (n - 1), sx = ox + (lx - ox) * f + rnd(-8, 8), sy = oy + 20 - (oy + 10) * f;
-          const sh = this.add.image(sx, sy, 'shard').setOrigin(.5, 1).setTint(i % 3 ? 0xc89a5a : 0xf0d19a).setDepth(855 + sy / 1000).setScale(.3, 0).setRotation(rnd(-.3, .3));
-          this.tweens.add({ targets: sh, scaleX: 1, scaleY: rnd(1.1, 1.6), delay: i * 45, duration: 180, ease: 'Back.Out', onStart: () => burst(sx, sy, 5), onComplete: () => fade(sh, 350, 380) });
+        // Bola batu berputar: earth_ball.png = 4 frame (280x280, bola berdiameter ~245). Ubah EARTH_BALL_D untuk besar-kecilnya bola (piksel game).
+        const EARTH_BALL_D = 62;
+        let bl;
+        if (this.textures.exists('earth_ball') && this.anims.exists('earth_ball_anim')) {
+          bl = this.add.sprite(ox, oy + 12, 'earth_ball', 0).setScale(EARTH_BALL_D / 245).setDepth(860);
+          bl.play('earth_ball_anim');
+          this.tweens.add({ targets: bl, x: lx, y: 10, angle: 360, duration: 560, ease: 'Quad.In', onUpdate: () => burst(bl.x, bl.y + 12, 1), onComplete: () => { burst(lx, 14, 16); bl.destroy(); } });
+        } else {   // cadangan bila gambar belum termuat
+          bl = this.add.image(ox, oy + 12, 'rock').setScale(1.5).setDepth(860);
+          this.tweens.add({ targets: bl, x: lx, y: 10, angle: 900, duration: 560, ease: 'Quad.In', onUpdate: () => burst(bl.x, bl.y + 12, 1), onComplete: () => { burst(lx, 14, 16); bl.destroy(); } });
         }
-        this.time.delayedCall(n * 45 / this.speed, () => { ring(lx, 20, sk.w * p.reach * 1.6, 0xd6a56a, 420); impact(lx, 26, 0xd6a56a, 1.8); targetImpacts(0.9); this.cameras.main.shake(100, .004); });
+        this.time.delayedCall(80 / this.speed, () => { const lane = this.add.rectangle(lx, BASE_Y / 2, sk.w * p.reach * 2, BASE_Y, 0xc89a5a, .16).setDepth(850); fade(lane, 400, 200); });
+      } else {   // Gali & Tabrak: pet masuk ke tanah (lubang), kristal melesat dari lubang ke tiap musuh lalu pecah ke kanan-kiri + knockback
+        const useCrystal = this.textures.exists('earth_crystal');
+        this.pop(p.x, p.y - petH(p) - 16, 'tanah3 v3e crystal:' + (useCrystal ? 'ok' : 'HILANG'), useCrystal ? '#7dff9a' : '#ff6b6b', 10);   // DIAGNOSA sementara: hapus bila sudah tampil benar
+        if (useCrystal) {
+          // earth_crystal.png = 4 frame (500x440): 0 lubang berdebu (dasar di y=430), 1 kristal menyembul, 2 kristal melesat (kepala ke kanan-atas), 3 kilau.
+          const HOLE_SCALE = .22, CRYSTAL_SCALE = .17, SIDE_SCALE = .12;   // ukuran lubang, kristal utama, kristal samping
+          const KB_Y = 55, KB_X = 30, SIDE_DIST = 170;                      // knockback ke belakang (atas), geser samping, jarak lesatan kristal samping
+          const sp = this.speed, D = ms => ms / sp;
+          const gx = p.x, gy = p.y + 4;   // posisi lubang = tempat pet masuk tanah
+          // 1) Lubang di posisi pet (pengganti kristal yang meloncat di pet)
+          const hole = this.add.sprite(gx, gy, 'earth_crystal', 0).setOrigin(.5, 430 / 440).setDepth(p.depth + 2).setScale(0);
+          this.tweens.add({ targets: hole, scale: HOLE_SCALE, duration: 150, ease: 'Back.Out' }); burst(gx, gy - 6, 8);
+          fade(hole, 320, D(650));
+          // 2) Kristal melesat dari lubang ke tiap musuh (kepala kristal dihadapkan ke arah tujuan; seni asli menghadap kanan-atas = -45 derajat)
+          const aim = (x0, y0, x1, y1) => Math.atan2(y1 - y0, x1 - x0) + Math.PI / 4;
+          const shootSide = (t, dir) => {   // kristal pecahan: melesat jauh ke kanan / kiri setelah mengenai musuh
+            const tx = Phaser.Math.Clamp(t.x + dir * SIDE_DIST, -40, W + 40), ty = t.y - rnd(40, 110);
+            const c = this.add.sprite(t.x, t.y, 'earth_crystal', 2).setScale(SIDE_SCALE).setRotation(aim(t.x, t.y, tx, ty)).setDepth(876);
+            this.tweens.add({ targets: c, x: tx, y: ty, alpha: 0, duration: 340, ease: 'Quad.Out', onUpdate: () => { if (Math.random() < .4) burst(c.x, c.y, 1); }, onComplete: () => c.destroy() });
+          };
+          targets.slice(0, 8).forEach((t, i) => {
+            const e = ens[i], dir = i % 2 ? 1 : -1;   // selang-seling: ke kanan / ke kiri
+            this.time.delayedCall(D(160 + i * 60), () => {
+              if (this.over) return;
+              const sx = gx, sy = gy - 14, c = this.add.sprite(sx, sy, 'earth_crystal', 2).setScale(CRYSTAL_SCALE).setRotation(aim(sx, sy, t.x, t.y)).setDepth(875);
+              const dist = Math.hypot(t.x - sx, t.y - sy);
+              this.tweens.add({ targets: c, x: t.x, y: t.y, duration: 140 + Math.min(180, dist * .38), ease: 'Quad.In', onUpdate: () => { if (Math.random() < .5) burst(c.x, c.y, 1); }, onComplete: () => {
+                c.destroy();
+                const k = this.add.sprite(t.x, t.y - 8, 'earth_crystal', 3).setBlendMode(Phaser.BlendModes.ADD).setScale(CRYSTAL_SCALE * 1.1).setDepth(877);   // kilau pecah saat kena
+                this.tweens.add({ targets: k, alpha: 0, scale: CRYSTAL_SCALE * 1.5, duration: 300, onComplete: () => k.destroy() });
+                impact(t.x, t.y, 0x8fd8ff, 1.2); shootSide(t, 1); shootSide(t, -1);
+                if (i === 0) this.cameras.main.shake(90, .004);
+                // 3) Knockback: monster terpental ke belakang (atas layar) dan bergeser ke samping
+                if (e && !e.dead && e.s && e.s.active) this.tweens.add({ targets: e, py: Math.max(-20, e.py - KB_Y), x0: Phaser.Math.Clamp(e.x0 + dir * KB_X, OX + 16, OX + 344), duration: 260, ease: 'Quad.Out' });
+              } });
+            });
+          });
+        } else {   // cadangan bila earth_crystal.png belum termuat: serpihan lama
+          const n = 9;
+          for (let i = 0; i < n; i++) {
+            const f = i / (n - 1), sx = ox + (lx - ox) * f + rnd(-8, 8), sy = oy + 20 - (oy + 10) * f;
+            const sh = this.add.image(sx, sy, 'shard').setOrigin(.5, 1).setTint(i % 3 ? 0xc89a5a : 0xf0d19a).setDepth(855 + sy / 1000).setScale(.3, 0).setRotation(rnd(-.3, .3));
+            this.tweens.add({ targets: sh, scaleX: 1, scaleY: rnd(1.1, 1.6), delay: i * 45, duration: 180, ease: 'Back.Out', onStart: () => burst(sx, sy, 5), onComplete: () => fade(sh, 350, 380) });
+          }
+          this.time.delayedCall(n * 45 / this.speed, () => { ring(lx, 20, sk.w * p.reach * 1.6, 0xd6a56a, 420); impact(lx, 26, 0xd6a56a, 1.8); targetImpacts(0.9); this.cameras.main.shake(100, .004); });
+        }
       }
     } else {   // angin
+      // DIAGNOSA sementara (hapus baris ini kalau efek sudah muncul): menampilkan status efek angin di atas pet.
+      const DEBUG_WIND = true;
+      if (DEBUG_WIND) { const okB = this.textures.exists('wind_blade') && this.anims.exists('wind_fly_anim'), okT = this.textures.exists('wind_tornado') && this.anims.exists('wind_tornado_anim'); this.pop(p.x, p.y - petH(p) - 16, 'v3c ' + sk.t + ' blade:' + (okB ? 'ok' : 'HILANG') + ' tornado:' + (okT ? 'ok' : 'HILANG'), okB && okT ? '#7dff9a' : '#ff6b6b', 10); }
       if (sk.t === 'line') {   // Kepakan Sayap: gelombang angin berbentuk bulan sabit melesat ke atas
         for (let i = 0; i < 3; i++) fly('slash', lx + rnd(-5, 5), BASE_Y - 24, lx, -12, 520, { rot: -Math.PI / 2, sc: Math.max(1, sk.w * p.reach * 2 / 56), tint: 0xe6fbff, delay: i * 110, ease: 'Quad.Out', trail: s => burst(s.x, s.y, 1) });
         this.time.delayedCall(60 / this.speed, () => { const lane = this.add.rectangle(lx, BASE_Y / 2, sk.w * p.reach * 2, BASE_Y, 0xdff6ff, .10).setDepth(850); fade(lane, 350, 100); targetImpacts(.65); });
-      } else if (sk.t === 'bolt') {   // Cakaran Terbang: bulu dan sabetan angin menukik ke tiap target
+      } else if (sk.t === 'bolt') {   // Cakaran Terbang: bilah angin hijau melesat dari pet ke tiap target, lalu pecah jadi daun
+        const WIND_SCALE = .3, WIND_HIT_SCALE = .34;   // ubah untuk membesarkan/mengecilkan efek
+        const wfx = (frame, x, y, anim, origin, rot, sc, depth) => {   // sprite sekali-putar yang menghilang sendiri
+          const w = this.add.sprite(x, y, 'wind_blade', frame).setOrigin(origin[0], origin[1]).setRotation(rot).setScale(sc).setDepth(depth);
+          w.play(anim); w.once('animationcomplete', () => this.tweens.add({ targets: w, alpha: 0, duration: 80, onComplete: () => { if (w.active) w.destroy(); } }));
+          return w;
+        };
         targets.forEach((t, i) => {
-          fly('slash', ox, oy, t.x, t.y, 230 + i * 25, { sc: 1.1, tint: 0xbff0ff, delay: i * 50, done: () => claw(t.x, t.y, 0xcdf3ff, 1.2) });
-          for (let k = 0; k < 3; k++) fly('feather', ox, oy, t.x + rnd(-14, 14), t.y + rnd(-14, 14), 300 + rnd(0, 140), { rot: rnd(0, 6.28), tint: 0xeafcff, delay: i * 50 + k * 40, ease: 'Sine.In', spin: rnd(-260, 260) });
+          this.time.delayedCall(i * 50 / this.speed, () => {
+            if (this.over) return;
+            const ar = Math.atan2(t.y - oy, t.x - ox), dist = Math.hypot(t.x - ox, t.y - oy);
+            wfx(0, ox, oy, 'wind_charge_anim', [335 / 384, .5], ar, WIND_SCALE, 862);   // pusaran angin terbentuk di depan pet
+            this.time.delayedCall(90 / this.speed, () => {
+              if (this.over) return;
+              const b = this.add.sprite(ox, oy, 'wind_blade', 4).setOrigin(335 / 384, .5).setRotation(ar).setScale(WIND_SCALE).setDepth(861);
+              b.play('wind_fly_anim');
+              this.tweens.add({ targets: b, x: t.x, y: t.y, duration: 170 + Math.min(150, dist * .35), ease: 'Sine.In', onUpdate: () => { if (Math.random() < .5) burst(b.x, b.y, 1); }, onComplete: () => {
+                b.destroy();
+                wfx(12, t.x, t.y, 'wind_hit_anim', [.5, .5], rnd(-.3, .3), WIND_HIT_SCALE, 873);   // bilah pecah jadi daun & pusaran
+                claw(t.x, t.y, 0xcdf3ff, 1.1);
+              } });
+            });
+          });
         });
       } else {   // Puting Beliung: tornado berputar menyapu area
         ring(cx, cy, R * 1.2, 0xdff8ff, 520); impact(cx, cy, 0xb9f4ff, 1.7); burst(cx, cy, 12); targetImpacts(.75); area(0xaee6ff, .2);
-        for (let k = 0; k < 8; k++) {
-          const w = 16 + k * 10, y = cy + 26 - k * 15, amp = 4 + k * 1.6;
-          const r = this.add.image(cx, y, 'ring').setTint(k % 2 ? 0xffffff : 0xaee6ff).setScale(w / 64, .28).setAlpha(0).setDepth(855 + k * .01);
-          this.tweens.add({ targets: r, alpha: .85, duration: 120, delay: k * 25 });
-          this.tweens.add({ targets: r, x: { from: cx - amp, to: cx + amp }, duration: 170 + k * 12, yoyo: true, repeat: 3, delay: k * 25, ease: 'Sine.InOut' });
-          fade(r, 300, 760 + k * 15);
-        }
+        // Tornado sprite: berdiri di tengah area, ukurannya mengikuti radius ledakan (ubah WIND_TORNADO_SCALE untuk menyetel).
+        const WIND_TORNADO_SCALE = Math.max(.5, R * 2.2 / 250);
+        if (!this.textures.exists('wind_tornado') || !this.anims.exists('wind_tornado_anim')) { console.warn('[GAME] wind_tornado belum termuat; cek assets/pet-actions/wind_tornado.png'); return; }
+        const tor = this.add.sprite(cx, cy + 26, 'wind_tornado', 0).setOrigin(.5, 240 / 252).setScale(WIND_TORNADO_SCALE).setDepth(1000).setAlpha(1).setVisible(true);
+        tor.play('wind_tornado_anim');
+        tor.once('animationcomplete', () => this.tweens.add({ targets: tor, alpha: 0, duration: 120, onComplete: () => { if (tor.active) tor.destroy(); } }));
       }
     }
   }
@@ -617,7 +765,7 @@ class Battle extends Base {
     this.tweens.add({ targets: t, y: y - 36, alpha: 0, duration: 700, onComplete: () => t.destroy() });
   }
   kill(e) {   // mati: animasi khas tiap monster (hancur, jatuh, meleleh, menguap), lalu sprite dihapus
-    e.dead = true;[e.sh, e.bg, e.fg].forEach(o => o.destroy());
+    e.dead = true;[e.sh, e.bg, e.fg].forEach(o => o.destroy()); this.thaw(e);
     e.s.clearTint(); e.s.setAngle(0).setScale(e.sc); e.s.anims.timeScale = this.speed;
     e.s.play('mon' + e.id + '_die'); e.s.once('animationcomplete', () => e.s.destroy());
   }
@@ -656,14 +804,15 @@ class Battle extends Base {
     for (const b of this.bullets) { b.s.x += b.vx * dt; b.s.y += b.vy * dt; }
     for (const e of this.enemies) {
       if (e.dead) continue;
-      e.stun = Math.max(0, (e.stun || 0) - dt); e.slow = Math.max(0, (e.slow || 0) - dt); e.hitT = Math.max(0, e.hitT - dt);
+      e.stun = Math.max(0, (e.stun || 0) - dt); e.frz = Math.max(0, (e.frz || 0) - dt); e.slow = Math.max(0, (e.slow || 0) - dt); e.hitT = Math.max(0, e.hitT - dt);
       const mv = e.stun > 0 ? 0 : e.slow > 0 ? .4 : 1;
       e.py += e.sp * dt * mv; e.ph += dt * (e.big ? .007 : .012) * mv;
       const s = Math.sin(e.ph), hop = Math.abs(s);   // gerak badan (kaki, sayap, tentakel) sudah ada di frame sprite; di sini hanya jalur melayang
       let x = e.x0, yo, ang;
       if (e.fly) { x += Math.sin(e.ph * .6) * 14; yo = s * e.h * .05; ang = Math.cos(e.ph * .6) * 4; }   // terbang: menyamping dan sedikit miring
       else { x += Math.sin(e.ph * .5) * 4; yo = -hop * e.h * .015; ang = 0; }
-      if (e.stun > 0) { x += Phaser.Math.Between(-2, 2); ang = 0; }   // tersetrum: bergetar kaku
+      if (e.stun > 0) { if (!(e.frz > 0)) x += Phaser.Math.Between(-2, 2); ang = 0; }   // tersetrum: bergetar kaku (beku: diam total)
+      if (e.ice) { if (e.frz > 0) e.ice.setPosition(x, e.py + e.h * .46).setDepth(e.py + 2); else this.thaw(e); }
       e.s.anims.timeScale = (e.stun > 0 ? 0 : mv * (e.big ? .7 : 1)) * this.speed;   // tersetrum: animasi berhenti; melambat: animasi ikut pelan
       e.s.setPosition(x, e.py + yo).setScale(e.sc).setAngle(ang).setDepth(e.py);
       e.sh.setPosition(x, e.py + e.h * .42).setScale(e.h / 46 * (1 - .18 * (e.fly ? Math.abs(s) : hop))).setDepth(e.py - 1);

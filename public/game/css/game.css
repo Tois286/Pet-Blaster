@@ -1595,3 +1595,38 @@ input:focus-visible {
   margin: 0;
   font-size: 0.85em;
 }
+
+/* Bintang pet: baris bintang, tombol upgrade, dan pengali damage per evolusi */
+.starrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6em;
+  margin: 0.5em 0 0.2em;
+}
+.stars {
+  color: var(--gold);
+  font-size: 1.25em;
+  letter-spacing: 0.08em;
+}
+.sbtn {
+  padding: 0.35em 0.8em;
+  font-size: 0.85em;
+}
+.sbtn:disabled {
+  opacity: 0.5;
+}
+.smax {
+  color: var(--gold);
+}
+.sinfo {
+  margin: 0 0 0.3em;
+  font-size: 0.72em;
+  opacity: 0.8;
+}
+.evo .stm {
+  display: block;
+  color: var(--gold);
+  font-size: 0.7em;
+  font-style: normal;
+}

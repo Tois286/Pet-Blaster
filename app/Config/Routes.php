@@ -11,6 +11,7 @@ $routes->group('api', ['namespace' => 'App\Controllers\Api'], static function ($
     $routes->post('logout', 'AuthApi::logout');
     $routes->get('profile', 'GameApi::profile');
     $routes->post('upgrade', 'GameApi::upgrade');
+    $routes->post('pet/star', 'GameApi::petStar');
     $routes->post('battle/start', 'GameApi::battleStart');
     $routes->post('battle/finish', 'GameApi::battleFinish');
     $routes->post('afk/claim', 'GameApi::afkClaim');

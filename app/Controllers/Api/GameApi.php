@@ -14,6 +14,28 @@ class GameApi extends ApiController
         'max_hp'    => ['cost' => 120, 'step' => 10, 'max' => 10000],
     ];
 
+    // Bintang pet (permanen, tersimpan di database per akun). Semua pet mulai dari bintang 1.
+    private const PET_ELEMENTS = ['api', 'air', 'tanah', 'angin'];
+    private const PET_STAR_MAX = 5;
+    // Biaya koin untuk naik dari bintang N ke N+1 (indeks = bintang saat ini). Ubah juga STAR_COST di game.js (hanya tampilan).
+    private const PET_STAR_COST = [1 => 500, 2 => 1500, 3 => 4000, 4 => 10000];
+
+    // Menambah kolom bintang jika database lama belum dimigrasi (database/migration_v5.sql). Mengembalikan false jika gagal.
+    private function ensurePetStarColumns($db): bool
+    {
+        try {
+            foreach (self::PET_ELEMENTS as $el) {
+                if (!$db->fieldExists('star_' . $el, 'game_progress')) {
+                    $db->query('ALTER TABLE game_progress ADD COLUMN star_' . $el . ' TINYINT UNSIGNED NOT NULL DEFAULT 1');
+                }
+            }
+            return true;
+        } catch (\Throwable $e) {
+            log_message('error', 'Kolom bintang pet gagal dibuat: {m}', ['m' => $e->getMessage()]);
+            return false;
+        }
+    }
+
     public function profile()
     {
         $uid = $this->userId();
@@ -21,6 +43,7 @@ class GameApi extends ApiController
             return $this->fail('Silakan login.', 401);
         }
         $db = db_connect();
+        $this->ensurePetStarColumns($db);
         $user = $db->table('game_users')->select('username')->where('id', $uid)->get()->getRowArray();
         $progress = $db->table('game_progress')->where('user_id', $uid)->get()->getRowArray();
         if (!$user || !$progress) {
@@ -111,6 +134,55 @@ class GameApi extends ApiController
             $db->transRollback();
             log_message('error', 'Upgrade gagal: {m}', ['m' => $e->getMessage()]);
             return $this->fail('Upgrade gagal.', 500);
+        }
+    }
+
+    // Naikkan bintang satu pet (api/air/tanah/angin). Biaya dan batas dicek penuh di server; hasilnya permanen.
+    public function petStar()
+    {
+        $uid = $this->userId();
+        if (!$uid) {
+            return $this->fail('Silakan login.', 401);
+        }
+        $el = $this->body()['el'] ?? '';
+        if (!is_string($el) || !in_array($el, self::PET_ELEMENTS, true)) {
+            return $this->fail('Pet tidak valid.');
+        }
+        $col = 'star_' . $el;
+
+        $db = db_connect();
+        if (!$this->ensurePetStarColumns($db)) {
+            return $this->fail('Database belum diperbarui. Jalankan database/migration_v5.sql.', 500);
+        }
+        $db->transBegin();
+        try {
+            $p = $db->query('SELECT * FROM game_progress WHERE user_id = ? FOR UPDATE', [$uid])->getRowArray();
+            if (!$p) {
+                throw new \RuntimeException('Progres tidak ditemukan.');
+            }
+            $star = max(1, (int) $p[$col]);
+            if ($star >= self::PET_STAR_MAX) {
+                $db->transRollback();
+                return $this->fail('Bintang pet sudah maksimal.');
+            }
+            $cost = self::PET_STAR_COST[$star];
+            if ((int) $p['coins'] < $cost) {
+                $db->transRollback();
+                return $this->fail('Koin tidak cukup.');
+            }
+            $db->table('game_progress')->where('user_id', $uid)->update([
+                'coins' => (int) $p['coins'] - $cost,
+                $col    => $star + 1,
+            ]);
+            if ($db->transStatus() === false) {
+                throw new \RuntimeException('Upgrade bintang gagal.');
+            }
+            $db->transCommit();
+            return $this->respond(['success' => true, 'el' => $el, 'star' => $star + 1]);
+        } catch (\Throwable $e) {
+            $db->transRollback();
+            log_message('error', 'Upgrade bintang gagal: {m}', ['m' => $e->getMessage()]);
+            return $this->fail('Upgrade bintang gagal.', 500);
         }
     }
 

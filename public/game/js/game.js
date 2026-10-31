@@ -7,6 +7,11 @@ const W = 390, H = 640, OX = (W - 360) / 2, HX = (W - 220) / 2, BASE_Y = 490, WA
 // dmg = HP markas yang hilang per pukulan, every = jeda antar pukulan (ms). Monster bos memukul lebih keras tetapi lebih lambat.
 const WALL_HIT = { dmg: 5, bossDmg: 15, every: 1200, bossEvery: 1800 };
 const COST = { damage: 100, fire_rate: 150, max_hp: 120 };      // hanya tampilan; harga asli dicek server
+// Bintang pet: permanen (disimpan server per akun), semua pet mulai dari bintang 1. Biaya naik dari bintang N ke N+1 ada di STAR_COST (harga asli dicek server).
+// STAR_PER = tambahan damage skill per bintang di atas 1, untuk evolusi 1, 2, 3. Evolusi 2 jauh lebih besar dari evolusi 1. Ubah angka ini untuk menyetel kekuatan.
+const STAR_MAX = 5, STAR_COST = { 1: 500, 2: 1500, 3: 4000, 4: 10000 }, STAR_PER = [0.2, 0.5, 0.6];
+const petStars = el => Math.min(STAR_MAX, Math.max(1, +(profile && profile.progress && profile.progress['star_' + el]) || 1));
+const starMul = (el, st) => 1 + (petStars(el) - 1) * STAR_PER[st - 1];   // pengali damage skill pet; dihitung ulang tiap serangan, jadi otomatis ikut naik saat evolusi
 // Monster musuh (20 sprite di assets/monsters). el = indeks ELS, h = tinggi tampil (px), hp/sp = pengali HP dan kecepatan, fly = melayang.
 const MON = {
   1: { f: '01_goblin_api', n: 'Goblin Api', el: 0, h: 52, hp: 1, sp: 1 },
@@ -489,7 +494,7 @@ class Battle extends Base {
       <h4>${EVO[p.el][st - 2]} ➜ ${EVO[p.el][st - 1]}</h4><p class="tag">${ELNAME[p.el]}</p>
       <p class="desc">${PET_DESC[p.el][st - 1]}</p>
       <dl><dt>Skill</dt><dd>${old.n} ➜ <b>${sk.n}</b></dd><dt>Serangan</dt><dd>${skillInfo(p, sk)}</dd>
-      <dt>Damage</dt><dd>${Math.ceil(this.dmg * sk.m * .6 * p.pow)} per serangan</dd><dt>Cooldown</dt><dd>${(sk.cd * p.cdMul / 1000).toFixed(1)} detik</dd>
+      <dt>Damage</dt><dd>${Math.ceil(this.dmg * sk.m * .6 * p.pow * starMul(p.el, p.stage))} per serangan</dd><dt>Cooldown</dt><dd>${(sk.cd * p.cdMul / 1000).toFixed(1)} detik</dd>
       <dt>Efek</dt><dd>${eff}</dd><dt>Tembakan</dt><dd>${p.volley + 1}x beruntun</dd></dl>
       <p class="next">${next}</p><button class="btn main" id="evoOk">Lanjut</button>`;
     this.choosing = true; this.tweens.pauseAll(); this.anims.pauseAll(); $('evo').hidden = false;
@@ -612,7 +617,7 @@ class Battle extends Base {
   }
   release(p, sk) {   // bagian serangan yang benar-benar melepas efek + damage (musuh dipilih ulang pada saat dilepas)
     const lst = this.enemies.filter(e => !e.dead && e.s.y > 10); if (!lst.length) return;
-    const d = Math.ceil(this.dmg * sk.m * .6 * p.pow);
+    const d = Math.ceil(this.dmg * sk.m * .6 * p.pow * starMul(p.el, p.stage));
     let hit, front = null, cx = 0, cy = 0, lx = 0;
     if (sk.t === 'bolt') {
       front = [...lst].sort((a, b) => b.s.y - a.s.y).slice(0, (sk.k || 0) + p.extra);   // musuh terdepan = titik sabetan
@@ -1125,11 +1130,17 @@ const hex = n => '#' + n.toString(16).padStart(6, '0');
 const LOBBY_PET_STAGE = 1;   // pet teman Tois di lobi selalu tampil sebagai tahap 1 (vol 1); tahap 2-3 didapat saat bertempur lewat kartu upgrade
 const HUB_VIEW = {
   pet() {
-    const st = LOBBY_PET_STAGE;
-    return `<p class="hint">Di lobi, pet menemani Tois sebagai tahap 1. Tahap 2 dan 3 didapat saat bertempur lewat kartu upgrade.</p>` + ELS.map(el => `
+    const st = LOBBY_PET_STAGE, coins = +profile.progress.coins || 0;
+    const info = STAR_PER.map((v, i) => 'Evo ' + (i + 1) + ' +' + Math.round(v * 100) + '%').join(' · ');
+    return `<p class="hint">Di lobi, pet menemani Tois sebagai tahap 1. Tahap 2 dan 3 didapat saat bertempur lewat kartu upgrade. Bintang pet bersifat permanen dan menambah damage skill, paling besar di evolusi 2 ke atas.</p>` + ELS.map(el => {
+      const s = petStars(el), cost = STAR_COST[s];
+      return `
       <article class="pcard" style="--c:${hex(EL[el])}"><h4>${ELNAME[el]}</h4>
-        <div class="evos">${[1, 2, 3].map(n => `<div class="evo${n === st ? ' cur' : ''}"><img src="assets/pets/${el}${n}.png" alt=""><b>${EVO[el][n - 1]}</b><small>${SK[el][n - 1].n}</small></div>`).join('')}</div>
-        <p>${PET_DESC[el][st - 1]}</p></article>`).join('');
+        <div class="evos">${[1, 2, 3].map(n => `<div class="evo${n === st ? ' cur' : ''}"><img src="assets/pets/${el}${n}.png" alt=""><b>${EVO[el][n - 1]}</b><small>${SK[el][n - 1].n}</small><em class="stm">×${starMul(el, n).toFixed(2)}</em></div>`).join('')}</div>
+        <div class="starrow"><span class="stars" aria-label="Bintang ${s} dari ${STAR_MAX}">${'★'.repeat(s)}${'☆'.repeat(STAR_MAX - s)}</span>${s >= STAR_MAX ? '<b class="smax">MAX</b>' : `<button class="btn main sbtn" data-star="${el}" ${coins < cost ? 'disabled' : ''}>⬆ ★${s + 1} · 🪙 ${cost}</button>`}</div>
+        <p class="sinfo">Bonus damage skill per ★: ${info}</p>
+        <p>${PET_DESC[el][st - 1]}</p></article>`;
+    }).join('');
   },
   char() {
     const p = profile.progress, bar = (ic, n, v, max) => `<div class="stat"><i>${ic}</i><span>${n}</span><div class="sbar"><i style="width:${Math.min(100, v / max * 100)}%"></i></div><b>${v}</b></div>`;
@@ -1192,6 +1203,13 @@ function renderHub(key = hubKey) {
   document.querySelectorAll('.hview').forEach(v => { v.hidden = v.id !== 'v-' + key; });
   if (HUB_VIEW[key] && profile) {
     $('v-' + key).innerHTML = HUB_VIEW[key]();
+    if (key === 'pet') {
+      $('v-pet').querySelectorAll('[data-star]').forEach(b => b.onclick = async () => {
+        b.disabled = true;
+        try { await api('/pet/star', 'POST', { el: b.dataset.star }); say('Bintang pet naik! Tersimpan permanen.'); } catch (err) { say(err.message); }
+        try { await refreshProfile(); } catch (err) { console.error(err); }
+      });
+    }
     if (key === 'zone') {
       const view = $('v-zone');
       const popup = view.querySelector('#islandPopup');

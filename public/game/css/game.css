@@ -1630,3 +1630,13 @@ input:focus-visible {
   font-size: 0.7em;
   font-style: normal;
 }
+
+/* Latar menu Toko: gambar warung, digelapkan sedikit agar teks tetap terbaca */
+.hub:has(#v-shop:not([hidden])) {
+  background: linear-gradient(#150d2b55, #150d2b99), url("../assets/backgrounds/toko.jpg") center / cover no-repeat #150d2b;
+}
+#v-shop .hint {
+  padding: 0.6em 0.8em;
+  border-radius: 0.7em;
+  background: #150d2bcc;
+}

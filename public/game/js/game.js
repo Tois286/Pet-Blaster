@@ -1285,7 +1285,7 @@ class Lobby extends Base {
 
 // Selagi pemain masih di halaman login, unduh aset game di latar belakang (sedikit demi sedikit) agar masuk lobi tidak menunggu lama.
 function prefetchAssets() {
-  const urls = ['assets/backgrounds/lobby.jpg', TOIS_ANIM.src, BATTLE_HERO_SRC];
+  const urls = ['assets/backgrounds/lobby.jpg', 'assets/backgrounds/toko.jpg',TOIS_ANIM.src, BATTLE_HERO_SRC];
   Object.keys(MON).forEach(i => { const s = SPR['mon' + i]; if (s) urls.push('assets/' + s.file); });
   ELS.forEach(el => [1, 2, 3].forEach(n => { const s = SPR['pet_' + el + n]; if (s) urls.push('assets/' + s.file); }));
   ['fire_slash.png', 'fire_orb.png', 'ice_arrow.png', 'ice_freeze.png', 'water_fx.png', 'wind_blade.png?v=w2', 'wind_tornado.png?v=w3',

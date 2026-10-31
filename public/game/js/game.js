@@ -60,22 +60,24 @@ const HERO_KEY = 'tois', HERO_SRC = 'assets/characters/tois.png', HERO_TEX_H = 6
 // Tois khusus gameplay: spritesheet transparan dari video (latar & asap dihapus). 59 frame + 1 frame siap: 0-7 semburan tembak, 8-58 reload, 59 siaga.
 const BATTLE_HERO_KEY = 'tois_battle_gatling', BATTLE_HERO_SRC = 'assets/characters/tois-gatling.webp';
 const BATTLE_SHEET = { fw: 166, fh: 382, burst: 8, reload: 51, ready: 59, charH: 269.3, anchorX: .5, anchorY: .9933, tipUp: 272.5 };
+const BURN_PCT = .1;   // Bola Lava (api evolusi 3): terbakar 10 detik, tiap detik HP target berkurang 10% dari damage yang diterimanya
+const SKILL_BUFF_MS = 10000, SKILL_BUFF = 1.1;   // Badai Peluru: Tois +10% damage & +10% kecepatan tembak selama 10 detik
 const MAG_SIZE = 35, RELOAD_MS = 2400;   // 35 peluru per magasin; habis -> reload 2,4 dtk -> penuh lagi, berulang sampai pertempuran selesai
 const ELS = ['api', 'air', 'tanah', 'angin'];
 // Ukuran pet per evolusi: evo 1 = ukuran dasar (paling kecil), evo 2 dan evo 3 makin besar. Ubah PET_GROW untuk mengatur seberapa besar.
 const PET_GROW = [0.5, 0.8, 1.3];   // pengali ukuran tampil karakter untuk evo 1, 2, 3
 // Ukuran karakter yang terlihat di tiap sprite sheet (px, akar dari lebar x tinggi gambar karakter di dalam frame, rata-rata frame idle);
 // dipakai agar ukuran tampil tidak bergantung pada seberapa penuh gambar mengisi frame. Hitung ulang bila sprite diganti.
-const PET_VIS = { pet_api1: 129.5, pet_api2: 118.8, pet_api3: 136.3, pet_air1: 117.7, pet_air2: 114.4, pet_air3: 112, pet_tanah1: 111.4, pet_tanah2: 115.4, pet_tanah3: 124.9, pet_angin1: 96.9, pet_angin2: 106.5, pet_angin3: 127.8 };
+const PET_VIS = { pet_api1: 129.5, pet_api2: 118.8, pet_api3: 136.3, pet_air1: 117.7, pet_air2: 114.4, pet_air3: 112, pet_tanah1: 111.4, pet_tanah2: 115.4, pet_tanah3: 124.4, pet_angin1: 96.9, pet_angin2: 106.5, pet_angin3: 127.8 };
 const petScale = (el, st) => PET_VIS['pet_' + el + '1'] * .5 * PET_GROW[st - 1] / PET_VIS['pet_' + el + st];   // evo 1 tetap .5 seperti semula
 const petH = p => PET_VIS['pet_' + p.el + p.stage] * p.scaleY;   // tinggi karakter yang tampak di layar (px)
 const EL = { api: 0xff6a2e, air: 0x3ec6ff, tanah: 0xc89a5a, angin: 0x7fe0ff };
 const EVO = { api: ['Rubah', 'Srigala Api', 'Serigala Lava'], air: ['Salamander', 'Naga Air', 'Naga Es'], tanah: ['Tikus Tanah', 'Tikus Batu', 'Tikus Berlian'], angin: ['Burung Pipit', 'Burung Elang', 'Burung Garuda'] };
 // Skill evolusi: t = jenis (bolt: k musuh terdepan, aoe: lingkaran r, line: lajur lebar w), m = pengali damage, cd = jeda (ms)
 const SK = {
-  api: [{ n: 'Cakar Terbang', t: 'bolt', k: 3, sp: 45, m: 1.2, cd: 3500 }, { n: 'Cakar Api Membara', t: 'bolt', k: 4, sp: 45, m: 1.8, cd: 3500 }, { n: 'Bola Lava', t: 'aoe', r: 70, m: 4, cd: 5000 }],
-  air: [{ n: 'Gelembung Air', t: 'aoe', r: 40, m: 1.5, slow: 2000, cd: 3000 }, { n: 'Bola Air', t: 'aoe', r: 60, m: 2.5, slow: 2500, cd: 3500 }, { n: 'Kristal Es', t: 'aoe', r: 80, m: 3.5, stun: 2000, cd: 5000 }],
-  tanah: [{ n: 'Penggalian Lubang', t: 'aoe', r: 45, m: 1.5, stun: 1500, cd: 3500 }, { n: 'Menggelinding', t: 'line', w: 40, m: 2.5, cd: 4500 }, { n: 'Gali & Tabrak', t: 'line', w: 50, m: 3, stun: 1000, cd: 5000 }],
+  api: [{ n: 'Cakar Terbang', t: 'bolt', k: 3, sp: 45, m: 1.2, cd: 3500 }, { n: 'Cakar Api Membara', t: 'bolt', k: 4, sp: 45, m: 1.8, cd: 3500 }, { n: 'Bola Lava', t: 'aoe', r: 70, m: 4, burn: 10000, cd: 5000 }],
+  air: [{ n: 'Gelembung Air', t: 'aoe', r: 40, m: 1.5, slow: 200, cd: 3000 }, { n: 'Bola Air', t: 'aoe', r: 60, m: 2.5, slow: 2500, cd: 3500 }, { n: 'Kristal Es', t: 'aoe', r: 80, m: 3.5, stun: 2000, cd: 5000 }],
+  tanah: [{ n: 'Penggalian Lubang', t: 'aoe', r: 45, m: 1.5, stun: 500, cd: 3500 }, { n: 'Menggelinding', t: 'line', w: 40, m: 2.5, cd: 4500 }, { n: 'Gali & Tabrak', t: 'line', w: 50, m: 3, stun: 1000, cd: 5000 }],
   angin: [{ n: 'Kepakan Sayap', t: 'line', w: 30, m: 1.2, slow: 1500, cd: 2500 }, { n: 'Cakaran Terbang', t: 'bolt', k: 5, m: 1.4, cd: 3000 }, { n: 'Puting Beliung', t: 'aoe', r: 90, m: 3, slow: 3000, cd: 5000 }]
 };
 // Urutan arena: normal > salju > lava > kegelapan. ARENA_AT = gelombang awal tiap arena.
@@ -284,7 +286,7 @@ class HeroRig {
     this.sprite.setRotation(this.aim * .085 - this.kick * .014);
     const pulse = 1 + Math.sin(this.t * 2.15) * .0025 - Math.max(0, this.kick) * .006;
     this.sprite.setScale(this.baseScale * pulse);
-    this.sprite.setTint(this.hurtT > 0 ? 0xff9b9b : 0xffffff);
+    this.sprite.setTint(this.hurtT > 0 ? 0xff9b9b : this.buffed ? 0xffe9a0 : 0xffffff);
   }
   // Koordinat perkiraan laras dan tempat selongsong keluar pada sprite gameplay baru.
   tip() { return { x: this.sprite.x + this.aim * 8, y: this.sprite.y - BATTLE_SHEET.tipUp * this.k }; }
@@ -393,6 +395,7 @@ const UPGRADES = [
   { id: 'rate', ic: '⚡', n: 'Kecepatan Tembak', d: 'Tembak 15% lebih cepat', ok: b => 700 / b.rate > 125, go: b => { b.rate *= 1.15; } },
   { id: 'hp', ic: '🛡️', n: 'HP Markas', d: 'HP maks +20 dan pulih +20', ok: b => true, go: b => { b.baseMax += 20; b.baseHp += 20; } },
   { id: 'heal', ic: '❤️', n: 'Pulihkan Markas', d: 'Pulihkan 40% HP maks', ok: b => b.baseHp < b.baseMax, go: b => { b.baseHp = Math.min(b.baseMax, b.baseHp + Math.ceil(b.baseMax * .4)); } },
+  { id: 'mag', ic: '🎟️', n: 'Tiket Peluru', d: 'Magasin +10 peluru dan isi +10 peluru', ok: b => true, go: b => { b.magMax += 10; if (!b.reloading) b.ammo += 10; } },
   { id: 'storm', ic: '🌪️', n: 'Badai Peluru Cepat', d: 'Cooldown Badai Peluru -2 dtk', ok: b => b.skillMax > 5000, go: b => { b.skillMax -= 2000; } }
 ];
 
@@ -447,13 +450,13 @@ class Battle extends Base {
     const p = profile.progress;
     this.dmg = +p.damage; this.rate = +p.fire_rate; this.baseMax = this.baseHp = +p.max_hp;
     this.wave = 0; this.islandIndex = selectedIsland; this.stageNo = selectedStage; this.kills = 0; this.enemies = []; this.bullets = []; this.spawnT = 0; this.shotT = 0; this.petT = 0; this.skillCd = 0; this.over = false;
-    this.ammo = MAG_SIZE; this.reloading = false; this.reloadT = 0; this.hero.reset();
-    this.evoQ = []; this.level = 1; this.petsSeen = false; this.xp = 0; this.xpNeed = XP_BASE; this.skillMax = 15000;   // status khusus satu pertempuran
+    this.magMax = MAG_SIZE; this.ammo = MAG_SIZE; this.reloading = false; this.reloadT = 0; this.hero.reset();
+    this.evoQ = []; this.level = 1; this.petsSeen = false; this.xp = 0; this.xpNeed = XP_BASE; this.skillMax = 25000; this.buffT = 0;   // status khusus satu pertempuran
     this.nextWave();
   }
   showEvo(p) {   // kartu detail setiap evolusi; game berhenti sampai pemain menekan Lanjut
     const sk = SK[p.el][p.stage - 1], old = SK[p.el][p.stage - 2], st = p.stage, box = $('evoCard');
-    const eff = [sk.stun ? (p.el === 'air' ? 'Membekukan ' : 'Menyetrum ') + sk.stun / 1000 + ' dtk' : '', sk.slow ? 'Memperlambat ' + sk.slow / 1000 + ' dtk' : ''].filter(Boolean).join(', ') || '-';
+    const eff = [sk.stun ? (p.el === 'air' ? 'Membekukan ' : 'Menyetrum ') + sk.stun / 1000 + ' dtk' : '', sk.slow ? 'Memperlambat ' + sk.slow / 1000 + ' dtk' : '', sk.burn ? 'Membakar ' + sk.burn / 1000 + ' dtk' : ''].filter(Boolean).join(', ') || '-';
     const next = st >= 3 ? 'Evolusi maksimal tercapai!' : 'Evolusi berikutnya: kumpulkan ' + EVO_NEED[st - 1] + ' kartu ' + EVO[p.el][st - 1];
     box.innerHTML = `<h3>Evolusi ${st}!</h3>
       <div class="evoimg"><img src="assets/pets/${p.el}${st - 1}.png" alt=""><span>➜</span><img class="big" src="assets/pets/${p.el}${st}.png" alt=""></div>
@@ -543,7 +546,7 @@ class Battle extends Base {
     let t = null;
     for (const e of this.enemies) if (!t || e.s.y > t.s.y) t = e;
     if (!t) return;
-    const tip = this.hero.tip(); this.shoot(tip.x, tip.y, t, this.dmg);
+    const tip = this.hero.tip(); this.shoot(tip.x, tip.y, t, this.heroDmg);
     this.hero.aimGoal = Phaser.Math.Clamp((t.s.x - W / 2) / 150, -1, 1); this.hero.fireKick();
     this.hero.shootAnim();   // kilatan moncong sudah ada di animasi Tois
     const ej = this.hero.eject(); this.shells.emitParticleAt(ej.x, ej.y, 1);
@@ -598,10 +601,25 @@ class Battle extends Base {
     hit.forEach(e => {
       this.dmgTo(e, d);
       if (e.dead) return;
+      if (sk.burn) this.ignite(e, d, sk.burn);   // api: target terbakar
       if (sk.stun && p.el === 'air') e.frz = sk.stun;   // air: terkunci dalam es (balok es mengikuti musuh sampai pecah)
       if (sk.stun) { e.stun = sk.stun; this.tintFor(e, p.el === 'air' ? 0x9fdcff : 0xc9a06a, sk.stun); }   // beku (es) atau terjebak tanah
       if (sk.slow) { e.slow = sk.slow; this.tintFor(e, p.el === 'angin' ? 0xdff6ff : 0x8fd0ff, sk.slow); }
     });
+  }
+  ignite(e, d, ms) {   // terbakar: tiap detik HP berkurang BURN_PCT dari damage yang baru diterima; terbakar lagi = durasi diulang (tidak menumpuk)
+    const bd = Math.max(1, Math.ceil(d * BURN_PCT));
+    if (e.burn) { e.burn.left = ms / 1000; e.burn.d = Math.max(e.burn.d, bd); } else e.burn = { left: ms / 1000, tick: 0, fx: 0, d: bd };
+  }
+  burnTo(e, d) {   // damage terbakar: tanpa sentakan dan tanpa terpental
+    if (e.dead) return; const gain = Math.max(0, Math.min(d, e.hp)); e.hp -= d;
+    this.pop(e.s.x + Phaser.Math.Between(-12, 12), e.s.y - e.h * .5, d, '#ff8a3d', 11);
+    e.fg.width = e.bw * Math.max(0, e.hp / e.mhp); this.burst[0].emitParticleAt(e.s.x, e.s.y - e.h * .3, 3);
+    if (e.hp <= 0) {
+      this.kills++; this.burst[e.k].emitParticleAt(e.s.x, e.s.y, e.big ? 26 : 12);
+      this.pop(e.s.x, e.s.y - e.h * .55, '+5 🪙', '#ffd34d'); navigator.vibrate && navigator.vibrate(10); this.kill(e);
+    }
+    this.addXp(gain);
   }
   tintFor(e, color, ms) {   // warnai musuh selama efek status (slow/stun), setelah kilatan kena-tembak selesai
     this.time.delayedCall(80, () => { if (e.s.active && !e.dead) e.s.setTint(color); });
@@ -876,11 +894,12 @@ class Battle extends Base {
       }
     }
   }
-  skill() {     // Badai Peluru: 4x damage ke semua musuh di layar, cooldown 15 detik
+  get heroDmg() { return this.buffT > 0 ? Math.ceil(this.dmg * SKILL_BUFF - 1e-9) : this.dmg; }   // damage peluru Tois (pet tidak ikut terpengaruh)
+  skill() {     // Badai Peluru: Tois +10% damage & +10% kecepatan tembak selama 10 detik, cooldown 25 detik (tanpa damage ke musuh)
     if (this.over || this.paused || this.choosing || this.skillCd > 0) return;
-    this.skillCd = this.skillMax; this.cameras.main.flash(150, 255, 230, 120);
-    this.hero.jump();
-    [...this.enemies].forEach(e => this.dmgTo(e, this.dmg * 4));
+    this.skillCd = this.skillMax; this.buffT = SKILL_BUFF_MS; this.cameras.main.flash(150, 255, 230, 120);
+    this.hero.jump(); this.hero.buffed = true;
+    const tip = this.hero.tip(); this.pop(tip.x, tip.y - 24, 'Damage & Kecepatan +10%', '#ffd34d', 12);
   }
   pop(x, y, txt, color, sz = 16) {
     const t = this.add.text(x, y, txt, TS(sz, color)).setOrigin(.5).setDepth(900);
@@ -935,13 +954,13 @@ class Battle extends Base {
     navigator.vibrate && navigator.vibrate(e.big ? 30 : 15);
   }
   hit(e, b) {
-    b.dead = true; b.s.destroy(); this.dmgTo(e, b.d || this.dmg);
+    b.dead = true; b.s.destroy(); this.dmgTo(e, b.d || this.dmg, true);
   }
-  dmgTo(e, d) {
+  dmgTo(e, d, fromHero) {   // fromHero = peluru Tois: terpental hanya saat ultimate (Badai Peluru) aktif
     if (e.dead) return; const gain = Math.max(0, Math.min(d, e.hp)); e.hp -= d;   // EXP = damage nyata (kelebihan damage tidak dihitung)
     this.pop(e.s.x + Phaser.Math.Between(-12, 12), e.s.y - e.h * .5, d, '#ffffff', 11);
     e.s.setTintFill(0xffffff); this.time.delayedCall(60, () => e.s.active && e.s.clearTint());
-    e.fg.width = e.bw * Math.max(0, e.hp / e.mhp); e.hitT = 140; if (!e.atk) e.py = Math.max(-20, e.py - (e.big ? 1 : 3));   // terpental sedikit (tidak bila sedang memukul tembok)
+    e.fg.width = e.bw * Math.max(0, e.hp / e.mhp); e.hitT = 140; if (!e.atk && (!fromHero || this.buffT > 0)) e.py = Math.max(-20, e.py - (e.big ? 1 : 3));   // terpental sedikit (tidak bila sedang memukul tembok)
     if (e.hp > 0 && !(e.s.anims.currentAnim && (e.s.anims.currentAnim.key.endsWith('_hit') || e.s.anims.currentAnim.key.endsWith('_atk')))) e.s.play('mon' + e.id + '_hit').chain('mon' + e.id + '_move');   // sentakan saat kena tembak, lalu lanjut jalan
     if (e.hp <= 0) {
       this.kills++; this.burst[e.k].emitParticleAt(e.s.x, e.s.y, e.big ? 26 : 12);
@@ -957,19 +976,27 @@ class Battle extends Base {
     this.spawnT += dt; this.shotT += dt;
     if (this.reloading) {   // magasin kosong: Tois isi ulang, lalu menembak lagi sampai pertempuran berakhir
       this.reloadT += dt;
-      if (this.reloadT >= RELOAD_MS) { this.reloading = false; this.reloadT = 0; this.ammo = MAG_SIZE; this.hero.endReload(); }
+      if (this.reloadT >= RELOAD_MS) { this.reloading = false; this.reloadT = 0; this.ammo = this.magMax; this.hero.endReload(); }
     }
     if (this.toSpawn > 0 && this.spawnT >= Math.max(500, 1400 - this.wave * 70)) { this.spawnT = 0; this.spawn(); }
     this.pets.forEach(p => this.petTick(p, dt));
     this.skillCd = Math.max(0, this.skillCd - dt);
+    this.buffT = Math.max(0, this.buffT - dt); this.hero.buffed = this.buffT > 0;   // waktu buff ikut kecepatan game (x2)
     const sb = $('skillBtn'), st = this.skillCd > 0 ? Math.ceil(this.skillCd / 1000) + 's' : '💥';
     if (sb.textContent !== st) { sb.textContent = st; sb.disabled = this.skillCd > 0; }
-    if (!this.reloading && this.shotT >= Math.max(120, 700 / this.rate) / (this.manual ? 2 : 1)) { this.shotT = 0; this.fire(); }
+    if (!this.reloading && this.shotT >= Math.max(120, 700 / this.rate) / (this.buffT > 0 ? SKILL_BUFF : 1) / (this.manual ? 2 : 1)) { this.shotT = 0; this.fire(); }
     for (const b of this.bullets) { b.s.x += b.vx * dt; b.s.y += b.vy * dt; }
     for (const e of this.enemies) {
       if (e.dead) continue;
       e.stun = Math.max(0, (e.stun || 0) - dt); e.frz = Math.max(0, (e.frz || 0) - dt); e.slow = Math.max(0, (e.slow || 0) - dt); e.hitT = Math.max(0, e.hitT - dt);
       const mv = e.stun > 0 ? 0 : e.slow > 0 ? .4 : 1;
+      if (e.burn) {   // terbakar: percikan api terus muncul, damage tiap 1 detik (waktu ikut kecepatan game)
+        e.burn.tick += dt; e.burn.fx += dt;
+        if (e.burn.fx >= 250) { e.burn.fx -= 250; this.burst[0].emitParticleAt(e.s.x + Phaser.Math.Between(-8, 8), e.s.y - e.h * .3, 1); }
+        while (e.burn.tick >= 1000 && e.burn.left > 0 && !e.dead) { e.burn.tick -= 1000; e.burn.left--; this.burnTo(e, e.burn.d); }
+        if (e.dead) continue;
+        if (e.burn.left <= 0) e.burn = null;
+      }
       if (e.atk && e.py < e.stopY - 2) e.atk = false;
       if (!e.atk && e.chg) { e.chg.destroy(); e.chg = null; }   // terdorong mundur (mis. knockback skill tanah): berhenti memukul dan berjalan maju lagi
       if (!e.atk) { e.py += e.sp * dt * mv; if (e.py >= e.stopY) { e.py = e.stopY; e.atk = true; e.atT = 0; e.hitDone = false; } }   // sampai tembok: berhenti dan mulai memukul
@@ -1013,11 +1040,11 @@ class Battle extends Base {
     const r = Math.max(0, this.baseHp / this.baseMax);
     this.hud.clear().fillStyle(0x1b1230, .9).fillRoundedRect(HX, 59, 220, 14, 7)
       .fillStyle(r > .35 ? 0x4cd964 : 0xff6b6b).fillRoundedRect(HX + 2, 61, Math.max(0, 216 * r), 10, 5);
-    const ar = this.reloading ? this.reloadT / RELOAD_MS : this.ammo / MAG_SIZE;
+    const ar = this.reloading ? this.reloadT / RELOAD_MS : this.ammo / this.magMax;
     this.hud.fillStyle(0x1b1230, .9).fillRoundedRect(HX, 77, 220, 13, 6)
       .fillStyle(this.reloading ? 0x5ec8ff : 0xffc233).fillRoundedRect(HX + 2, 79, Math.max(0, 216 * ar), 9, 4);
-    for (let i = 5; i < MAG_SIZE; i += 5) this.hud.fillStyle(0x1b1230, .7).fillRect(HX + 2 + 216 * i / MAG_SIZE - .5, 79, 1, 9);
-    this.ammoTxt.setText(this.reloading ? 'RELOAD...' : '🔫 ' + this.ammo + '/' + MAG_SIZE);
+    for (let i = 5; i < this.magMax; i += 5) this.hud.fillStyle(0x1b1230, .7).fillRect(HX + 2 + 216 * i / this.magMax - .5, 79, 1, 9);
+    this.ammoTxt.setText(this.reloading ? 'RELOAD...' : '🔫 ' + this.ammo + '/' + this.magMax);
     this.hpTxt.setText('❤ ' + Math.max(0, this.baseHp)); this.waveTxt.setText(''); this.killTxt.setText('💀 ' + this.kills);
     this.ui();
     if (this.baseHp <= 0) return this.end(false);
@@ -1079,7 +1106,7 @@ const HUB_VIEW = {
       <h5>Senjata & skill</h5>
       <ul class="shoplist">
         <li><i>🔫</i><span><b>Gatling</b>Magasin ${MAG_SIZE} peluru, reload ${RELOAD_MS / 1000} detik. Tahan layar untuk menembak 2x lebih cepat.</span></li>
-        <li><i>💥</i><span><b>Badai Peluru</b>4x damage ke semua musuh di layar. Cooldown 15 detik.</span></li>
+        <li><i>💥</i><span><b>Badai Peluru</b>Tois +10% damage dan kecepatan tembak selama 10 detik. Cooldown 25 detik.</span></li>
         <li><i>⭐</i><span><b>Level</b>Naik setiap kelipatan 3 gelombang yang dicapai.</span></li>
       </ul>`;
   },

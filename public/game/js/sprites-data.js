@@ -311,7 +311,7 @@ const SPR = {
   "rel": 8
  },
  "pet_tanah3": {
-  "file": "sprites/pet_tanah3.webp?v=tanah3c",
+  "file": "sprites/pet_tanah3.webp?v=tanah3d",
   "fw": 174,
   "fh": 174,
   "iw": 128,

@@ -309,8 +309,18 @@ class HeroRig {
   eject() { return { x: this.sprite.x + 8, y: this.sprite.y - this.h * .5 }; }
 }
 
+// Layar pemuatan: menutup kanvas yang masih kosong selama aset (puluhan MB) diunduh setelah login, lalu hilang saat lobi siap.
+function setLoading(p) {
+  const bar = $('loadBar'), txt = $('loadTxt'), pct = Math.round(Math.max(0, Math.min(1, p)) * 100);
+  if (bar) bar.style.width = pct + '%';
+  if (txt) txt.textContent = 'Memuat dunia Pet Blaster… ' + pct + '%';
+}
+function showLoading() { setLoading(0); const el = $('loading'); if (el) el.hidden = false; }
+function hideLoading() { const el = $('loading'); if (el) el.hidden = true; }
+
 class Base extends Phaser.Scene {
   preload() {
+    this.load.on('progress', setLoading);
     if (!this.textures.exists(HERO_KEY)) this.load.image(HERO_KEY, HERO_SRC);
     if (!this.textures.exists(BATTLE_HERO_KEY)) this.load.spritesheet(BATTLE_HERO_KEY, BATTLE_HERO_SRC, { frameWidth: BATTLE_SHEET.fw, frameHeight: BATTLE_SHEET.fh });
     if (!this.textures.exists('lobby_bg')) this.load.image('lobby_bg', 'assets/backgrounds/lobby.jpg');
@@ -1089,6 +1099,7 @@ class Battle extends Base {
 }
 
 function startGame() {
+  showLoading();
   game = new Phaser.Game({
     type: Phaser.AUTO, parent: 'game-container', width: W, height: H, backgroundColor: '#6ec1ea',
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH }, scene: [Lobby, Battle]
@@ -1242,8 +1253,20 @@ class Lobby extends Base {
     // daun yang melayang dan debu cahaya
     this.add.particles(0, 0, 'leaf', { x: { min: -20, max: W }, y: -10, speedX: { min: 12, max: 38 }, speedY: { min: 20, max: 40 }, rotate: { start: 0, end: 360 }, lifespan: 9000, scale: { start: 1, end: .7 }, alpha: { start: .95, end: .25 }, tint: [0x8fd36a, 0xc8e07a, 0xf2c14e, 0x6fbf5a], frequency: 1400 }).setDepth(900);
     this.add.particles(0, 0, 'spark', { x: { min: 0, max: W }, y: { min: 250, max: 640 }, speedY: { min: -40, max: -15 }, lifespan: 3000, scale: { start: .5, end: 0 }, alpha: { start: .7, end: 0 }, tint: 0xffe3b8, frequency: 160 });
+    hideLoading();   // lobi sudah tergambar penuh, buka layar pemuatan
   }
 }
 
+// Selagi pemain masih di halaman login, unduh aset game di latar belakang (sedikit demi sedikit) agar masuk lobi tidak menunggu lama.
+function prefetchAssets() {
+  const urls = ['assets/backgrounds/lobby.jpg', TOIS_ANIM.src, BATTLE_HERO_SRC];
+  Object.keys(MON).forEach(i => { const s = SPR['mon' + i]; if (s) urls.push('assets/' + s.file); });
+  ELS.forEach(el => [1, 2, 3].forEach(n => { const s = SPR['pet_' + el + n]; if (s) urls.push('assets/' + s.file); }));
+  ['fire_slash.png', 'fire_orb.png', 'ice_arrow.png', 'ice_freeze.png', 'water_fx.png', 'wind_blade.png?v=w2', 'wind_tornado.png?v=w3',
+    'earth_hole.png?v=t1', 'earth_ball.png?v=t2', 'earth_crystal.png?v=t3', 'fire_lava_claw.png'].forEach(f => urls.push('assets/pet-actions/' + f));
+  const next = () => { const u = urls.shift(); if (!u) return; fetch(u).catch(() => { }).finally(next); };   // maksimal 3 unduhan bersamaan
+  setTimeout(() => { next(); next(); next(); }, 800);
+}
+
 // Jika sesi login masih aktif (mis. halaman dimuat ulang), langsung masuk game dan tutup halaman login.
-enterGame().catch(() => { $('authPanel').hidden = false; $('gamePanel').hidden = true; });
+enterGame().catch(() => { $('authPanel').hidden = false; $('gamePanel').hidden = true; prefetchAssets(); });

@@ -1557,3 +1557,41 @@ input:focus-visible {
 .zone-play {
   margin-top: 0.65em;
 }
+
+/* Layar pemuatan: menutup kanvas kosong saat aset diunduh setelah login */
+.loading {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1em;
+  background: linear-gradient(#2b1d4a99, #150d2bcc), url("../assets/backgrounds/lobby.jpg") center / cover #2b1d4a;
+}
+.loading img {
+  width: 5.5em;
+  height: 5.5em;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.lbar {
+  width: 60%;
+  height: 0.7em;
+  overflow: hidden;
+  border-radius: 1em;
+  background: #ffffff33;
+}
+.lbar i {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(#ffe27a, #f5a623);
+  transition: width 0.2s;
+}
+.loading p {
+  margin: 0;
+  font-size: 0.85em;
+}

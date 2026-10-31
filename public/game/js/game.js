@@ -88,12 +88,25 @@ const petScale = (el, st) => PET_VIS['pet_' + el + '1'] * .5 * PET_GROW[st - 1] 
 const petH = p => PET_VIS['pet_' + p.el + p.stage] * p.scaleY;   // tinggi karakter yang tampak di layar (px)
 const EL = { api: 0xff6a2e, air: 0x3ec6ff, tanah: 0xc89a5a, angin: 0x7fe0ff };
 const EVO = { api: ['Rubah', 'Srigala Api', 'Serigala Lava'], air: ['Salamander', 'Naga Air', 'Naga Es'], tanah: ['Tikus Tanah', 'Tikus Batu', 'Tikus Berlian'], angin: ['Burung Pipit', 'Burung Elang', 'Burung Garuda'] };
-// Skill evolusi: t = jenis (bolt: k musuh terdepan, aoe: lingkaran r, line: lajur lebar w), m = pengali damage, cd = jeda (ms)
+// ==========================================
+// SISTEM SKILL PET
+// n     = nama skill
+// t     = jenis serangan (bolt, aoe, line)
+// k     = jumlah target musuh terdepan
+// sp    = tambahan jangkauan target sekitar
+// m     = pengali damage
+// cd    = cooldown dalam milidetik
+// r     = radius area serangan
+// w     = setengah lebar dasar serangan lajur
+// slow  = durasi perlambatan (ms)
+// stun  = durasi penghentian (ms)
+// burn  = durasi terbakar (ms)
+// ==========================================
 const SK = {
-  api: [{ n: 'Cakar Terbang', t: 'bolt', k: 3, sp: 45, m: 1.2, cd: 3500 }, { n: 'Cakar Api Membara', t: 'bolt', k: 4, sp: 45, m: 1.8, cd: 3500 }, { n: 'Bola Lava', t: 'aoe', r: 70, m: 4, burn: 10000, cd: 5000 }],
+  api: [{ n: 'Cakar Terbang', t: 'bolt', k: 1, sp: 45, m: 1.2, cd: 3500 }, { n: 'Cakar Api Membara', t: 'bolt', k: 3, sp: 45, m: 1.8, cd: 3500 }, { n: 'Bola Lava', t: 'aoe', r: 70, m: 4, burn: 10000, cd: 5000 }],
   air: [{ n: 'Gelembung Air', t: 'aoe', r: 40, m: 1.5, slow: 200, cd: 3000 }, { n: 'Bola Air', t: 'aoe', r: 60, m: 2.5, slow: 2500, cd: 3500 }, { n: 'Kristal Es', t: 'aoe', r: 80, m: 3.5, stun: 2000, cd: 5000 }],
   tanah: [{ n: 'Penggalian Lubang', t: 'aoe', r: 45, m: 1.5, stun: 500, cd: 3500 }, { n: 'Menggelinding', t: 'line', w: 40, m: 2.5, cd: 4500 }, { n: 'Gali & Tabrak', t: 'line', w: 50, m: 3, stun: 1000, cd: 5000 }],
-  angin: [{ n: 'Kepakan Sayap', t: 'line', w: 30, m: 1.2, slow: 1500, cd: 2500 }, { n: 'Cakaran Terbang', t: 'bolt', k: 5, m: 1.4, cd: 3000 }, { n: 'Puting Beliung', t: 'aoe', r: 90, m: 3, slow: 3000, cd: 5000 }]
+  angin: [{ n: 'Kepakan Sayap', t: 'line', w: 10, m: 1.2, slow: 1500, cd: 2500 }, { n: 'Cakaran Terbang', t: 'bolt', k: 5, m: 1.4, cd: 3000 }, { n: 'Puting Beliung', t: 'aoe', r: 90, m: 3, slow: 3000, cd: 5000 }]
 };
 // Urutan arena: normal > salju > lava > kegelapan. ARENA_AT = gelombang awal tiap arena.
 const ARENAS = ['Padang Rumput', 'Benteng Salju', 'Benteng Lava', 'Arena Kegelapan'], ARENA_AT = [1, 4, 7, 9];
@@ -1285,7 +1298,7 @@ class Lobby extends Base {
 
 // Selagi pemain masih di halaman login, unduh aset game di latar belakang (sedikit demi sedikit) agar masuk lobi tidak menunggu lama.
 function prefetchAssets() {
-  const urls = ['assets/backgrounds/lobby.jpg', 'assets/backgrounds/toko.jpg',TOIS_ANIM.src, BATTLE_HERO_SRC];
+  const urls = ['assets/backgrounds/lobby.jpg', 'assets/backgrounds/toko.jpg', 'assets/characters/dika.webp', TOIS_ANIM.src, BATTLE_HERO_SRC];
   Object.keys(MON).forEach(i => { const s = SPR['mon' + i]; if (s) urls.push('assets/' + s.file); });
   ELS.forEach(el => [1, 2, 3].forEach(n => { const s = SPR['pet_' + el + n]; if (s) urls.push('assets/' + s.file); }));
   ['fire_slash.png', 'fire_orb.png', 'ice_arrow.png', 'ice_freeze.png', 'water_fx.png', 'wind_blade.png?v=w2', 'wind_tornado.png?v=w3',

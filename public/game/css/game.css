@@ -1683,3 +1683,13 @@ input:focus-visible {
   height: auto;
   filter: drop-shadow(0 0.2em 0.3em #0008);
 }
+/* Sembunyikan tampilan scrollbar, fungsi scroll tetap aktif */
+* {
+  scrollbar-width: none !important; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge lama */
+}
+*::-webkit-scrollbar {
+  display: none !important; /* Chrome, Safari, Edge, Android WebView */
+  width: 0;
+  height: 0;
+}

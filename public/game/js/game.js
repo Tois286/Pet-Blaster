@@ -1111,8 +1111,9 @@ class Battle extends Base {
 
 function startGame() {
   showLoading();
+  Object.assign($('game-container').style, { backgroundImage: "url('assets/backgrounds/lobby.jpg')", backgroundSize: 'cover', backgroundPosition: 'center' });   // latar cadangan saat scene berganti
   game = new Phaser.Game({
-    type: Phaser.AUTO, parent: 'game-container', width: W, height: H, backgroundColor: '#6ec1ea',
+    type: Phaser.AUTO, parent: 'game-container', width: W, height: H, transparent: true,
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH }, scene: [Lobby, Battle]
   });
 }
@@ -1251,10 +1252,15 @@ function renderHub(key = hubKey) {
   }
   document.querySelectorAll('#hubTabs button').forEach(b => b.classList.toggle('on', b.dataset.k === key));
 }
-function openHub(key) { $('hub').hidden = false; $('hubBody').scrollTop = 0; renderHub(key); }
+let hubOpenSnap = '';   // pulau/stage saat hub dibuka; dipakai untuk menentukan perlu tidaknya lobi dibangun ulang
+function openHub(key) { hubOpenSnap = selectedIsland + '-' + selectedStage; $('hub').hidden = false; $('hubBody').scrollTop = 0; renderHub(key); }
 $('hubTabs').innerHTML = HUB.map(([k, ic, n]) => `<button data-k="${k}"><i>${ic}</i><span>${n}</span></button>`).join('');
 $('hubTabs').onclick = e => { const b = e.target.closest('button'); if (b) { $('hubBody').scrollTop = 0; renderHub(b.dataset.k); } };
-$('hubClose').onclick = () => { $('hub').hidden = true; refreshLobbyScene(); };
+$('hubClose').onclick = () => {
+  $('hub').hidden = true;
+  if (hubOpenSnap !== selectedIsland + '-' + selectedStage) refreshLobbyScene();   // restart hanya bila pulau/stage berubah (hindari kedip biru)
+  else updateLobbyInfo();
+};
 $('startBtn').onclick = () => { $('gamePanel').classList.add('battle'); game.scene.stop('Lobby'); game.scene.start('Battle'); };
 $('quitBtn').onclick = toLobby; $('lobbyBtn').onclick = toLobby;
 

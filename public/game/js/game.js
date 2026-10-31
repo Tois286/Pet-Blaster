@@ -31,7 +31,10 @@ const MON = {
   20: { f: '20_tornado_spirit', n: 'Roh Tornado', el: 3, h: 52, hp: 1.1, sp: 1.1, fly: 1 },
   21: { f: '21_water_slime', n: 'Slime Air', el: 1, h: 46, hp: .8, sp: 1.15 },
   22: { f: '22_mud_slime', n: 'Slime Lumpur', el: 2, h: 48, hp: 1.1, sp: .85 },
-  23: { f: '23_rock_dragon', n: 'Naga Batu', el: 2, h: 62, hp: 1, sp: 1 }   // Boss Final Pulau Terra (sprite punya animasi serang 'atk')
+  23: { f: '23_rock_dragon', n: 'Naga Batu', el: 2, h: 62, hp: 1, sp: 1 },   // Boss Final Pulau Terra (sprite punya animasi serang 'atk')
+  24: { f: '24_shark_gorila', n: 'Gorila Hiu', el: 1, h: 62, hp: 1, sp: 1 },   // Boss Final Pulau Aquaria: memukul tembok (animasi 'atk' = pukulan air)
+  25: { f: '25_dragon_hell', n: 'Naga Neraka', el: 0, h: 62, hp: 1, sp: 1 },   // Boss Final Pulau Ignis: jarak jauh, melempar bola api raksasa
+  26: { f: '26_green_falcon', n: 'Elang Hijau', el: 3, h: 62, hp: 1, sp: 1, fly: 1 }   // Boss Final Pulau Zephyria: terbang, jarak jauh, menembakkan bulu racun
 };
 // Monster yang muncul di tiap arena (indeks sama dengan ARENAS) dan bos gelombang 5 dan 10.
 // Monster wave normal wajib mengikuti elemen pulau. Boss ditangani terpisah oleh ISLANDS.bossPool.
@@ -53,7 +56,9 @@ const RANGED = {
   18: { tex: 'feather', col: 0x5a4a40, sc: 1.2, v: .7, rot: Math.PI / 2, n: 3, stop: 135, every: 1600, dmg: 4, cs: .5 },               // Burung Nasar: 3 bulu tajam
   20: { tex: 'ring', col: 0xcff6ff, sc: .45, v: .5, tor: 1, stop: 120, every: 1500, dmg: 4, cs: .6, tr: 1, add: 1 },                    // Roh Tornado: pusaran mini
   10: { tex: 'bubble', col: 0x3ec6ff, sc: 2.6, v: .4, arc: 40, stop: 170, every: 2000, dmg: 12, cs: 1, tr: 2 },                         // BOS Naga Laut Mini: semburan bola air raksasa
-  5: { tex: 'rock', col: 0xff7a3a, sc: 1.1, v: .38, arc: 90, spin: .12, stop: 170, every: 2000, dmg: 12, cs: 1, tr: 2 }                  // BOS Golem Lava Mini: lempar bongkahan lava
+  5: { tex: 'rock', col: 0xff7a3a, sc: 1.1, v: .38, arc: 90, spin: .12, stop: 170, every: 2000, dmg: 12, cs: 1, tr: 2 },                 // BOS Golem Lava Mini: lempar bongkahan lava
+  25: { tex: 'orb', col: 0xff6a2e, sc: 1.3, v: .42, arc: 80, spin: .15, stop: 165, every: 2000, dmg: 12, cs: 1, tr: 2, add: 1 },          // BOSS FINAL Naga Neraka: bola api raksasa (animasi 'atk' = semburan api)
+  26: { tex: 'feather', col: 0x8dff5a, sc: 1.6, v: .72, rot: Math.PI / 2, n: 3, stop: 170, every: 2000, dmg: 12, cs: .9, tr: 2, add: 1 }   // BOSS FINAL Elang Hijau: tiga bulu racun (satu volley = 12 damage)
 };
 const TOIS_ANIM = { src: 'assets/characters/tois-anim.webp', fw: 172, fh: 320, frames: 90, fps: 15 };   // animasi lobi dari tois.gif (latar sudah dihapus)
 const HERO_KEY = 'tois', HERO_SRC = 'assets/characters/tois.png', HERO_TEX_H = 648; // karakter halaman awal tetap memakai animasi asli
@@ -61,6 +66,7 @@ const HERO_KEY = 'tois', HERO_SRC = 'assets/characters/tois.png', HERO_TEX_H = 6
 const BATTLE_HERO_KEY = 'tois_battle_gatling', BATTLE_HERO_SRC = 'assets/characters/tois-gatling.webp';
 const BATTLE_SHEET = { fw: 166, fh: 382, burst: 8, reload: 51, ready: 59, charH: 269.3, anchorX: .5, anchorY: .9933, tipUp: 272.5 };
 const BURN_PCT = .1;   // Bola Lava (api evolusi 3): terbakar 10 detik, tiap detik HP target berkurang 10% dari damage yang diterimanya
+const SKILL_ICON = 'assets/ui/gatling-icon.png?v=1';   // gambar ikon tombol ultimate (path dihitung dari index.html, sama seperti aset lain)
 const SKILL_BUFF_MS = 10000, SKILL_BUFF = 1.1;   // Badai Peluru: Tois +10% damage & +10% kecepatan tembak selama 10 detik
 const MAG_SIZE = 35, RELOAD_MS = 2400;   // 35 peluru per magasin; habis -> reload 2,4 dtk -> penuh lagi, berulang sampai pertempuran selesai
 const ELS = ['api', 'air', 'tanah', 'angin'];
@@ -85,12 +91,12 @@ const ARENAS = ['Padang Rumput', 'Benteng Salju', 'Benteng Lava', 'Arena Kegelap
 // Empat pulau petualangan; setiap pulau memiliki 25 stage. Stage 1-24 berisi 10 wave; Stage 25 (final) berisi 15 wave.
 const ISLANDS = [
   { name: 'Pulau Terra', title: 'Pulau Terra', desc: 'Pulau awal para penjaga. Hutan hijau, dataran luas, dan monster tanah.', bg: 0, pool: [1, 11, 13, 3, 6, 22, 21], boss: 23, bossPool: [11, 12, 13, 14, 15], bossElements: ['tanah', 'hutan'], color: '#6be3a2' },
-  { name: 'Pulau Aquaria', title: 'Pulau Aquaria', desc: 'Kepulauan air dengan gua pasang-surut dan monster laut.', bg: 1, pool: [6, 7, 8, 9, 17, 16, 21], boss: 10, bossPool: [6, 7, 8, 9, 10], bossElements: ['air'], color: '#55cfff' },
-  { name: 'Pulau Ignis', title: 'Pulau Ignis', desc: 'Pulau vulkanik penuh lava, tulang api, dan golem raksasa.', bg: 2, pool: [1, 2, 3, 4, 5, 12], boss: 5, bossPool: [1, 2, 3, 4, 5], bossElements: ['api'], color: '#ff8755' },
-  { name: 'Pulau Zephyria', title: 'Pulau Zephyria', desc: 'Pulau langit dengan badai, harpy, dan roh tornado.', bg: 3, pool: [16, 17, 18, 19, 20, 14], boss: 20, bossPool: [16, 17, 18, 19, 20], bossElements: ['angin'], color: '#b9dfff' }
+  { name: 'Pulau Aquaria', title: 'Pulau Aquaria', desc: 'Kepulauan air dengan gua pasang-surut dan monster laut.', bg: 1, pool: [6, 7, 8, 9, 17, 16, 21], boss: 24, bossPool: [6, 7, 8, 9, 10], bossElements: ['air'], color: '#55cfff' },
+  { name: 'Pulau Ignis', title: 'Pulau Ignis', desc: 'Pulau vulkanik penuh lava, tulang api, dan golem raksasa.', bg: 2, pool: [1, 2, 3, 4, 5, 12], boss: 25, bossPool: [1, 2, 3, 4, 5], bossElements: ['api'], color: '#ff8755' },
+  { name: 'Pulau Zephyria', title: 'Pulau Zephyria', desc: 'Pulau langit dengan badai, harpy, dan roh tornado.', bg: 3, pool: [16, 17, 18, 19, 20, 14], boss: 26, bossPool: [16, 17, 18, 19, 20], bossElements: ['angin'], color: '#b9dfff' }
 ];
 // Stage 1-24: boss berotasi deterministik dari roster yang sesuai elemen pulau.
-// Stage 25 sengaja mempertahankan boss lama sampai aturan finalnya ditentukan.
+// Stage 25 (Boss Final) memakai island.boss: Terra = Naga Batu (23), Aquaria = Gorila Hiu (24), Ignis = Naga Neraka (25), Zephyria = Elang Hijau (26).
 function getStageBoss(islandIndex, stageNo) {
   const island = ISLANDS[islandIndex];
   if (stageNo >= 25) return island.boss;
@@ -102,6 +108,16 @@ const STAGES_PER_ISLAND = 25, WAVES_PER_STAGE = 10, FINAL_STAGE_WAVES = 15;
 // Stage final (Stage 25 tiap pulau): 15 wave. Boss final muncul di wave terakhir (wave 15) dan lebih besar/tangguh dari boss biasa.
 // Ubah FINAL_BOSS untuk menyetel: hp = pengali HP (boss biasa 7), size = pengali ukuran (boss biasa 1.7).
 const FINAL_BOSS = { hp: 10, size: 1.9 };
+// Kesulitan naik per stage dan per pulau. Ubah angka di bawah untuk menyetel (satu tempat, dipakai game dan label lobi).
+//   stage  = tambahan pengali HP monster per stage                      (awal .22)
+//   islandMul = pengali HP monster yang BERLIPAT tiap pulau (pulau ke-n x islandMul^n), agar pulau baru langsung terasa jauh lebih berat
+//   speed  = tambahan kecepatan jalan monster per pulau                 (awal 0)
+//   extra  = tambahan jumlah monster per wave untuk tiap pulau          (awal 0)
+//   dmg    = tambahan damage monster ke markas per pulau (pulau ke-n x (1 + n*dmg))
+const DIFF = { stage: .10, islandMul: 5, speed: .012, extra: 10, dmg: .5 };
+const difficultyOf = (island, stage) => (1 + (stage - 1) * DIFF.stage) * Math.pow(DIFF.islandMul, island);
+const wallDmgMul = island => 1 + island * DIFF.dmg;   // damage monster ke markas naik tiap pulau
+const monstersPerWave = (island, wave) => 4 + wave * 2 + island * DIFF.extra;
 const wavesFor = stage => stage >= STAGES_PER_ISLAND ? FINAL_STAGE_WAVES : WAVES_PER_STAGE;
 const isFinalWave = (stage, wave) => stage >= STAGES_PER_ISLAND && wave === FINAL_STAGE_WAVES;
 // Stage final (Stage 25): elite muncul di wave 3, 6, 9 (tiap kali satu elite, bergiliran dari roster elemen pulau), lalu Boss Final di wave 15.
@@ -308,7 +324,7 @@ class Base extends Phaser.Scene {
     if (!this.textures.exists('ice_arrow')) this.load.spritesheet('ice_arrow', 'assets/pet-actions/ice_arrow.png', { frameWidth: 320, frameHeight: 240 });   // efek Kristal Es (air evolusi 3)
     if (!this.textures.exists('ice_freeze')) this.load.spritesheet('ice_freeze', 'assets/pet-actions/ice_freeze.png', { frameWidth: 320, frameHeight: 300 });
     if (!this.textures.exists('water_fx')) this.load.spritesheet('water_fx', 'assets/pet-actions/water_fx.png', { frameWidth: 320, frameHeight: 240 });   // efek Bola Air (air evolusi 2)
-    console.log('[GAME] game.js build slime2; sprite slime air/lumpur:', !!SPR.mon21, !!SPR.mon22);
+    console.log('[GAME] game.js build boss25; sprite slime air/lumpur:', !!SPR.mon21, !!SPR.mon22);
     this.load.on('loaderror', f => console.warn('[GAME] gagal memuat aset:', f && f.src));
     if (!this.textures.exists('wind_blade')) this.load.spritesheet('wind_blade', 'assets/pet-actions/wind_blade.png?v=w2', { frameWidth: 384, frameHeight: 216 });   // efek Cakaran Terbang (angin evolusi 2)
     if (!this.textures.exists('wind_tornado')) this.load.spritesheet('wind_tornado', 'assets/pet-actions/wind_tornado.png?v=w3', { frameWidth: 452, frameHeight: 252 });   // efek Puting Beliung (angin evolusi 3)
@@ -325,7 +341,7 @@ class Base extends Phaser.Scene {
   }
   makeAnims() {   // animasi monster: move (loop), hit (sekali), die (sekali); pet: idle (loop), cast (sekali)
     const A = this.anims, mk = (key, k, start, end, fps, repeat) => { if (!A.exists(key)) A.create({ key, frames: A.generateFrameNumbers(k, { start, end }), frameRate: fps, repeat }); };
-    Object.keys(MON).forEach(i => { const k = 'mon' + i, s = SPR[k]; mk(k + '_move', k, 0, s.move - 1, 10, -1); mk(k + '_hit', k, s.move, s.move + s.hit - 1, 24, 0); mk(k + '_die', k, s.move + s.hit, s.move + s.hit + s.die - 1, 18, 0); if (s.atk) mk(k + '_atk', k, s.move + s.hit + s.die, s.move + s.hit + s.die + s.atk - 1, 14, 0); });
+    Object.keys(MON).forEach(i => { const k = 'mon' + i, s = SPR[k]; mk(k + '_move', k, 0, s.move - 1, 10, -1); if (s.hit) mk(k + '_hit', k, s.move, s.move + s.hit - 1, 24, 0); mk(k + '_die', k, s.move + s.hit, s.move + s.hit + s.die - 1, 18, 0); if (s.atk) mk(k + '_atk', k, s.move + s.hit + s.die, s.move + s.hit + s.die + s.atk - 1, s.atkFps || 14, 0); });
     ELS.forEach(el => [1, 2, 3].forEach(n => { const k = 'pet_' + el + n, s = SPR[k]; const idleFps = el === 'air' ? 10 : 8; mk(k + '_idle', k, 0, s.idle - 1, idleFps, -1); mk(k + '_cast', k, s.idle, s.idle + s.cast - 1, 16, 0); }));
     // Animasi frame-by-frame dari sprite sheet efek skill api.
     mk('fire_slash_anim', 'fire_slash', 0, 4, 16, 0);   // fire_slash.png = 5 frame @ 256x256
@@ -424,7 +440,7 @@ class Battle extends Base {
     this.shells = this.add.particles(0, 0, 'shell', { speedX: { min: 30, max: 90 }, speedY: { min: -110, max: -40 }, gravityY: 420, lifespan: 650, rotate: { start: 0, end: 540 }, alpha: { start: 1, end: 0 }, emitting: false }).setDepth(705);
     this.mflash = this.add.image(0, 0, 'mflash').setOrigin(.08, .5).setDepth(710).setAlpha(0);
     this.pets = ELS.map((el, i) => { const p = this.add.sprite(PET_SLOTS[i], PET_Y, 'pet_' + el + '1').setOrigin(.5, this.petOrigin('pet_' + el + '1')).setScale(petScale(el, 1)).setDepth(699); p.play({ key: 'pet_' + el + '1_idle', startFrame: i * 2 }); p.el = el; p.cd = 1500 + i * 700; p.by = p.y; p.on = false; p.setVisible(false); Object.assign(p, { stage: 1, prog: 0, pow: 1, cdMul: 1, volley: 0, reach: 1, extra: 0 }); p.lbl = this.add.text(p.x, PET_Y + 7, '', TS(9, '#ffffff')).setOrigin(.5).setDepth(702).setVisible(false); return p; });   // pet baru muncul setelah dipilih lewat kartu
-    $('skillBtn').onclick = () => this.skill();
+    $('skillBtn').onclick = () => this.skill(); $('skillBtn').style.backgroundImage = "url('" + SKILL_ICON + "')";
     this.choosing = false; $('upgrade').hidden = true; $('evo').hidden = true;
     this.events.once('shutdown', () => { this.choosing = false; $('upgrade').hidden = true; $('evo').hidden = true; });
     this.speed = 1; this.paused = false; this.clock = 0; this.tweens.timeScale = 1;
@@ -475,7 +491,11 @@ class Battle extends Base {
     p.on = true; p.cd = 1000; p.x = PET_SLOTS[n]; p.setVisible(true).setAlpha(0);
     this.tweens.add({ targets: p, alpha: 1, duration: 300 }); this.flash.emitParticleAt(p.x, p.y - 30, 18); this.petLbl(p);
   }
-  addXp(n) { this.xp += n; this.checkLevel(); }
+  xpMul() {   // EXP dinormalkan per pulau: HP monster berlipat dan jumlah monster naik, jadi EXP per damage diperkecil agar laju naik level sama seperti Pulau Terra
+    const w = Math.max(1, this.wave), isl = this.islandIndex;
+    return monstersPerWave(0, w) / monstersPerWave(isl, w) / Math.pow(DIFF.islandMul, isl);
+  }
+  addXp(n) { this.xp += n * this.xpMul(); this.checkLevel(); }
   checkLevel() {   // bar penuh -> naik level, target berikutnya x1.2, tampilkan kartu
     if (this.choosing || this.xp < this.xpNeed) return;
     this.xp -= this.xpNeed; this.xpNeed = Math.ceil(this.xpNeed * XP_GROWTH); this.level++;
@@ -512,7 +532,7 @@ class Battle extends Base {
   nextWave() {
     this.wave++;
     if (this.wave > wavesFor(this.stageNo)) return this.end(true);
-    this.toSpawn = 4 + this.wave * 2;
+    this.toSpawn = monstersPerWave(this.islandIndex, this.wave);
     this.setArena(ISLANDS[this.islandIndex].bg);
     this.banner.setText('Gelombang ' + this.wave + (waveKind(this.stageNo, this.wave) ? ({ final: '\nBOSS FINAL: ', elite: '\nELIT: ' }[waveKind(this.stageNo, this.wave)] || '\nBOSS: ') + MON[getWaveBoss(this.islandIndex, this.stageNo, this.wave)].n : '')).setAlpha(1).setScale(.6);
     this.tweens.add({ targets: this.banner, scale: 1, duration: 250, ease: 'Back.Out' });
@@ -522,15 +542,15 @@ class Battle extends Base {
     const big = this.toSpawn === 1 && !!waveKind(this.stageNo, this.wave); this.toSpawn--;
     const island = ISLANDS[this.islandIndex], pool = island.pool, id = big ? getWaveBoss(this.islandIndex, this.stageNo, this.wave) : Phaser.Utils.Array.GetRandom(pool), m = MON[id], fin = big && isFinalWave(this.stageNo, this.wave);
     const h = big ? m.h * (fin ? FINAL_BOSS.size : 1.7) : m.h, sc = h / SPR['mon' + id].ih;   // ih = tinggi gambar karakter di dalam frame sprite
-    const difficulty = 1 + (this.stageNo - 1) * .22 + this.islandIndex * .35;
-    const x = Phaser.Math.Between(44, W - 44), hp = Math.ceil((20 + this.wave * 12) * difficulty * (big ? (fin ? FINAL_BOSS.hp : 7) : m.hp)), bw = Math.max(34, h * .7);
+    const difficulty = difficultyOf(this.islandIndex, this.stageNo);
+    const x = fin ? Phaser.Math.Between(115, W - 115) : Phaser.Math.Between(44, W - 44), hp = Math.ceil((20 + this.wave * 12) * difficulty * (big ? (fin ? FINAL_BOSS.hp : 7) : m.hp)), bw = Math.max(34, h * .7);
     const sh = this.add.image(x, -20, 'shadow').setScale(h / 46), s = this.add.sprite(x, -20, 'mon' + id).setScale(sc); s.play({ key: 'mon' + id + '_move', startFrame: Phaser.Math.Between(0, 7) });
     const bg = this.add.rectangle(x, -20, bw, 5, 0x2b1d4a).setDepth(950);
     const fg = this.add.rectangle(x - bw / 2, -20, bw, 5, 0x6be3a2).setOrigin(0, .5).setDepth(951);
-    this.enemies.push({ s, sh, bg, fg, rg: RANGED[id] || null, stopY: RANGED[id] ? BASE_Y - RANGED[id].stop : BASE_Y, hp, mhp: hp, bw, k: m.el, id, h, big, sc, x0: x, py: -20, ph: Math.random() * 6.283, fly: !!m.fly, hitT: 0, r: h * .42, sp: (.03 + this.wave * .004 + (this.stageNo - 1) * .0015) * m.sp * (big ? .6 : 1) });
+    this.enemies.push({ s, sh, bg, fg, rg: RANGED[id] || null, stopY: RANGED[id] ? BASE_Y - RANGED[id].stop : BASE_Y, hp, mhp: hp, bw, k: m.el, id, h, big, sc, x0: x, py: -20, ph: Math.random() * 6.283, fly: !!m.fly, hitT: 0, r: h * .42, sp: (.03 + this.wave * .004 + (this.stageNo - 1) * .0015 + this.islandIndex * DIFF.speed) * m.sp * (big ? .6 : 1) });
   }
   ui() {   // HUD DOM: timer, judul stage, progres gelombang
-    const s = Math.floor(this.clock / 1000), w = Math.min(this.wave, wavesFor(this.stageNo)), tot = 4 + this.wave * 2, left = this.toSpawn + this.enemies.length;
+    const s = Math.floor(this.clock / 1000), w = Math.min(this.wave, wavesFor(this.stageNo)), tot = monstersPerWave(this.islandIndex, this.wave), left = this.toSpawn + this.enemies.length;
     $('bTime').textContent = String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
     $('bStage').textContent = ISLANDS[this.islandIndex].name + ' · Stage ' + this.stageNo + ' · Wave ' + w + '/' + wavesFor(this.stageNo) + ({ final: ' · BOS FINAL', elite: ' · ELIT', boss: ' · BOS' }[waveKind(this.stageNo, w)] || '');
     $('bXpBar').style.width = Math.max(0, Math.min(100, this.xp / this.xpNeed * 100)) + '%';
@@ -946,7 +966,7 @@ class Battle extends Base {
     this.tweens.add({ targets: r, scale: .9 * boss, alpha: 0, duration: 300, onComplete: () => r.destroy() });
   }
   wallHit(e, ix, R) {   // satu serangan monster ke tembok benteng (pukulan atau proyektil): kurangi HP markas, guncangan, percikan elemen, angka damage merah
-    const d = R ? R.dmg : (e.big ? WALL_HIT.bossDmg : WALL_HIT.dmg), x = ix != null ? ix : e.s.x; this.baseHp -= d;
+    const d = Math.round((R ? R.dmg : (e.big ? WALL_HIT.bossDmg : WALL_HIT.dmg)) * wallDmgMul(this.islandIndex)), x = ix != null ? ix : e.s.x; this.baseHp -= d;
     this.hero.hurt(); this.cameras.main.shake(90, e.big ? .009 : .004);
     if (e.big) this.cameras.main.flash(100, 255, 80, 80);
     this.burst[e.k].emitParticleAt(x, BASE_Y + 6, e.big ? 12 : 5);
@@ -961,7 +981,7 @@ class Battle extends Base {
     this.pop(e.s.x + Phaser.Math.Between(-12, 12), e.s.y - e.h * .5, d, '#ffffff', 11);
     e.s.setTintFill(0xffffff); this.time.delayedCall(60, () => e.s.active && e.s.clearTint());
     e.fg.width = e.bw * Math.max(0, e.hp / e.mhp); e.hitT = 140; if (!e.atk && (!fromHero || this.buffT > 0)) e.py = Math.max(-20, e.py - (e.big ? 1 : 3));   // terpental sedikit (tidak bila sedang memukul tembok)
-    if (e.hp > 0 && !(e.s.anims.currentAnim && (e.s.anims.currentAnim.key.endsWith('_hit') || e.s.anims.currentAnim.key.endsWith('_atk')))) e.s.play('mon' + e.id + '_hit').chain('mon' + e.id + '_move');   // sentakan saat kena tembak, lalu lanjut jalan
+    if (e.hp > 0 && this.anims.exists('mon' + e.id + '_hit') && !(e.s.anims.currentAnim && (e.s.anims.currentAnim.key.endsWith('_hit') || e.s.anims.currentAnim.key.endsWith('_atk')))) e.s.play('mon' + e.id + '_hit').chain('mon' + e.id + '_move');   // sentakan saat kena tembak, lalu lanjut jalan
     if (e.hp <= 0) {
       this.kills++; this.burst[e.k].emitParticleAt(e.s.x, e.s.y, e.big ? 26 : 12);
       this.pop(e.s.x, e.s.y - e.h * .55, '+5 🪙', '#ffd34d'); navigator.vibrate && navigator.vibrate(10); this.kill(e);
@@ -982,7 +1002,7 @@ class Battle extends Base {
     this.pets.forEach(p => this.petTick(p, dt));
     this.skillCd = Math.max(0, this.skillCd - dt);
     this.buffT = Math.max(0, this.buffT - dt); this.hero.buffed = this.buffT > 0;   // waktu buff ikut kecepatan game (x2)
-    const sb = $('skillBtn'), st = this.skillCd > 0 ? Math.ceil(this.skillCd / 1000) + 's' : '💥';
+    const sb = $('skillBtn'), st = this.skillCd > 0 ? Math.ceil(this.skillCd / 1000) + 's' : '';   // siap = tampil gambar ikon dari CSS (.skill), cooldown = hitungan detik
     if (sb.textContent !== st) { sb.textContent = st; sb.disabled = this.skillCd > 0; }
     if (!this.reloading && this.shotT >= Math.max(120, 700 / this.rate) / (this.buffT > 0 ? SKILL_BUFF : 1) / (this.manual ? 2 : 1)) { this.shotT = 0; this.fire(); }
     for (const b of this.bullets) { b.s.x += b.vx * dt; b.s.y += b.vy * dt; }
@@ -1010,6 +1030,7 @@ class Battle extends Base {
         const cyc = e.rg ? e.rg.every : e.big ? WALL_HIT.bossEvery : WALL_HIT.every; e.atT += dt * mv; if (e.atT >= cyc) { e.atT -= cyc; e.hitDone = false; }
         const f = e.atT / cyc;
         if (e.rg) {   // JARAK JAUH: 1) membidik (badan menarik ke belakang, bola tenaga membesar)  2) melepas proyektil  3) hentakan ke depan
+          if (SPR['mon' + e.id].atk) { if (f < .45) e.atkAnim = false; else if (!e.atkAnim) { e.atkAnim = true; e.s.play('mon' + e.id + '_atk').chain('mon' + e.id + '_move'); } }   // sprite bos jarak jauh punya animasi serang: diputar saat membidik sampai melepas
           if (f >= .5 && f < .8) {
             const w = (f - .5) / .3; yo -= e.h * .07 * w; sx = 1 - .1 * w; sy = 1 + .12 * w; if (!e.fly) ang = -4 * w;
             if (!e.chg) e.chg = this.add.image(x, e.py, 'orb').setTint(e.rg.col).setBlendMode(Phaser.BlendModes.ADD).setDepth(e.py + 3);
@@ -1133,7 +1154,7 @@ const HUB_VIEW = {
             <p class="island-arena">🗺️ Arena tetap: <b>${ARENAS[island.bg]} (Arena ${island.bg + 1})</b><br><small>Seluruh 25 stage di pulau ini hanya menggunakan arena tersebut.</small></p>
             <div class="island-progress">Progress terbaik: <b>${+progress[selectedIsland] || 0}/25 stage</b> · <b>★ ${islandStars(selectedIsland)}/${STAGES_PER_ISLAND * 3}</b></div>
             <h5>Stage Pulau ${island.name.replace('Pulau ', '')}</h5><div class="stage-grid">${stageButtons}</div>
-            <section class="zone-detail"><h4>📍 ${island.name} — Stage ${selectedStage}</h4><p class="hint">${wavesFor(selectedStage)} wave${selectedStage >= STAGES_PER_ISLAND ? ' · STAGE FINAL' : ''} · Pengali kekuatan monster ×${(1 + (selectedStage - 1) * .22 + selectedIsland * .35).toFixed(2)}.</p><p class="hint">★ Bintang: menang = 1, sisa HP markas ≥ ${Math.round(STAR_RULES.two * 100)}% = 2, ≥ ${Math.round(STAR_RULES.three * 100)}% = 3. Ditampilkan di tiap stage yang sudah ditaklukkan.</p>
+            <section class="zone-detail"><h4>📍 ${island.name} — Stage ${selectedStage}</h4><p class="hint">${wavesFor(selectedStage)} wave${selectedStage >= STAGES_PER_ISLAND ? ' · STAGE FINAL' : ''} · Pengali kekuatan monster ×${difficultyOf(selectedIsland, selectedStage).toFixed(2)}.</p><p class="hint">★ Bintang: menang = 1, sisa HP markas ≥ ${Math.round(STAR_RULES.two * 100)}% = 2, ≥ ${Math.round(STAR_RULES.three * 100)}% = 3. Ditampilkan di tiap stage yang sudah ditaklukkan.</p>
             <h5>Monster di pulau ini</h5><div class="monster-grid">${monsters}</div>
             <div class="boss-detail"><img src="assets/monsters/${MON[bossId].f}.png"><div><b>👑 ${selectedStage >= STAGES_PER_ISLAND ? 'Boss Final' : 'Boss Stage ' + selectedStage}: ${MON[bossId].n}</b><small>Elemen: ${island.bossElements.join(' / ')}. ${selectedStage < 25 ? 'Dipilih bergiliran dari roster Boss yang cocok dengan elemen pulau. Muncul pada wave 5 dan wave 10.' : 'Stage final: 15 wave. Elite muncul di wave 3, 6, dan 9, lalu Boss Final di wave 15 dengan HP dan ukuran lebih besar.'}</small></div></div>
             <button class="btn main zone-play" id="zonePlay" ${unlocked ? '' : 'disabled'}>⚔️ Mulai Stage ${selectedStage}</button>

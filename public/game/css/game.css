@@ -536,16 +536,23 @@ input:focus-visible {
   bottom: 2%;
   width: 4em;
   height: 4em;
-  border: 0.2em solid #fff3c4;
+  border: 0.2em solid #ffffff;
   border-radius: 50%;
-  background: #b3261e;
+  --skill-alpha: 0.45; /* TINGKAT TRANSPARAN isi tombol: 0 = bening, 1 = pekat */
+  background-color: rgba(0, 0, 0, var(--skill-alpha));
+  /* gambar ikon dipasang dari game.js (SKILL_ICON) supaya path-nya sama dengan aset lain */
+  background-size: 90%; /* ukuran gambar di dalam tombol */
+  background-position: center;
+  background-repeat: no-repeat;
   color: #fff;
+  text-shadow: 0 1px 3px #000;
   font: inherit;
   font-weight: 900;
   z-index: 3;
 }
 .skill:disabled {
-  background: #555;
+  background-color: rgba(85, 85, 85, var(--skill-alpha));
+  opacity: 0.6;
 }
 #gamePanel:not(.battle) .skill {
   display: none;
@@ -553,9 +560,9 @@ input:focus-visible {
 
 /* ---- v5: HUD pertempuran ala referensi ---- */
 .skill {
-  left: auto;
-  right: 3%;
-  top: 22%;
+  left: 75%;
+  right: auto;
+  top: 85%;
   bottom: auto;
 }
 .bui {

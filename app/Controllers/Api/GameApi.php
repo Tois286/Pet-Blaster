@@ -7,12 +7,22 @@ class GameApi extends ApiController
     private const MAX_WAVE = 10;
     private const AFK_CAP = 28800; // hadiah AFK menumpuk maksimal 8 jam
 
-    // Aturan upgrade: biaya koin, tambahan per pembelian, dan batas nilai.
+    // Aturan upgrade: harga dasar (cost), tambahan per pembelian (step), batas nilai (max), nilai awal (start),
+    // dan kenaikan harga per pembelian dalam persen dari harga dasar (grow). Harga = cost x (1 + grow% x jumlah pembelian).
+    // Ubah juga UPG_RULE di game.js (hanya tampilan; harga asli selalu dihitung di sini).
     private const UPGRADES = [
-        'damage'    => ['cost' => 100, 'step' => 5,  'max' => 1000],
-        'fire_rate' => ['cost' => 150, 'step' => 1,  'max' => 10],
-        'max_hp'    => ['cost' => 120, 'step' => 10, 'max' => 10000],
+        'damage'    => ['cost' => 100, 'step' => 5,  'max' => 1000,  'start' => 10,  'grow' => 10],
+        'fire_rate' => ['cost' => 150, 'step' => 1,  'max' => 10,    'start' => 1,   'grow' => 35],
+        'max_hp'    => ['cost' => 120, 'step' => 10, 'max' => 10000, 'start' => 100, 'grow' => 2],
     ];
+
+    // Harga upgrade berikutnya berdasarkan nilai saat ini (perhitungan bilangan bulat, sama persis dengan di game.js).
+    private function upgradeCost(string $type, int $value): int
+    {
+        $r = self::UPGRADES[$type];
+        $bought = intdiv(max(0, $value - $r['start']), $r['step']);
+        return intdiv($r['cost'] * (100 + $r['grow'] * $bought) + 50, 100);
+    }
 
     // Bintang pet (permanen, tersimpan di database per akun). Semua pet mulai dari bintang 1.
     private const PET_ELEMENTS = ['api', 'air', 'tanah', 'angin'];
@@ -117,12 +127,13 @@ class GameApi extends ApiController
                 $db->transRollback();
                 return $this->fail('Upgrade mencapai batas.');
             }
-            if ((int) $p['coins'] < $rule['cost']) {
+            $cost = $this->upgradeCost($type, (int) $p[$type]);
+            if ((int) $p['coins'] < $cost) {
                 $db->transRollback();
                 return $this->fail('Koin tidak cukup.');
             }
             $db->table('game_progress')->where('user_id', $uid)->update([
-                'coins' => (int) $p['coins'] - $rule['cost'],
+                'coins' => (int) $p['coins'] - $cost,
                 $type   => min($rule['max'], (int) $p[$type] + $rule['step']),
             ]);
             if ($db->transStatus() === false) {

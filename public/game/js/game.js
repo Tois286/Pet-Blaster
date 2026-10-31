@@ -6,7 +6,10 @@ const W = 390, H = 640, OX = (W - 360) / 2, HX = (W - 220) / 2, BASE_Y = 490, WA
 // Monster yang sampai di tembok benteng berhenti dan memukul tembok berulang kali (tidak lenyap). Selama masih hidup ia terus memukul.
 // dmg = HP markas yang hilang per pukulan, every = jeda antar pukulan (ms). Monster bos memukul lebih keras tetapi lebih lambat.
 const WALL_HIT = { dmg: 5, bossDmg: 15, every: 1200, bossEvery: 1800 };
-const COST = { damage: 100, fire_rate: 150, max_hp: 120 };      // hanya tampilan; harga asli dicek server
+// Aturan harga upgrade Tois (hanya tampilan; harga asli dihitung server, samakan dengan UPGRADES di GameApi.php).
+// Harga = cost x (1 + grow% x jumlah pembelian), dengan jumlah pembelian = (nilai sekarang - start) / step. Perhitungan bilangan bulat agar sama persis dengan server.
+const UPG_RULE = { damage: { cost: 100, step: 5, start: 10, grow: 10 }, fire_rate: { cost: 150, step: 1, start: 1, grow: 35 }, max_hp: { cost: 120, step: 10, start: 100, grow: 2 } };
+const upgCost = (t, v) => { const r = UPG_RULE[t]; return Math.floor((r.cost * (100 + r.grow * Math.floor(Math.max(0, v - r.start) / r.step)) + 50) / 100); };
 const UPG = [['damage', '💥', 'Damage'], ['fire_rate', '⚡', 'Kecepatan'], ['max_hp', '🛡️', 'HP markas']], UPG_MAX = { damage: 1000, fire_rate: 10, max_hp: 10000 };   // upgrade Tois (menu Karakter); batas asli dicek server
 // Bintang pet: permanen (disimpan server per akun), semua pet mulai dari bintang 1. Biaya naik dari bintang N ke N+1 ada di STAR_COST (harga asli dicek server).
 // STAR_PER = tambahan damage skill per bintang di atas 1, untuk evolusi 1, 2, 3. Evolusi 2 jauh lebih besar dari evolusi 1. Ubah angka ini untuk menyetel kekuatan.
@@ -1138,7 +1141,7 @@ const HUB_VIEW = {
       <h5>Statistik</h5><div class="stats">${bar('💥', 'Damage', +p.damage, 1000)}${bar('⚡', 'Kecepatan', +p.fire_rate, 10)}${bar('🛡️', 'HP markas', +p.max_hp, 10000)}</div>
       <h5>Upgrade Tois</h5>
       <p class="hint">Upgrade berlaku di pertempuran berikutnya.</p>
-      <nav class="dock">${UPG.map(([t, ic, n]) => { const full = +p[t] >= UPG_MAX[t]; return `<button data-upgrade="${t}" ${full || +p.coins < COST[t] ? 'disabled' : ''}><i>${ic}</i><span>${n}</span><b class="val">${p[t]}</b><em class="cost">${full ? 'MAX' : '🪙 ' + COST[t]}</em></button>`; }).join('')}</nav>
+      <nav class="dock">${UPG.map(([t, ic, n]) => { const full = +p[t] >= UPG_MAX[t], cost = upgCost(t, +p[t]); return `<button data-upgrade="${t}" ${full || +p.coins < cost ? 'disabled' : ''}><i>${ic}</i><span>${n}</span><b class="val">${p[t]}</b><em class="cost">${full ? 'MAX' : '🪙 ' + cost}</em></button>`; }).join('')}</nav>
       <ul class="shoplist">
         <li><i>💥</i><span><b>Damage +5</b>Tiap peluru Tois lebih kuat. Maksimal 1000.</span></li>
         <li><i>⚡</i><span><b>Kecepatan +1</b>Tois menembak lebih sering. Maksimal 10.</span></li>

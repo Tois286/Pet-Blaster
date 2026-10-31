@@ -7,6 +7,7 @@ const W = 390, H = 640, OX = (W - 360) / 2, HX = (W - 220) / 2, BASE_Y = 490, WA
 // dmg = HP markas yang hilang per pukulan, every = jeda antar pukulan (ms). Monster bos memukul lebih keras tetapi lebih lambat.
 const WALL_HIT = { dmg: 5, bossDmg: 15, every: 1200, bossEvery: 1800 };
 const COST = { damage: 100, fire_rate: 150, max_hp: 120 };      // hanya tampilan; harga asli dicek server
+const UPG = [['damage', '💥', 'Damage'], ['fire_rate', '⚡', 'Kecepatan'], ['max_hp', '🛡️', 'HP markas']], UPG_MAX = { damage: 1000, fire_rate: 10, max_hp: 10000 };   // upgrade Tois (menu Karakter); batas asli dicek server
 // Bintang pet: permanen (disimpan server per akun), semua pet mulai dari bintang 1. Biaya naik dari bintang N ke N+1 ada di STAR_COST (harga asli dicek server).
 // STAR_PER = tambahan damage skill per bintang di atas 1, untuk evolusi 1, 2, 3. Evolusi 2 jauh lebih besar dari evolusi 1. Ubah angka ini untuk menyetel kekuatan.
 const STAR_MAX = 5, STAR_COST = { 1: 500, 2: 1500, 3: 4000, 4: 10000 }, STAR_PER = [0.2, 0.5, 0.6];
@@ -200,11 +201,6 @@ function showProfile(d) {
   const bw = +p.best_wave;
   updateLobbyInfo();
   const afk = +d.afk || 0; $('afkAmt').textContent = afk; $('afkBtn').disabled = afk < 1;
-  document.querySelectorAll('[data-upgrade]').forEach(b => {
-    const t = b.dataset.upgrade;
-    b.querySelector('.val').textContent = p[t]; b.querySelector('.cost').textContent = '🪙 ' + COST[t];
-    b.disabled = +p.coins < COST[t];
-  });
   $('hubCoins').textContent = p.coins; if (!$('hub').hidden) renderHub();   // panel menu bawah ikut diperbarui
 }
 async function refreshProfile() { showProfile(await api('/profile')); }
@@ -248,12 +244,6 @@ $('afkBtn').addEventListener('click', async () => {
   try { const r = await api('/afk/claim', 'POST', {}); say('Hadiah AFK: +' + r.coins + ' koin!'); } catch (err) { say(err.message); }
   try { await refreshProfile(); } catch (err) { console.error(err); }
 });
-document.querySelectorAll('[data-upgrade]').forEach(b => b.addEventListener('click', async () => {
-  b.disabled = true;
-  try { await api('/upgrade', 'POST', { type: b.dataset.upgrade }); say('Upgrade berhasil! Berlaku di pertempuran berikutnya.'); }
-  catch (err) { say(err.message); }
-  try { await refreshProfile(); } catch (err) { console.error(err); }
-}));
 $('againButton').addEventListener('click', () => {
   $('result').hidden = true; say('Tahan layar untuk menembak 2x lebih cepat.');
   game.scene.start('Battle');
@@ -1146,6 +1136,14 @@ const HUB_VIEW = {
     const p = profile.progress, bar = (ic, n, v, max) => `<div class="stat"><i>${ic}</i><span>${n}</span><div class="sbar"><i style="width:${Math.min(100, v / max * 100)}%"></i></div><b>${v}</b></div>`;
     return `<article class="ccard"><img src="assets/characters/tois-avatar.png" alt="Tois"><div><h4>Tois</h4><span class="tag">Level ${p.level}</span><p>Penjaga markas yang menembak otomatis dengan gatling.</p></div></article>
       <h5>Statistik</h5><div class="stats">${bar('💥', 'Damage', +p.damage, 1000)}${bar('⚡', 'Kecepatan', +p.fire_rate, 10)}${bar('🛡️', 'HP markas', +p.max_hp, 10000)}</div>
+      <h5>Upgrade Tois</h5>
+      <p class="hint">Upgrade berlaku di pertempuran berikutnya.</p>
+      <nav class="dock">${UPG.map(([t, ic, n]) => { const full = +p[t] >= UPG_MAX[t]; return `<button data-upgrade="${t}" ${full || +p.coins < COST[t] ? 'disabled' : ''}><i>${ic}</i><span>${n}</span><b class="val">${p[t]}</b><em class="cost">${full ? 'MAX' : '🪙 ' + COST[t]}</em></button>`; }).join('')}</nav>
+      <ul class="shoplist">
+        <li><i>💥</i><span><b>Damage +5</b>Tiap peluru Tois lebih kuat. Maksimal 1000.</span></li>
+        <li><i>⚡</i><span><b>Kecepatan +1</b>Tois menembak lebih sering. Maksimal 10.</span></li>
+        <li><i>🛡️</i><span><b>HP markas +10</b>Markas lebih tahan serangan monster. Maksimal 10000.</span></li>
+      </ul>
       <h5>Senjata & skill</h5>
       <ul class="shoplist">
         <li><i>🔫</i><span><b>Gatling</b>Magasin ${MAG_SIZE} peluru, reload ${RELOAD_MS / 1000} detik. Tahan layar untuk menembak 2x lebih cepat.</span></li>
@@ -1203,6 +1201,13 @@ function renderHub(key = hubKey) {
   document.querySelectorAll('.hview').forEach(v => { v.hidden = v.id !== 'v-' + key; });
   if (HUB_VIEW[key] && profile) {
     $('v-' + key).innerHTML = HUB_VIEW[key]();
+    if (key === 'char') {
+      $('v-char').querySelectorAll('[data-upgrade]').forEach(b => b.onclick = async () => {
+        b.disabled = true;
+        try { await api('/upgrade', 'POST', { type: b.dataset.upgrade }); say('Upgrade berhasil! Berlaku di pertempuran berikutnya.'); } catch (err) { say(err.message); }
+        try { await refreshProfile(); } catch (err) { console.error(err); }
+      });
+    }
     if (key === 'pet') {
       $('v-pet').querySelectorAll('[data-star]').forEach(b => b.onclick = async () => {
         b.disabled = true;

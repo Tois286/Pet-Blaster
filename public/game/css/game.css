@@ -1683,6 +1683,7 @@ input:focus-visible {
   height: auto;
   filter: drop-shadow(0 0.2em 0.3em #0008);
 }
+
 /* Sembunyikan tampilan scrollbar, fungsi scroll tetap aktif */
 * {
   scrollbar-width: none !important; /* Firefox */
@@ -1692,4 +1693,37 @@ input:focus-visible {
   display: none !important; /* Chrome, Safari, Edge, Android WebView */
   width: 0;
   height: 0;
+}
+
+/* ---- Fusion pet (menu Pet) ---- */
+.fusion .frow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4em;
+  margin: 0.5em 0;
+}
+.fusion .fpick {
+  flex: 1 1 auto;
+  opacity: 0.7;
+}
+.fusion .fpick.on {
+  opacity: 1;
+  outline: 0.13em solid var(--gold);
+}
+.fusion .fres {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  margin: 0.4em 0;
+  padding: 0.5em;
+  border-radius: 0.8em;
+  background: rgba(0, 0, 0, 0.28);
+}
+.fusion .fres img {
+  width: 5em;
+  height: 5em;
+  object-fit: contain;
+}
+.fusion .btn[data-fuse] {
+  width: 100%;
 }

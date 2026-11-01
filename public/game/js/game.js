@@ -418,16 +418,16 @@ const PET_Y = 568, PET_SLOTS = [151, 239, 95, 295];   // urutan: api, air, tanah
 // ---- Naga Fusion Api + Air di pertempuran. Syarat pemanggilan: (1) pet Api dan Air sama-sama evolusi 3, (2) mendapatkan KARTU EMAS Fusion saat naik level.
 // Bila kartu emas dipilih: pet Api dan Air menghilang, lalu naga turun dari atas ke rumput tepat di depan tembok benteng, di tengah layar.
 // Uji cepat lewat URL: ?naga=1 = Api dan Air langsung evolusi 3 (kartu emas muncul di naik level pertama); ?naga=2 = naga langsung muncul.
-// x / y (garis pijak kaki) / h (tinggi tampil, px) mengatur posisi dan ukuran. fireFrame = frame saat mulut terbuka lebar (serangan dilepas). cardChance 1 = kartu emas pasti muncul di undian berikutnya setelah syarat 1 terpenuhi (turunkan, mis. .5, agar acak).
-const NAGA = { src: 'assets/pets/fusion_api_air_battle.webp?v=n2', card: 'assets/pets/fusion_api_air.gif', fw: 160, fh: 204, frames: 100, fps: 12, x: W / 2, y: BASE_Y - 6, h: 140, anchorY: .985, fireFrame: 32, m: 5, burn: 8000, stun: 1500, cardChance: 1 };
+// x / y (garis pijak kaki) / h (tinggi tampil, px) mengatur posisi dan ukuran. fireFrames = frame saat kepala terangkat dan mulut terbuka lebar (serangan dilepas), satu per geraman di dalam satu putaran animasi (video baru: 2 geraman per putaran 13,6 detik). lead = berapa frame sebelum titik tembak animasi dimulai ulang bila naga baru siap menembak (agar menunggu paling lama sekitar 2 detik). cardChance 1 = kartu emas pasti muncul di undian berikutnya setelah syarat 1 terpenuhi (turunkan, mis. .5, agar acak).
+const NAGA = { src: 'assets/pets/fusion_api_air_battle.webp?v=n3', card: 'assets/pets/fusion_api_air.gif', fw: 160, fh: 204, frames: 204, fps: 15, x: W / 2, y: BASE_Y - 6, h: 140, anchorY: .985, fireFrames: [38, 158], lead: 30, m: 5, burn: 8000, stun: 1500, cardChance: 1 };
 const NAGA_TEST = +((location.search.match(/[?&]naga=(\d)/) || [])[1] || 0);
 // ---- Efek saat Naga Fusion dipanggil ----
 // 1) Arena berubah jadi es + lava (FUSION_ZONE.src) dan semua monster yang tampil kehilangan FUSION_ZONE.dot HP tiap detik, sampai pertempuran selesai.
 // 2) Skill Laser Fusion (FUSION_LASER): aktif dur ms, menembak monster paling depan, pindah target saat target mati, lalu cooldown cd ms (dihitung setelah laser selesai).
 //    Sprite sheet fusion_laser.webp (transparan) = 4x4 frame (483x269): 0-8 pengisian tenaga, 9-12 pilar laser (diulang), 13-15 memudar. tick = jeda damage (ms), m = pengali damage per tick dari damage Tois.
-//    SINKRON DENGAN NAGA: pengisian tenaga mulai sync frame sebelum NAGA.fireFrame (mulut terbuka), laser keluar tepat di NAGA.fireFrame, naga menahan pose itu selama laser, lalu melanjutkan animasi. sync = durasi charge (ms) x NAGA.fps / 1000.
+//    SINKRON DENGAN NAGA: pengisian tenaga mulai sync frame sebelum salah satu NAGA.fireFrames (mulut terbuka), laser keluar tepat di titik itu, naga menahan pose itu selama laser, lalu melanjutkan animasi. sync = durasi charge (ms) x NAGA.fps / 1000.
 const FUSION_ZONE = { key: 'arena_fusion', src: 'assets/backgrounds/arena_fusion.jpg', dot: 10, every: 1000, fade: 900 };
-const FUSION_LASER = { key: 'fusion_laser', src: 'assets/pet-actions/fusion_laser.webp', fw: 483, fh: 269, dur: 10000, cd: 7000, charge: 500, sync: 6, tick: 250, m: 1.5, sc: .38, anchorY: .86, bw: .4, bodyH: 190 };   // sc = skala ledakan di mulut, bw = lebar sinar, bodyH = tinggi badan sinar di frame (px) yang diregangkan sampai target
+const FUSION_LASER = { key: 'fusion_laser', src: 'assets/pet-actions/fusion_laser.webp', fw: 483, fh: 269, dur: 10000, cd: 7000, charge: 500, sync: 7, tick: 250, m: 1.5, sc: .38, anchorY: .86, bw: .4, bodyH: 190 };   // sc = skala ledakan di mulut, bw = lebar sinar, bodyH = tinggi badan sinar di frame (px) yang diregangkan sampai target
 const ELNAME = { api: '🔥 Api', air: '💧 Air', tanah: '🪨 Tanah', angin: '🌪️ Angin' };
 // Deskripsi karakter pet per tahap evolusi
 const PET_DESC = {
@@ -491,7 +491,7 @@ class Battle extends Base {
     this.pets = ELS.map((el, i) => { const p = this.add.sprite(PET_SLOTS[i], PET_Y, 'pet_' + el + '1').setOrigin(.5, this.petOrigin('pet_' + el + '1')).setScale(petScale(el, 1)).setDepth(699); p.play({ key: 'pet_' + el + '1_idle', startFrame: i * 2 }); p.el = el; p.cd = 1500 + i * 700; p.by = p.y; p.on = false; p.setVisible(false); Object.assign(p, { stage: 1, prog: 0, pow: 1, cdMul: 1, volley: 0, reach: 1, extra: 0 }); p.lbl = this.add.text(p.x, PET_Y + 7, '', TS(9, '#ffffff')).setOrigin(.5).setDepth(702).setVisible(false); return p; });   // pet baru muncul setelah dipilih lewat kartu
     this.nagaSh = this.add.image(NAGA.x, NAGA.y - 2, 'shadow').setScale(2.1, 1.3).setAlpha(.85).setVisible(false);
     this.naga = this.add.sprite(NAGA.x, NAGA.y, 'naga_fusion').setOrigin(.5, NAGA.anchorY).setScale(NAGA.h / NAGA.fh).setVisible(false);   // depth 0 seperti monster dan dibuat lebih dulu: monster yang memukul tembok tampil di depannya
-    this.naga.on(Phaser.Animations.Events.SPRITE_ANIMATION_UPDATE, (a, f) => { const n = +f.textureFrame; this.laserFrame(n); if (n === NAGA.fireFrame) this.nagaRoar(); });
+    this.naga.on(Phaser.Animations.Events.SPRITE_ANIMATION_UPDATE, (a, f) => { const n = +f.textureFrame; this.laserFrame(n); if (NAGA.fireFrames.includes(n)) this.nagaRoar(); });
     $('skillBtn').onclick = () => this.skill(); $('skillBtn').style.backgroundImage = "url('" + SKILL_ICON + "')";
     this.choosing = false; $('upgrade').hidden = true; $('evo').hidden = true;
     this.events.once('shutdown', () => { this.choosing = false; $('upgrade').hidden = true; $('evo').hidden = true; });
@@ -672,21 +672,23 @@ class Battle extends Base {
     this.laserTick(dt);
   }
   laserPick() { let t = null; for (const e of this.enemies) if (!e.dead && e.s.y > 10 && (!t || e.s.y > t.s.y)) t = e; return t; }   // musuh paling depan (paling dekat tembok)
-  nagaRestart() {   // ulang animasi naga dari frame 0 tanpa lompatan pose: bayangan frame terakhir memudar sebentar di atas pose baru
-    const n = this.naga; if (!n.visible || !n.frame) { n.play('naga_fusion_idle'); return; }
+  nagaRestart(start = 0) {   // ulang animasi naga dari frame start tanpa lompatan pose: bayangan frame terakhir memudar sebentar di atas pose baru
+    const n = this.naga, cfg = { key: 'naga_fusion_idle', startFrame: start }; if (!n.visible || !n.frame) { n.play(cfg); return; }
     const g = this.add.sprite(n.x, n.y, 'naga_fusion', n.frame.name).setOrigin(n.originX, n.originY).setScale(n.scaleX, n.scaleY).setAlpha(n.alpha).setDepth(n.depth);
-    n.play('naga_fusion_idle');
+    n.play(cfg);
     this.tweens.add({ targets: g, alpha: 0, duration: 260, onComplete: () => g.destroy() });
   }
+  nextFire(n) { return NAGA.fireFrames.reduce((b, f) => ((f - n + NAGA.frames) % NAGA.frames < (b - n + NAGA.frames) % NAGA.frames ? f : b)); }   // titik tembak (frame geraman) terdekat berikutnya
+  inCharge(n) { return NAGA.fireFrames.some(f => n >= f - FUSION_LASER.sync && n < f); }   // frame sedang berada di jendela pengisian tenaga
   laserFrameNo() { const cf = this.naga.anims.currentFrame; return cf ? +cf.textureFrame : 0; }   // nomor frame animasi naga saat ini
   laserFx(x, y, frame, anim) {   // sprite efek laser; bila sprite sheet gagal dimuat, laser (sinar) tetap jalan tanpa sprite
     if (!this.textures.exists(FUSION_LASER.key) || !this.anims.exists(anim)) { if (!this.lzWarned) { this.lzWarned = true; console.warn('[LASER] sprite sheet/animasi tidak ada:', FUSION_LASER.src); } return null; }
     return this.add.sprite(x, y, FUSION_LASER.key, frame).setDepth(851).play(anim);
   }
-  laserFrame(n) {   // dipanggil tiap frame animasi naga: laser mengikuti gerakan naga (mulut terbuka di NAGA.fireFrame)
+  laserFrame(n) {   // dipanggil tiap frame animasi naga: laser mengikuti gerakan naga (mulut terbuka di NAGA.fireFrames)
     const L = this.lz, F = FUSION_LASER; if (!L || !this.nagaOn) return;
-    if (L.ph === 'wait' && n === NAGA.fireFrame - F.sync) this.laserCharge();
-    else if (L.ph === 'charge' && n === NAGA.fireFrame) this.laserBeam();
+    if (L.ph === 'wait' && NAGA.fireFrames.includes(n + F.sync)) this.laserCharge();
+    else if (L.ph === 'charge' && NAGA.fireFrames.includes(n)) this.laserBeam();
   }
   laserCharge() {   // naga mulai mengumpulkan tenaga (bola es dan api menyatu di mulut)
     const L = this.lz, F = FUSION_LASER, mx = NAGA.x, my = NAGA.y - NAGA.h * .85;
@@ -716,18 +718,19 @@ class Battle extends Base {
       L.cd = Math.max(0, L.cd - dt); if (L.cd > 0 || !this.laserPick()) return;
       L.ph = 'wait'; L.w = 0; L.target = null; L.x = mx; L.y = my;
       console.log('[LASER] siap, frame naga', this.laserFrameNo());
-      if (this.laserFrameNo() >= NAGA.fireFrame - F.sync) this.nagaRestart();   // titik mengisi tenaga sudah lewat: ulang animasi naga dari awal agar tidak menunggu satu putaran penuh
+      const n0 = this.laserFrameNo(), f = this.nextFire(n0);
+      if ((f - n0 + NAGA.frames) % NAGA.frames > NAGA.lead * 1.5) this.nagaRestart((f - NAGA.lead + NAGA.frames) % NAGA.frames);   // geraman berikutnya masih jauh: lompat ke NAGA.lead frame sebelumnya (dengan bayangan memudar) agar tidak menunggu setengah putaran
       return;
     }
     if (L.ph === 'wait') {   // menunggu naga mencapai frame awal pengisian tenaga (dicek tiap frame game, tidak hanya lewat event); batas tunggu 4 detik
       L.w += dt; const n = this.laserFrameNo();
-      if ((n >= NAGA.fireFrame - F.sync && n < NAGA.fireFrame) || L.w > 4000) this.laserCharge();
+      if (this.inCharge(n) || L.w > 4000) this.laserCharge();
       return;
     }
     [L.charge, L.imp, L.base].forEach(o => { if (o) o.anims.timeScale = this.speed; });
     if (L.ph === 'charge') {
       L.t -= dt; const n = this.laserFrameNo();
-      if (L.t <= 0 || n >= NAGA.fireFrame || n < NAGA.fireFrame - F.sync) this.laserBeam();
+      if (L.t <= 0 || !this.inCharge(n)) this.laserBeam();
       return;
     }
     if (!this.naga.anims.isPaused) this.naga.anims.pause();   // tahan pose menyembur (pause global bisa melanjutkan animasi)

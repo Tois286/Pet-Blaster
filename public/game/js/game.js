@@ -419,7 +419,7 @@ const PET_Y = 568, PET_SLOTS = [151, 239, 95, 295];   // urutan: api, air, tanah
 // Bila kartu emas dipilih: pet Api dan Air menghilang, lalu naga turun dari atas ke rumput tepat di depan tembok benteng, di tengah layar.
 // Uji cepat lewat URL: ?naga=1 = Api dan Air langsung evolusi 3 (kartu emas muncul di naik level pertama); ?naga=2 = naga langsung muncul.
 // x / y (garis pijak kaki) / h (tinggi tampil, px) mengatur posisi dan ukuran. fireFrame = frame saat mulut terbuka lebar (serangan dilepas). cardChance 1 = kartu emas pasti muncul di undian berikutnya setelah syarat 1 terpenuhi (turunkan, mis. .5, agar acak).
-const NAGA = { src: 'assets/pets/fusion_api_air_battle.webp', card: 'assets/pets/fusion_api_air.gif', fw: 160, fh: 204, frames: 95, fps: 12, x: W / 2, y: BASE_Y - 6, h: 140, anchorY: .985, fireFrame: 32, m: 5, burn: 8000, stun: 1500, cardChance: 1 };
+const NAGA = { src: 'assets/pets/fusion_api_air_battle.webp?v=n2', card: 'assets/pets/fusion_api_air.gif', fw: 160, fh: 204, frames: 100, fps: 12, x: W / 2, y: BASE_Y - 6, h: 140, anchorY: .985, fireFrame: 32, m: 5, burn: 8000, stun: 1500, cardChance: 1 };
 const NAGA_TEST = +((location.search.match(/[?&]naga=(\d)/) || [])[1] || 0);
 // ---- Efek saat Naga Fusion dipanggil ----
 // 1) Arena berubah jadi es + lava (FUSION_ZONE.src) dan semua monster yang tampil kehilangan FUSION_ZONE.dot HP tiap detik, sampai pertempuran selesai.
@@ -672,6 +672,12 @@ class Battle extends Base {
     this.laserTick(dt);
   }
   laserPick() { let t = null; for (const e of this.enemies) if (!e.dead && e.s.y > 10 && (!t || e.s.y > t.s.y)) t = e; return t; }   // musuh paling depan (paling dekat tembok)
+  nagaRestart() {   // ulang animasi naga dari frame 0 tanpa lompatan pose: bayangan frame terakhir memudar sebentar di atas pose baru
+    const n = this.naga; if (!n.visible || !n.frame) { n.play('naga_fusion_idle'); return; }
+    const g = this.add.sprite(n.x, n.y, 'naga_fusion', n.frame.name).setOrigin(n.originX, n.originY).setScale(n.scaleX, n.scaleY).setAlpha(n.alpha).setDepth(n.depth);
+    n.play('naga_fusion_idle');
+    this.tweens.add({ targets: g, alpha: 0, duration: 260, onComplete: () => g.destroy() });
+  }
   laserFrameNo() { const cf = this.naga.anims.currentFrame; return cf ? +cf.textureFrame : 0; }   // nomor frame animasi naga saat ini
   laserFx(x, y, frame, anim) {   // sprite efek laser; bila sprite sheet gagal dimuat, laser (sinar) tetap jalan tanpa sprite
     if (!this.textures.exists(FUSION_LASER.key) || !this.anims.exists(anim)) { if (!this.lzWarned) { this.lzWarned = true; console.warn('[LASER] sprite sheet/animasi tidak ada:', FUSION_LASER.src); } return null; }
@@ -710,7 +716,7 @@ class Battle extends Base {
       L.cd = Math.max(0, L.cd - dt); if (L.cd > 0 || !this.laserPick()) return;
       L.ph = 'wait'; L.w = 0; L.target = null; L.x = mx; L.y = my;
       console.log('[LASER] siap, frame naga', this.laserFrameNo());
-      if (this.laserFrameNo() >= NAGA.fireFrame - F.sync) this.naga.play('naga_fusion_idle');   // titik mengisi tenaga sudah lewat: ulang animasi naga dari awal agar tidak menunggu satu putaran penuh
+      if (this.laserFrameNo() >= NAGA.fireFrame - F.sync) this.nagaRestart();   // titik mengisi tenaga sudah lewat: ulang animasi naga dari awal agar tidak menunggu satu putaran penuh
       return;
     }
     if (L.ph === 'wait') {   // menunggu naga mencapai frame awal pengisian tenaga (dicek tiap frame game, tidak hanya lewat event); batas tunggu 4 detik

@@ -37,3 +37,10 @@ Membaca satu sprite sheet PNG transparan `tools/source/air/air_evol2_sheet.png` 
 lalu menulis `pet_air2.webp`, `pets/air2.png`, dan entri `pet_air2` di `sprites-data.js` dengan format yang sama dengan `pet_api2`:
 frame 224x116, karakter maks 102 px, kaki di baris (fh+ih)/2, idle 18 frame (ping-pong dari 10 frame tenang), serang 20 frame,
 gambar statis 128x128 lebar 122, tanpa `rel`. Satu skala dipakai untuk semua frame. `make_air_sheets.py` tidak lagi membuat evolusi 2 kecuali `--only 2`.
+
+## Loop Naga Fusion (fusion_api_air_battle.webp)
+
+`python3 tools/make_naga_bridge.py` menambah 5 frame jembatan di akhir sheet naga (95 -> 100 frame) supaya
+pose akhir (menggeram, kepala keluar) berpindah halus ke frame 0 (pose tenang), bukan melompat tiap putaran loop.
+Sumber asli ada di `backup-lama-naga/` (95 frame); `NAGA.frames` di `game.js` harus 100. Tambahkan `--preview file.png` untuk pratinjau.
+Butuh `numpy`, `opencv-python`, `pillow`.

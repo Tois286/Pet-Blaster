@@ -240,7 +240,7 @@ async function enterGame() {
     window.__nagaAuto = 1; let tries = 0;
     const t = setInterval(() => {
       if (++tries > 100) { clearInterval(t); return; }
-      if (game && game.scene.isActive('Lobby')) { clearInterval(t); $('gamePanel').classList.add('battle'); game.scene.stop('Lobby'); game.scene.start('Battle'); }
+      if (game && game.scene.isActive('Lobby')) { clearInterval(t); startBattle(); }
     }, 300);
   }
 }
@@ -270,7 +270,7 @@ $('afkBtn').addEventListener('click', async () => {
 });
 $('againButton').addEventListener('click', () => {
   $('result').hidden = true; say('Tahan layar untuk menembak 2x lebih cepat.');
-  game.scene.start('Battle');
+  startBattle();
 });
 
 const TS = (size, color) => ({ fontFamily: 'system-ui, sans-serif', fontSize: size + 'px', fontStyle: 'bold', color, stroke: '#2b1d4a', strokeThickness: 4, resolution: 2 });
@@ -369,6 +369,9 @@ class Base extends Phaser.Scene {
     if (!this.textures.exists('earth_ball')) this.load.spritesheet('earth_ball', 'assets/pet-actions/earth_ball.png?v=t2', { frameWidth: 280, frameHeight: 280 });   // bola batu Menggelinding (tanah evolusi 2)
     if (!this.textures.exists('earth_crystal')) this.load.spritesheet('earth_crystal', 'assets/pet-actions/earth_crystal.png?v=t3', { frameWidth: 500, frameHeight: 440 });   // efek kristal Gali & Tabrak (tanah evolusi 3)
     if (!this.textures.exists('fire_lava_claw')) this.load.spritesheet('fire_lava_claw', 'assets/pet-actions/fire_lava_claw.png', { frameWidth: 256, frameHeight: 256 });
+    // Gambar arena (latar biasa + arena fusion, total beberapa MB) dimuat di sini, bukan saat tombol Mulai Game ditekan: ikut layar pemuatan setelah login, jadi klik Mulai tidak perlu mengunduh apa pun lagi.
+    ARENAS.forEach((n, i) => { if (!this.textures.exists('arena' + i)) this.load.image('arena' + i, 'assets/backgrounds/arena' + (i + 1) + '.jpg'); });
+    Object.values(FUSIONS).forEach(f => { if (!this.textures.exists(f.zone.key)) this.load.image(f.zone.key, f.zone.src); });   // arena fusion (es + lava / batu + lava)
   }
   // Pasang karakter Tois dengan tinggi tampilan h (piksel game), berpijak di (x, y).
   heroAnim() { if (!this.anims.exists('tois_idle')) this.anims.create({ key: 'tois_idle', frames: this.anims.generateFrameNumbers('tois_anim', { start: 0, end: TOIS_ANIM.frames - 1 }), frameRate: TOIS_ANIM.fps, repeat: -1 }); }
@@ -512,13 +515,12 @@ class Battle extends Base {
     this.pop(W / 2, 250, ARENAS[i], '#ffffff', 22);
   }
   preload() {
-    super.preload();
-    ARENAS.forEach((n, i) => { if (!this.textures.exists('arena' + i)) this.load.image('arena' + i, 'assets/backgrounds/arena' + (i + 1) + '.jpg'); });
-    Object.values(FUSIONS).forEach(f => { if (!this.textures.exists(f.zone.key)) this.load.image(f.zone.key, f.zone.src); });   // arena fusion (es + lava / batu + lava)
+    this.load.once('start', showLoading);   // 'start' hanya terjadi bila memang ada aset yang harus diunduh: bila semuanya sudah siap (kasus normal) layar pemuatan tidak berkedip
+    super.preload();   // aset arena sudah ikut dimuat di Base.preload
   }
 
   create() {
-    this.over = true; checkFusionAssets();
+    this.over = true; checkFusionAssets(); hideLoading();
     this.makeTextures(); this.makeWorld();
     this.hero = new HeroRig(this, W / 2, 632, 98);   // Tois tampak belakang, tubuh lentur
     this.shells = this.add.particles(0, 0, 'shell', { speedX: { min: 30, max: 90 }, speedY: { min: -110, max: -40 }, gravityY: 420, lifespan: 650, rotate: { start: 0, end: 540 }, alpha: { start: 1, end: 0 }, emitting: false }).setDepth(705);
@@ -545,7 +547,8 @@ class Battle extends Base {
     this.manual = false;
     this.input.on('pointerdown', () => { this.manual = true; });
     this.input.on('pointerup', () => { this.manual = false; });
-    api('/battle/start', 'POST', {}).then(r => { this.token = r.session; this.begin(); })
+    const req = battleReq || api('/battle/start', 'POST', {}); battleReq = null;   // permintaan sudah dikirim saat tombol ditekan (startBattle); bila tidak ada (mis. mulai ulang) kirim sekarang
+    req.then(r => { this.token = r.session; this.begin(); })
       .catch(err => { say(err.message); });
   }
 
@@ -1556,6 +1559,14 @@ function startGame() {
 // ---- Lobi ----
 let sayT;
 function say(t) { const m = $('gameMessage'); m.textContent = t; clearTimeout(sayT); if (t) sayT = setTimeout(() => { m.textContent = ''; }, 3000); }
+// Mulai pertempuran. Permintaan /battle/start dikirim bersamaan dengan pergantian scene (sebelumnya baru dikirim setelah scene Battle selesai dibuat, jadi dua jeda berurutan). Klik ganda diabaikan selama permintaan belum dipakai Battle.create.
+let battleReq = null;
+function startBattle() {
+  if (!game || battleReq) return;
+  battleReq = api('/battle/start', 'POST', {});
+  battleReq.catch(() => { });   // galat ditampilkan oleh Battle.create lewat say(); ini hanya mencegah peringatan "unhandled rejection"
+  $('gamePanel').classList.add('battle'); game.scene.stop('Lobby'); game.scene.start('Battle');
+}
 function toLobby() { $('result').hidden = true; $('gamePanel').classList.remove('battle'); game.scene.stop('Battle'); game.scene.start('Lobby'); }
 const menu = (el, items) => items.forEach(([ic, label, act]) => {
   const b = document.createElement('button'); b.className = 'ico'; b.innerHTML = `<i>${ic}</i><span>${label}</span>`;
@@ -1715,7 +1726,7 @@ function renderHub(key = hubKey) {
       view.querySelectorAll('[data-stage]').forEach(b => b.onclick = () => { selectedStage = +b.dataset.stage; renderHub('zone'); $('islandPopup').hidden = false; });
       const close = view.querySelector('#closeIslandPopup'); if (close) close.onclick = () => { popup.hidden = true; };
       popup?.addEventListener('click', e => { if (e.target === popup) popup.hidden = true; });
-      const play = $('zonePlay'); if (play) play.onclick = () => { $('hub').hidden = true; $('gamePanel').classList.add('battle'); game.scene.stop('Lobby'); game.scene.start('Battle'); };
+      const play = $('zonePlay'); if (play) play.onclick = () => { $('hub').hidden = true; startBattle(); };
       const map = view.querySelector('#worldMap'), viewport = view.querySelector('#worldMapViewport');
       if (map && viewport) {
         viewport.scrollLeft = Math.min(120, Math.max(0, viewport.scrollWidth - viewport.clientWidth));
@@ -1737,7 +1748,7 @@ $('hubClose').onclick = () => {
   if (hubOpenSnap !== selectedIsland + '-' + selectedStage) refreshLobbyScene();   // restart hanya bila pulau/stage berubah (hindari kedip biru)
   else updateLobbyInfo();
 };
-$('startBtn').onclick = () => { $('gamePanel').classList.add('battle'); game.scene.stop('Lobby'); game.scene.start('Battle'); };
+$('startBtn').onclick = startBattle;
 $('quitBtn').onclick = toLobby; $('lobbyBtn').onclick = toLobby;
 
 class Lobby extends Base {

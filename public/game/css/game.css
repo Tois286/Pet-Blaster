@@ -187,6 +187,7 @@ input {
 }
 .pills {
   display: flex;
+  flex-wrap: wrap;   /* koin + gem + gelombang terbaik: turun ke baris kedua bila layar sempit */
   gap: 0.4em;
 }
 .pill {

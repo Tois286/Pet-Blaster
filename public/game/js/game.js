@@ -17,6 +17,11 @@ const UPG = [['damage', '💥', 'Damage'], ['fire_rate', '⚡', 'Kecepatan'], ['
 const STAR_MAX = 5, STAR_COST = { 1: 500, 2: 1500, 3: 4000, 4: 10000 }, STAR_PER = [0.2, 0.5, 0.6];
 const petStars = el => Math.min(STAR_MAX, Math.max(1, +(profile && profile.progress && profile.progress['star_' + el]) || 1));
 const starMul = (el, st) => 1 + (petStars(el) - 1) * STAR_PER[st - 1];   // pengali damage skill pet; dihitung ulang tiap serangan, jadi otomatis ikut naik saat evolusi
+// Gem: HANYA dari bos stage 5, 10, 15, 20 dan stage 25 (Boss Final) tiap pulau, didapat saat stage itu dimenangkan.
+// Terra: stage 5/10/15/20 = 50 gem, stage 25 = 100 gem. Tiap pulau berikutnya +25 gem (stage biasa) dan +35 gem (stage 25). Ini hanya tampilan; jumlah asli dihitung server (GEM_RULE di GameApi.php).
+const GEM_RULE = { base: 50, island: 25, finalBase: 100, finalIsland: 35 };
+const gemReward = (island, stage) => (stage < 5 || stage > 25 || stage % 5) ? 0 : stage === 25 ? GEM_RULE.finalBase + GEM_RULE.finalIsland * island : GEM_RULE.base + GEM_RULE.island * island;
+const gemClaimed = (island, stage) => !!(profile && Array.isArray(profile.gemClears) && profile.gemClears.includes(island + '-' + stage));   // gem bos ini sudah diambil (server hanya memberi sekali per bos)
 // Monster musuh (20 sprite di assets/monsters). el = indeks ELS, h = tinggi tampil (px), hp/sp = pengali HP dan kecepatan, fly = melayang.
 const MON = {
   1: { f: '01_goblin_api', n: 'Goblin Api', el: 0, h: 52, hp: 1, sp: 1 },
@@ -213,12 +218,12 @@ function refreshLobbyScene() {   // bangun ulang lobi (bos & tampilan) setelah p
 }
 function showProfile(d) {
   profile = d; const p = d.progress;
-  $('playerName').textContent = d.username; $('coins').textContent = p.coins;
+  $('playerName').textContent = d.username; $('coins').textContent = p.coins; $('gems').textContent = +p.gems || 0;
   $('level').textContent = p.level; $('bestWave').textContent = p.best_wave;
   const bw = +p.best_wave;
   updateLobbyInfo();
   const afk = +d.afk || 0; $('afkAmt').textContent = afk; $('afkBtn').disabled = afk < 1;
-  $('hubCoins').textContent = p.coins; if (!$('hub').hidden) renderHub();   // panel menu bawah ikut diperbarui
+  $('hubCoins').textContent = p.coins; $('hubGems').textContent = +p.gems || 0; if (!$('hub').hidden) renderHub();   // panel menu bawah ikut diperbarui
 }
 async function refreshProfile() { showProfile(await api('/profile')); }
 // Setelah login/refresh: langsung arahkan pilihan ke stage berikutnya yang belum ditaklukkan
@@ -552,7 +557,7 @@ class Battle extends Base {
     this.manual = false;
     this.input.on('pointerdown', () => { this.manual = true; });
     this.input.on('pointerup', () => { this.manual = false; });
-    const req = battleReq || api('/battle/start', 'POST', {}); battleReq = null;   // permintaan sudah dikirim saat tombol ditekan (startBattle); bila tidak ada (mis. mulai ulang) kirim sekarang
+    const req = battleReq || api('/battle/start', 'POST', { island: selectedIsland, stage: selectedStage }); battleReq = null;   // permintaan sudah dikirim saat tombol ditekan (startBattle); bila tidak ada (mis. mulai ulang) kirim sekarang
     req.then(r => { this.token = r.session; this.begin(); })
       .catch(err => { say(err.message); });
   }
@@ -1599,10 +1604,10 @@ class Battle extends Base {
     rs.innerHTML = win ? [1, 2, 3].map(i => `<span class="${i <= stars ? 'on' : ''}" style="animation-delay:${(i * .25).toFixed(2)}s">★</span>`).join('') : '';
     $('resultText').textContent = 'Menyimpan hadiah...'; $('againButton').hidden = true; $('result').hidden = false;
     try {
-      const r = await api('/battle/finish', 'POST', { session: this.token, wave: win ? WAVES : Math.min(WAVES, Math.max(1, this.wave - 1)), kills: this.kills });
+      const r = await api('/battle/finish', 'POST', { session: this.token, wave: win ? WAVES : Math.min(WAVES, Math.max(1, this.wave - 1)), kills: this.kills, won: !!win });
       if (win && this.stageNo < STAGES_PER_ISLAND) selectedStage = this.stageNo + 1;
       await refreshProfile();
-      $('resultText').textContent = 'Pulau ' + ISLANDS[this.islandIndex].name + ' · Stage ' + this.stageNo + '. Kamu mengalahkan ' + this.kills + ' monster dan mendapat ' + r.coins + ' koin.' + (win && this.stageNo < 25 ? ' Stage berikutnya kini terbuka.' : '') + (win ? ' Sisa HP markas ' + hpPct + '%.' + (stars < 3 ? ' Butuh sisa HP ≥ ' + Math.round((stars < 2 ? STAR_RULES.two : STAR_RULES.three) * 100) + '% untuk ' + (stars + 1) + ' bintang.' : ' Sempurna, 3 bintang!') : '');
+      $('resultText').textContent = 'Pulau ' + ISLANDS[this.islandIndex].name + ' · Stage ' + this.stageNo + '. Kamu mengalahkan ' + this.kills + ' monster dan mendapat ' + r.coins + ' koin.' + (+r.gems > 0 ? ' Bos dikalahkan: +' + r.gems + ' 💎 gem!' : r.gemClaimed ? ' Gem bos ini sudah pernah kamu ambil (hanya didapat sekali).' : '') + (win && this.stageNo < 25 ? ' Stage berikutnya kini terbuka.' : '') + (win ? ' Sisa HP markas ' + hpPct + '%.' + (stars < 3 ? ' Butuh sisa HP ≥ ' + Math.round((stars < 2 ? STAR_RULES.two : STAR_RULES.three) * 100) + '% untuk ' + (stars + 1) + ' bintang.' : ' Sempurna, 3 bintang!') : '');
     } catch (err) { $('resultText').textContent = err.message; }
     $('againButton').hidden = false;
   }
@@ -1624,7 +1629,7 @@ function say(t) { const m = $('gameMessage'); m.textContent = t; clearTimeout(sa
 let battleReq = null;
 function startBattle() {
   if (!game || battleReq) return;
-  battleReq = api('/battle/start', 'POST', {});
+  battleReq = api('/battle/start', 'POST', { island: selectedIsland, stage: selectedStage });   // pulau + stage dikirim agar server bisa menghitung gem bos
   battleReq.catch(() => { });   // galat ditampilkan oleh Battle.create lewat say(); ini hanya mencegah peringatan "unhandled rejection"
   $('gamePanel').classList.add('battle'); game.scene.stop('Lobby'); game.scene.start('Battle');
 }
@@ -1730,7 +1735,7 @@ const HUB_VIEW = {
             <h5>Stage Pulau ${island.name.replace('Pulau ', '')}</h5><div class="stage-grid">${stageButtons}</div>
             <section class="zone-detail"><h4>📍 ${island.name} — Stage ${selectedStage}</h4><p class="hint">${wavesFor(selectedStage)} wave${selectedStage >= STAGES_PER_ISLAND ? ' · STAGE FINAL' : ''} · Pengali kekuatan monster ×${difficultyOf(selectedIsland, selectedStage).toFixed(2)}.</p><p class="hint">★ Bintang: menang = 1, sisa HP markas ≥ ${Math.round(STAR_RULES.two * 100)}% = 2, ≥ ${Math.round(STAR_RULES.three * 100)}% = 3. Ditampilkan di tiap stage yang sudah ditaklukkan.</p>
             <h5>Monster di pulau ini</h5><div class="monster-grid">${monsters}</div>
-            <div class="boss-detail"><img src="assets/monsters/${MON[bossId].f}.png"><div><b>👑 ${selectedStage >= STAGES_PER_ISLAND ? 'Boss Final' : 'Boss Stage ' + selectedStage}: ${MON[bossId].n}</b><small>Elemen: ${island.bossElements.join(' / ')}. ${selectedStage < 25 ? 'Dipilih bergiliran dari roster Boss yang cocok dengan elemen pulau. Muncul pada wave 5 dan wave 10.' : 'Stage final: 15 wave. Elite muncul di wave 3, 6, dan 9, lalu Boss Final di wave 15 dengan HP dan ukuran lebih besar.'}</small></div></div>
+            <div class="boss-detail"><img src="assets/monsters/${MON[bossId].f}.png"><div><b>👑 ${selectedStage >= STAGES_PER_ISLAND ? 'Boss Final' : 'Boss Stage ' + selectedStage}: ${MON[bossId].n}</b><small>Elemen: ${island.bossElements.join(' / ')}. ${gemReward(selectedIsland, selectedStage) ? '💎 Hadiah gem: <b>' + gemReward(selectedIsland, selectedStage) + '</b> ' + (gemClaimed(selectedIsland, selectedStage) ? '(sudah kamu ambil)' : '(didapat sekali, saat stage ini dimenangkan)') + '. ' : ''}${selectedStage < 25 ? 'Dipilih bergiliran dari roster Boss yang cocok dengan elemen pulau. Muncul pada wave 5 dan wave 10.' : 'Stage final: 15 wave. Elite muncul di wave 3, 6, dan 9, lalu Boss Final di wave 15 dengan HP dan ukuran lebih besar.'}</small></div></div>
             <button class="btn main zone-play" id="zonePlay" ${unlocked ? '' : 'disabled'}>⚔️ Mulai Stage ${selectedStage}</button>
             </section>
           </div>

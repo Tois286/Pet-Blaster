@@ -218,7 +218,7 @@ function refreshLobbyScene() {   // bangun ulang lobi (bos & tampilan) setelah p
 }
 function showProfile(d) {
   profile = d; const p = d.progress;
-  $('playerName').textContent = d.username; $('coins').textContent = p.coins; $('gems').textContent = +p.gems || 0;
+  $('playerName').textContent = d.username; $('playerId').textContent = d.publicId || ''; $('coins').textContent = p.coins; $('gems').textContent = +p.gems || 0;
   $('level').textContent = p.level; $('bestWave').textContent = p.best_wave;
   const bw = +p.best_wave;
   updateLobbyInfo();

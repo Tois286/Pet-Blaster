@@ -2,6 +2,8 @@
 
 namespace App\Controllers\Api;
 
+use App\Libraries\PublicId;
+
 class GameApi extends ApiController
 {
     private const MAX_WAVE = 10;
@@ -109,7 +111,17 @@ class GameApi extends ApiController
         $db = db_connect();
         $this->ensurePetStarColumns($db);
         $gemOk = $this->ensureGemSchema($db);
+        if (PublicId::ensureColumn($db)) {
+            PublicId::backfill($db);   // akun lama (sebelum ada public_id) diberi ID dari nomor urut + tanggal/jam daftarnya
+        }
         $user = $db->table('game_users')->select('username')->where('id', $uid)->get()->getRowArray();
+        $pub = null;
+        try {
+            $row = $db->query('SELECT public_id FROM game_users WHERE id = ?', [$uid])->getRowArray();
+            $pub = $row['public_id'] ?? null;
+        } catch (\Throwable $e) {
+            log_message('error', 'public_id gagal dibaca: {m}', ['m' => $e->getMessage()]);
+        }
         $progress = $db->table('game_progress')->where('user_id', $uid)->get()->getRowArray();
         if (!$user || !$progress) {
             return $this->fail('Data tidak ditemukan.', 404);
@@ -125,7 +137,7 @@ class GameApi extends ApiController
                 log_message('error', 'Daftar bos gagal dibaca: {m}', ['m' => $e->getMessage()]);
             }
         }
-        return $this->respond(['success' => true, 'username' => $user['username'], 'progress' => $progress, 'afk' => $this->afkPending($progress), 'gemClears' => $gemClears]);
+        return $this->respond(['success' => true, 'username' => $user['username'], 'progress' => $progress, 'afk' => $this->afkPending($progress), 'gemClears' => $gemClears, 'publicId' => $pub]);
     }
 
     // Koin AFK = menit berlalu (maks 8 jam) x (1 + rekor gelombang). Dihitung penuh di server.

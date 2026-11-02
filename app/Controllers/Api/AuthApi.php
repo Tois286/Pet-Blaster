@@ -2,6 +2,8 @@
 
 namespace App\Controllers\Api;
 
+use App\Libraries\PublicId;
+
 class AuthApi extends ApiController
 {
     public function register()
@@ -24,6 +26,7 @@ class AuthApi extends ApiController
             return $this->fail('Username/email sudah digunakan.', 409);
         }
 
+        $hasPublicId = PublicId::ensureColumn($db);   // sebelum transaksi: ALTER TABLE meng-commit otomatis
         $db->transBegin();
         try {
             $db->table('game_users')->insert([
@@ -31,7 +34,13 @@ class AuthApi extends ApiController
                 'email'         => $email,
                 'password_hash' => password_hash($password, PASSWORD_DEFAULT),
             ]);
-            $db->table('game_progress')->insert(['user_id' => $db->insertID(), 'last_claim' => time()]);
+            $uid = (int) $db->insertID();
+            if ($hasPublicId) {
+                // ID 10 karakter dari nomor urut akun + tanggal/jam pendaftaran (created_at yang baru saja dicatat database)
+                $created = $db->query('SELECT created_at FROM game_users WHERE id = ?', [$uid])->getRowArray();
+                $db->query('UPDATE game_users SET public_id = ? WHERE id = ?', [PublicId::make($uid, (string) ($created['created_at'] ?? '')), $uid]);
+            }
+            $db->table('game_progress')->insert(['user_id' => $uid, 'last_claim' => time()]);
             if ($db->transStatus() === false) {
                 throw new \RuntimeException('Gagal menyimpan akun.');
             }

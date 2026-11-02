@@ -196,6 +196,15 @@ input {
   padding: 0.25em 0.7em;
   white-space: nowrap;
 }
+.name .pid {   /* ID pengguna 10 karakter di samping nama */
+  font-weight: 400;
+  font-size: 0.7em;
+  letter-spacing: 0.04em;
+  opacity: 0.75;
+}
+.name .pid:not(:empty)::before {
+  content: "ID ";
+}
 .name {
   font-weight: 700;
   text-shadow: 0 1px 3px #000;

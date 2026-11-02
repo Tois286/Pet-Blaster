@@ -5,7 +5,10 @@ CREATE TABLE IF NOT EXISTS game_users (
  username VARCHAR(30) NOT NULL UNIQUE,
  email VARCHAR(150) NOT NULL UNIQUE,
  password_hash VARCHAR(255) NOT NULL,
- created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+ created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ -- ID 10 karakter: nomor urut (4, basis 36) + tahun/bulan/tanggal/jam (4, basis 36) + menit (2). Diisi server saat pendaftaran.
+ public_id CHAR(10) NULL DEFAULT NULL,
+ UNIQUE KEY uq_game_users_public_id (public_id)
 );
 CREATE TABLE IF NOT EXISTS game_progress (
  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

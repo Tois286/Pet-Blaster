@@ -1,4 +1,5 @@
 // Pet Blaster: tampilan portrait untuk Android. Tois, pet, monster musuh, dan latar memakai gambar PNG/JPG di assets/.
+console.log('[GAME] game.js build meteor-v1 dimuat');   // jika baris ini TIDAK muncul di console, browser masih memakai game.js lama (cache)
 const API = '/api';
 const $ = id => document.getElementById(id);
 // Kanvas 390x640 (rasio latar arena baru 1270x2090). Tata letak lobi lama dirancang untuk lebar 360, jadi digeser OX = 15 px ke kanan.
@@ -235,6 +236,13 @@ async function enterGame() {
   $('authPanel').hidden = true; $('gamePanel').hidden = false;   // halaman login ditutup (lihat aturan [hidden] di game.css)
   $('password').value = '';
   if (!game) startGame();
+  if (NAGA_TEST && !window.__nagaAuto) {   // uji ?naga=N: langsung masuk gameplay (tanpa menekan Main) begitu lobi siap
+    window.__nagaAuto = 1; let tries = 0;
+    const t = setInterval(() => {
+      if (++tries > 100) { clearInterval(t); return; }
+      if (game && game.scene.isActive('Lobby')) { clearInterval(t); $('gamePanel').classList.add('battle'); game.scene.stop('Lobby'); game.scene.start('Battle'); }
+    }, 300);
+  }
 }
 function setAuthBusy(busy) { document.querySelectorAll('#authForm button').forEach(b => { b.disabled = busy; }); }
 $('authForm').addEventListener('submit', async e => {
@@ -338,8 +346,14 @@ class Base extends Phaser.Scene {
     if (!this.textures.exists('tois_anim')) this.load.spritesheet('tois_anim', TOIS_ANIM.src, { frameWidth: TOIS_ANIM.fw, frameHeight: TOIS_ANIM.fh });
     // Monster dan pet = sprite sheet animasi (dibuat tools/make_sprites.py; ukuran frame ada di SPR, js/sprites-data.js)
     Object.keys(MON).forEach(i => { const k = 'mon' + i, s = SPR[k]; if (!this.textures.exists(k)) this.load.spritesheet(k, 'assets/' + s.file, { frameWidth: s.fw, frameHeight: s.fh }); });
-    if (!this.textures.exists(FUSION_LASER.key)) this.load.spritesheet(FUSION_LASER.key, FUSION_LASER.src, { frameWidth: FUSION_LASER.fw, frameHeight: FUSION_LASER.fh });   // efek Laser Fusion
-    if (!this.textures.exists('naga_fusion')) this.load.spritesheet('naga_fusion', NAGA.src, { frameWidth: NAGA.fw, frameHeight: NAGA.fh });   // naga fusion api+air (dari naga_animasi.webm)
+    Object.values(FUSIONS).forEach(f => {   // aset semua fusion: efek laser + sprite sheet naga / raung
+      if (!this.textures.exists(f.laser.key)) this.load.spritesheet(f.laser.key, f.laser.src, { frameWidth: f.laser.fw, frameHeight: f.laser.fh });
+      if (!this.textures.exists(f.naga.key)) this.load.spritesheet(f.naga.key, f.naga.src, { frameWidth: f.naga.fw, frameHeight: f.naga.fh });
+      const st = f.naga.stomp; if (st && !this.textures.exists(st.key)) this.load.spritesheet(st.key, st.src, { frameWidth: st.fw, frameHeight: st.fh });
+      const cr = f.naga.crystals; if (cr && !this.textures.exists(cr.key)) this.load.spritesheet(cr.key, cr.src, { frameWidth: cr.fw, frameHeight: cr.fh });   // peluru kristal angin (8 frame: 0-3 disiapkan, 4-7 melesat)
+      const tn = f.naga.tornado; if (tn && !this.textures.exists(tn.key)) this.load.spritesheet(tn.key, tn.src, { frameWidth: tn.fw, frameHeight: tn.fh });   // tornado hisap (12 frame, 6x2)
+      const mt = f.naga.meteor; if (mt && !this.textures.exists(mt.key)) this.load.spritesheet(mt.key, mt.src, { frameWidth: mt.fw, frameHeight: mt.fh });   // meteor: 2x2 frame (jatuh, benturan, ledakan, kawah)   // efek kristal dari tanah (hentakan)
+    });
     ELS.forEach(el => [1, 2, 3].forEach(n => { const k = 'pet_' + el + n, s = SPR[k]; if (!this.textures.exists(k)) this.load.spritesheet(k, 'assets/' + s.file, { frameWidth: s.fw, frameHeight: s.fh }); }));
     // Efek skill api custom: tebasan untuk evolusi 1-2, bola api untuk evolusi 3.
     if (!this.textures.exists('fire_slash')) this.load.spritesheet('fire_slash', 'assets/pet-actions/fire_slash.png', { frameWidth: 256, frameHeight: 256 });
@@ -366,8 +380,8 @@ class Base extends Phaser.Scene {
     const A = this.anims, mk = (key, k, start, end, fps, repeat) => { if (!A.exists(key)) A.create({ key, frames: A.generateFrameNumbers(k, { start, end }), frameRate: fps, repeat }); };
     Object.keys(MON).forEach(i => { const k = 'mon' + i, s = SPR[k]; mk(k + '_move', k, 0, s.move - 1, 10, -1); if (s.hit) mk(k + '_hit', k, s.move, s.move + s.hit - 1, 24, 0); mk(k + '_die', k, s.move + s.hit, s.move + s.hit + s.die - 1, 18, 0); if (s.atk) mk(k + '_atk', k, s.move + s.hit + s.die, s.move + s.hit + s.die + s.atk - 1, s.atkFps || 14, 0); });
     ELS.forEach(el => [1, 2, 3].forEach(n => { const k = 'pet_' + el + n, s = SPR[k]; const idleFps = el === 'air' ? 10 : 8; mk(k + '_idle', k, 0, s.idle - 1, idleFps, -1); mk(k + '_cast', k, s.idle, s.idle + s.cast - 1, 16, 0); }));
-    mk('fz_charge', FUSION_LASER.key, 0, 8, 18, 0); mk('fz_beam', FUSION_LASER.key, 9, 12, 14, -1); mk('fz_fade', FUSION_LASER.key, 13, 15, 10, 0);   // efek Laser Fusion
-    mk('naga_fusion_idle', 'naga_fusion', 0, NAGA.frames - 1, NAGA.fps, -1);   // satu putaran = berdiri, menggeram (serangan), kembali berdiri
+    Object.values(FUSIONS).forEach(f => { const L = f.laser, N = f.naga; mk(L.a + 'charge', L.key, 0, 8, 18, 0); mk(L.a + 'beam', L.key, 9, 12, 14, -1); mk(L.a + 'fade', L.key, 13, 15, 10, 0); mk(N.anim, N.key, 0, N.frames - 1, N.fps, -1); if (N.crystals) { const C = N.crystals; mk('cry_prep', C.key, 0, 3, 9, 0); mk('cry_hold', C.key, 2, 3, 8, -1); mk('cry_fly', C.key, 4, 7, 18, -1); } if (N.stomp && this.textures.exists(N.stomp.key)) mk(N.stomp.anim, N.stomp.key, 0, 15, N.stomp.fps, 0); else if (N.stomp) console.error('[ASET] sprite kristal tidak termuat:', N.stomp.src); });   // efek Laser Fusion + animasi naga / raung (satu putaran = berdiri, menggeram, kembali berdiri)
+    //   // satu putaran = berdiri, menggeram (serangan), kembali berdiri
     // Animasi frame-by-frame dari sprite sheet efek skill api.
     mk('fire_slash_anim', 'fire_slash', 0, 4, 16, 0);   // fire_slash.png = 5 frame @ 256x256
     mk('fire_orb_anim', 'fire_orb', 0, 5, 14, -1);   // bola magma terbang: 6 frame diulang selama meluncur
@@ -418,16 +432,37 @@ const PET_Y = 568, PET_SLOTS = [151, 239, 95, 295];   // urutan: api, air, tanah
 // ---- Naga Fusion Api + Air di pertempuran. Syarat pemanggilan: (1) pet Api dan Air sama-sama evolusi 3, (2) mendapatkan KARTU EMAS Fusion saat naik level.
 // Bila kartu emas dipilih: pet Api dan Air menghilang, lalu naga turun dari atas ke rumput tepat di depan tembok benteng, di tengah layar.
 // Uji cepat lewat URL: ?naga=1 = Api dan Air langsung evolusi 3 (kartu emas muncul di naik level pertama); ?naga=2 = naga langsung muncul.
-// x / y (garis pijak kaki) / h (tinggi tampil, px) mengatur posisi dan ukuran. fireFrames = frame saat kepala terangkat dan mulut terbuka lebar (serangan dilepas), satu per geraman di dalam satu putaran animasi (video baru: 2 geraman per putaran 13,6 detik). lead = berapa frame sebelum titik tembak animasi dimulai ulang bila naga baru siap menembak (agar menunggu paling lama sekitar 2 detik). cardChance 1 = kartu emas pasti muncul di undian berikutnya setelah syarat 1 terpenuhi (turunkan, mis. .5, agar acak).
-const NAGA = { src: 'assets/pets/fusion_api_air_battle.webp?v=n3', card: 'assets/pets/fusion_api_air.gif', fw: 160, fh: 204, frames: 204, fps: 15, x: W / 2, y: BASE_Y - 6, h: 140, anchorY: .985, fireFrames: [38, 158], lead: 30, m: 5, burn: 8000, stun: 1500, cardChance: 1 };
-const NAGA_TEST = +((location.search.match(/[?&]naga=(\d)/) || [])[1] || 0);
+// x / y (garis pijak kaki) / h (tinggi tampil, px) mengatur posisi dan ukuran. fireFrames = frame saat kepala terangkat dan mulut terbuka lebar (serangan dilepas), satu per geraman di dalam satu putaran animasi (sheet 475 frame, 30 fps = 15,8 detik per putaran; geraman 1 puncak di frame 96, geraman 2 di frame 344). lead = berapa frame sebelum titik tembak animasi dimulai ulang bila naga baru siap menembak (agar menunggu paling lama sekitar 2 detik). cardChance 1 = kartu emas pasti muncul di undian berikutnya setelah syarat 1 terpenuhi (turunkan, mis. .5, agar acak).
+const NAGA_AIR = { id: 'api+air', els: ['api', 'air'], key: 'naga_fusion', anim: 'naga_fusion_idle', title: 'Fusion Naga Api & Es', cardDesc: 'Api dan Air evolusi 3 melebur jadi satu naga. Pet Api dan Air menghilang.', roarName: 'Napas Api & Es', tint: 0x9fdcff, ring: [0xff762e, 0x7fd8ff], shadow: [2.1, 1.3], c2: 0x8fdcff, halo: 0x0b1f4a, dc: '#bfefff', src: 'assets/pets/fusion_api_air_battle.webp?v=n4', card: 'assets/pets/fusion_api_air.gif', fw: 160, fh: 204, frames: 475, fps: 30, x: W / 2, y: BASE_Y - 6, h: 140, anchorY: .985, fireFrames: [96, 344], lead: 48, m: 5, burn: 8000, stun: 1500, cardChance: 1 };
+// ---- Raung Lava-Batu (Fusion Api + Tanah): aturan sama persis dengan Naga Api + Air (syarat, kartu emas, arena zona, Laser Fusion, geraman). Sprite sheet 12x10 = 120 frame @ 240x344 (serigala kristal api, video PixVerse baru); kepala terangkat dan mulut terbuka lebar di frame 60 (pengisian laser mulai frame 48). anchorY = garis pijak kaki (ekor yang menyabet ke bawah ikut muat di sel); mouth = tinggi mulut dari kaki sebagai pecahan NAGA.h (titik keluar laser).
+const NAGA_TANAH = { id: 'api+tanah', els: ['api', 'tanah'], key: 'naga_raung', anim: 'naga_raung_idle', title: 'Fusion Raung Lava & Batu', cardDesc: 'Api dan Tanah evolusi 3 melebur jadi satu raung. Pet Api dan Tanah menghilang.', roarName: 'Hujan Meteor', tint: 0xd9a35c, ring: [0xff762e, 0xc79a5a], shadow: [1.5, 1.1], c2: 0xe0a85a, halo: 0x2b1707, dc: '#ffd9a0', src: 'assets/pets/fusion_api_tanah_battle.webp?v=r2', card: 'assets/pets/fusion_api_tanah.png', fw: 240, fh: 344, frames: 120, fps: 24, x: W / 2, y: BASE_Y - 6, h: 150, anchorY: .793, mouth: .74, fireFrames: [60], noLaser: true, meteor: { key: 'fusion_meteor', src: 'assets/pet-actions/fusion_meteor_tanah.webp?v=m1', fw: 400, fh: 336, sc: .3, ang: -44, dx: 70, max: 8, gap: 130, splash: 70, hit: 900 }, lead: 36, m: 5, burn: 8000, stun: 1500, cardChance: 1 };
+// ---- Raksasa Kristal (Fusion Air + Tanah): aturan sama persis dengan fusion lain (syarat: pet Air dan Tanah sama-sama evolusi 3 + KARTU EMAS). Sprite sheet 19x10 = 190 frame @ 150x219 (tampak dari belakang; tangan terangkat di frame 32-90, hentakan ke tanah = frame 100: gempa + kristal muncul dari tanah, tanpa laser). Arena dan efek laser memakai aset Es yang sudah ada; ganti src di ZONE_AT / LASER_AT bila sudah punya gambar khusus Air + Tanah.
+const NAGA_AT = { id: 'air+tanah', els: ['air', 'tanah'], key: 'naga_air_tanah', anim: 'naga_air_tanah_idle', title: 'Fusion Raksasa Kristal', cardDesc: 'Air dan Tanah evolusi 3 melebur jadi satu raksasa kristal. Pet Air dan Tanah menghilang.', roarName: 'Hentakan Kristal', tint: 0x7fb6ff, ring: [0x7fd8ff, 0xc79a5a], shadow: [1.6, 1.1], c2: 0x8fc4ff, halo: 0x0b1f4a, dc: '#bfdfff', src: 'assets/pets/fusion_air_tanah_battle.webp?v=a2', card: 'assets/pets/fusion_air_tanah.png', fw: 150, fh: 219, frames: 190, fps: 36, x: W / 2, y: BASE_Y - 6, h: 140, anchorY: .93, mouth: .85, fireFrames: [100], noLaser: true, stomp: { key: 'fusion_crystal', anim: 'fusion_crystal_grow', src: 'assets/pet-actions/fusion_crystal_tanah.webp', fw: 400, fh: 300, fps: 20, oy: .8, hit: 200, quake: [520, .009] }, lead: 36, m: 5, burn: 8000, stun: 1500, cardChance: 1 };
+// ---- Phoenix Api & Angin (Fusion Api + Angin): aturan sama dengan fusion lain (syarat: pet Api dan Angin sama-sama evolusi 3 + KARTU EMAS). Sprite sheet 14x14 = 190 frame @ 240x252, 24 fps (serigala phoenix terbang, tampak dari belakang; sayap terpotong di video ditutup efek api). Kepakan kuat (serangan) = frame 66 dan 176, tepat setelah sayap terangkat tertinggi (frame 58 dan 168). Tanpa laser: memakai geraman standar (nagaRoar) = semua musuh yang tampil terkena damage + terbakar + terhenti sebentar. Arena memakai aset Arena Es & Lava yang sudah ada; ganti src di ZONE_ANGIN bila sudah punya gambar khusus.
+const NAGA_ANGIN = { id: 'api+angin', els: ['api', 'angin'], key: 'naga_api_angin', anim: 'naga_api_angin_idle', title: 'Fusion Phoenix Api & Angin', cardDesc: 'Api dan Angin evolusi 3 melebur jadi satu phoenix. Pet Api dan Angin menghilang.', roarName: 'Kepakan Badai Api', tint: 0xffa04a, ring: [0xff762e, 0x7fe0ff], shadow: [1.6, 1.0], c2: 0xffc27a, halo: 0x2b1707, dc: '#ffd9a0', src: 'assets/pets/fusion_api_angin_battle.webp?v=p1', card: 'assets/pets/fusion_api_angin.png', fw: 240, fh: 252, frames: 190, fps: 24, x: W / 2, y: BASE_Y - 6, h: 150, anchorY: .92, mouth: .6, fireFrames: [66, 176], noLaser: true, tornado: { key: 'fusion_tornado_api_angin', src: 'assets/pet-actions/fusion_tornado_api_angin.webp?v=t1', fw: 222, fh: 372, x: W / 2, y: 320, h: 260, anchorY: .93, dur: 3200, drift: [0, -100], sway: 10, range: 760, pull: [.05, .55], tick: 350, m: .16, radius: 150, bossPull: .45 }, lead: 36, m: 5, burn: 8000, stun: 1500, cardChance: 1 };
+// ---- Griffin Tanah & Angin (Fusion Tanah + Angin): aturan sama dengan fusion lain (syarat: pet Tanah dan Angin sama-sama evolusi 3 + KARTU EMAS). Sprite sheet 8x7 = 52 frame @ 480x270, 24 fps, loop mulus (dipotong dari video sayap mengepak: puncak sayap -> puncak sayap berikutnya). Tampak dari belakang, sayap lebar; kaki di anchorY .79 (ekor menjuntai ke bawah ikut muat di sel). Kepakan kuat (serangan) = frame 8, tepat setelah sayap terangkat tertinggi (frame 0-4). Tanpa laser: memakai geraman standar (nagaRoar). Arena memakai aset Arena Es & Lava yang sudah ada; ganti src di ZONE_TA bila sudah punya gambar khusus.
+const NAGA_TA = { id: 'tanah+angin', els: ['tanah', 'angin'], key: 'naga_tanah_angin', anim: 'naga_tanah_angin_idle', title: 'Fusion Griffin Tanah & Angin', cardDesc: 'Tanah dan Angin evolusi 3 melebur jadi satu griffin. Pet Tanah dan Angin menghilang.', roarName: 'Badai Pasir', tint: 0xd9b36b, ring: [0xc79a5a, 0x7fe0ff], shadow: [1.9, 1.0], c2: 0xe0c080, halo: 0x2b1f10, dc: '#ffe6b0', src: 'assets/pets/fusion_tanah_angin_battle.webp?v=ta1', card: 'assets/pets/fusion_tanah_angin.png', fw: 480, fh: 270, frames: 52, fps: 24, x: W / 2, y: BASE_Y - 6, h: 135, anchorY: .79, mouth: .5, fireFrames: [8], noLaser: true, crystals: { key: 'fusion_peluru_ta', src: 'assets/pet-actions/fusion_peluru_tanah_angin.webp?v=c1', fw: 288, fh: 480, ox: .5, oy: .4167, sc: .26, n: 10, prep: [28], spread: 130, fan: 9, k: .35, hit: 26, stun: 450, stagger: 55, flight: 620 }, lead: 24, m: 5, burn: 8000, stun: 1500, cardChance: 1 };
+const NAGA_TEST = +((location.search.match(/[?&]naga=(\d+)/) || [])[1] || 0);   // 1 = Api+Air evolusi 3, 2 = naga langsung muncul, 3 = Api+Tanah evolusi 3, 4 = raung langsung muncul, 5 = Air+Tanah evolusi 3, 6 = raksasa kristal langsung muncul, 7 = Api+Angin evolusi 3, 8 = phoenix langsung muncul, 9 = Tanah+Angin evolusi 3, 10 = griffin langsung muncul
 // ---- Efek saat Naga Fusion dipanggil ----
 // 1) Arena berubah jadi es + lava (FUSION_ZONE.src) dan semua monster yang tampil kehilangan FUSION_ZONE.dot HP tiap detik, sampai pertempuran selesai.
 // 2) Skill Laser Fusion (FUSION_LASER): aktif dur ms, menembak monster paling depan, pindah target saat target mati, lalu cooldown cd ms (dihitung setelah laser selesai).
 //    Sprite sheet fusion_laser.webp (transparan) = 4x4 frame (483x269): 0-8 pengisian tenaga, 9-12 pilar laser (diulang), 13-15 memudar. tick = jeda damage (ms), m = pengali damage per tick dari damage Tois.
 //    SINKRON DENGAN NAGA: pengisian tenaga mulai sync frame sebelum salah satu NAGA.fireFrames (mulut terbuka), laser keluar tepat di titik itu, naga menahan pose itu selama laser, lalu melanjutkan animasi. sync = durasi charge (ms) x NAGA.fps / 1000.
-const FUSION_ZONE = { key: 'arena_fusion', src: 'assets/backgrounds/arena_fusion.jpg', dot: 10, every: 1000, fade: 900 };
-const FUSION_LASER = { key: 'fusion_laser', src: 'assets/pet-actions/fusion_laser.webp', fw: 483, fh: 269, dur: 10000, cd: 7000, charge: 500, sync: 7, tick: 250, m: 1.5, sc: .38, anchorY: .86, bw: .4, bodyH: 190 };   // sc = skala ledakan di mulut, bw = lebar sinar, bodyH = tinggi badan sinar di frame (px) yang diregangkan sampai target
+const ZONE_AIR = { key: 'arena_fusion', src: 'assets/backgrounds/arena_fusion.jpg', name: 'Arena Es & Lava', dot: 10, every: 1000, fade: 900 };
+const ZONE_TANAH = { key: 'arena_fusion_tanah', src: 'assets/backgrounds/arena_fusion_tanah.jpg', name: 'Arena Batu & Lava', dot: 10, every: 1000, fade: 900 };
+const LASER_AIR = { key: 'fusion_laser', a: 'fz_', src: 'assets/pet-actions/fusion_laser.webp', fw: 483, fh: 269, dur: 10000, cd: 7000, charge: 500, sync: 15, tick: 250, m: 1.5, sc: .38, anchorY: .86, bw: .4, bodyH: 190 };   // sc = skala ledakan di mulut, bw = lebar sinar, bodyH = tinggi badan sinar di frame (px) yang diregangkan sampai target
+const LASER_TANAH = { key: 'fusion_laser_tanah', a: 'fzt_', src: 'assets/pet-actions/fusion_laser_tanah.webp', fw: 483, fh: 269, dur: 10000, cd: 7000, charge: 500, sync: 12, tick: 250, m: 1.5, sc: .38, anchorY: .86, bw: .4, bodyH: 190 };   // sync = durasi charge (ms) x fps naga / 1000 (500 ms x 24 fps = 12 frame)
+// Fusion aktif: NAGA / FUSION_ZONE / FUSION_LASER menunjuk ke set milik fusion yang sedang dipanggil (default Api + Air). Fusion baru = tambah satu set NAGA_x + ZONE_x + LASER_x lalu daftarkan di FUSIONS.
+const ZONE_AT = { ...ZONE_AIR, name: 'Arena Kristal' };
+const ZONE_ANGIN = { ...ZONE_AIR, name: 'Arena Badai & Lava' };   // aset arena sama dengan Es & Lava (key + src sama, jadi tidak dimuat dua kali)
+const LASER_ANGIN = { ...LASER_AIR, sync: 12 };   // tidak dipakai (noLaser), hanya agar struktur FUSIONS lengkap
+const ZONE_TA = { ...ZONE_AIR, name: 'Arena Badai Pasir' };   // aset arena sama dengan Es & Lava
+const LASER_TA = { ...LASER_AIR, sync: 12 };   // tidak dipakai (noLaser), hanya agar struktur FUSIONS lengkap
+const LASER_AT = { ...LASER_AIR, sync: 12 };   // sync = durasi charge (500 ms) x fps raksasa (24) / 1000 = 12 frame; key + prefix animasi sama dengan LASER_AIR sehingga sprite sheet tidak dimuat dua kali
+const FUSIONS = { 'api+air': { naga: NAGA_AIR, zone: ZONE_AIR, laser: LASER_AIR }, 'api+tanah': { naga: NAGA_TANAH, zone: ZONE_TANAH, laser: LASER_TANAH }, 'air+tanah': { naga: NAGA_AT, zone: ZONE_AT, laser: LASER_AT }, 'api+angin': { naga: NAGA_ANGIN, zone: ZONE_ANGIN, laser: LASER_ANGIN }, 'tanah+angin': { naga: NAGA_TA, zone: ZONE_TA, laser: LASER_TA } };
+let NAGA = NAGA_AIR, FUSION_ZONE = ZONE_AIR, FUSION_LASER = LASER_AIR;
+function useFusion(id) { const f = FUSIONS[id] || FUSIONS['api+air']; NAGA = f.naga; FUSION_ZONE = f.zone; FUSION_LASER = f.laser; }
+NAGA_AIR.b = [0, 1]; NAGA_TANAH.b = [0, 2]; NAGA_AT.b = [1, 2]; NAGA_ANGIN.b = [0, 3]; NAGA_TA.b = [2, 3];   // indeks ELS (api, air, tanah, angin) untuk partikel burst
 const ELNAME = { api: '🔥 Api', air: '💧 Air', tanah: '🪨 Tanah', angin: '🌪️ Angin' };
 // Deskripsi karakter pet per tahap evolusi
 const PET_DESC = {
@@ -457,7 +492,7 @@ const UPGRADES = [
 let fusionAssetsChecked = false;
 function checkFusionAssets() {
   if (fusionAssetsChecked) return; fusionAssetsChecked = true;
-  const list = [FUSION_ZONE.src, FUSION_LASER.src, NAGA.src, NAGA.card, FUSION['api+air'].img];
+  const list = Object.values(FUSIONS).flatMap(f => [f.zone.src, f.laser.src, f.naga.src, f.naga.card].concat(f.naga.stomp ? [f.naga.stomp.src] : []).concat(f.naga.meteor ? [f.naga.meteor.src] : []).concat(f.naga.tornado ? [f.naga.tornado.src] : []).concat(f.naga.crystals ? [f.naga.crystals.src] : [])).concat(Object.keys(FUSIONS).map(k => FUSION[k].img));
   Promise.all(list.map(u => fetch(u, { method: 'GET', cache: 'no-store' }).then(r => ({ u, ok: r.ok, st: r.status })).catch(() => ({ u, ok: false, st: 'error' })))).then(rs => {
     rs.forEach(r => console[r.ok ? 'log' : 'error']('[ASET] ' + (r.ok ? 'OK ' : 'HILANG (' + r.st + ') ') + r.u + '  -> ' + new URL(r.u, location.href).href));
     const bad = rs.filter(r => !r.ok); if (bad.length) say('Aset tidak terbaca: ' + bad.map(r => r.u.split('/').pop()).join(', '));
@@ -479,7 +514,7 @@ class Battle extends Base {
   preload() {
     super.preload();
     ARENAS.forEach((n, i) => { if (!this.textures.exists('arena' + i)) this.load.image('arena' + i, 'assets/backgrounds/arena' + (i + 1) + '.jpg'); });
-    if (!this.textures.exists(FUSION_ZONE.key)) this.load.image(FUSION_ZONE.key, FUSION_ZONE.src);   // arena es + lava untuk Naga Fusion
+    Object.values(FUSIONS).forEach(f => { if (!this.textures.exists(f.zone.key)) this.load.image(f.zone.key, f.zone.src); });   // arena fusion (es + lava / batu + lava)
   }
 
   create() {
@@ -491,7 +526,7 @@ class Battle extends Base {
     this.pets = ELS.map((el, i) => { const p = this.add.sprite(PET_SLOTS[i], PET_Y, 'pet_' + el + '1').setOrigin(.5, this.petOrigin('pet_' + el + '1')).setScale(petScale(el, 1)).setDepth(699); p.play({ key: 'pet_' + el + '1_idle', startFrame: i * 2 }); p.el = el; p.cd = 1500 + i * 700; p.by = p.y; p.on = false; p.setVisible(false); Object.assign(p, { stage: 1, prog: 0, pow: 1, cdMul: 1, volley: 0, reach: 1, extra: 0 }); p.lbl = this.add.text(p.x, PET_Y + 7, '', TS(9, '#ffffff')).setOrigin(.5).setDepth(702).setVisible(false); return p; });   // pet baru muncul setelah dipilih lewat kartu
     this.nagaSh = this.add.image(NAGA.x, NAGA.y - 2, 'shadow').setScale(2.1, 1.3).setAlpha(.85).setVisible(false);
     this.naga = this.add.sprite(NAGA.x, NAGA.y, 'naga_fusion').setOrigin(.5, NAGA.anchorY).setScale(NAGA.h / NAGA.fh).setVisible(false);   // depth 0 seperti monster dan dibuat lebih dulu: monster yang memukul tembok tampil di depannya
-    this.naga.on(Phaser.Animations.Events.SPRITE_ANIMATION_UPDATE, (a, f) => { const n = +f.textureFrame; this.laserFrame(n); if (NAGA.fireFrames.includes(n)) this.nagaRoar(); });
+    this.naga.on(Phaser.Animations.Events.SPRITE_ANIMATION_UPDATE, (a, f) => { const n = +f.textureFrame; this.laserFrame(n); if (NAGA.stomp || NAGA.meteor || NAGA.tornado || NAGA.crystals) { this.stompCheck(n); return; } if (NAGA.fireFrames.includes(n)) this.nagaRoar(); });   // hentakan: terdeteksi saat frame MELEWATI titik hentak, jadi tidak terlewat bila ada frame yang dilompati
     $('skillBtn').onclick = () => this.skill(); $('skillBtn').style.backgroundImage = "url('" + SKILL_ICON + "')";
     this.choosing = false; $('upgrade').hidden = true; $('evo').hidden = true;
     this.events.once('shutdown', () => { this.choosing = false; $('upgrade').hidden = true; $('evo').hidden = true; });
@@ -563,7 +598,9 @@ class Battle extends Base {
     const stat = UPGRADES.filter(u => u.ok(this));
     let picks = sh([...petCards, ...upCards, ...stat]).slice(0, XP_CARDS);
     if (!this.petsSeen && petCards.length && !picks.some(u => u.img)) picks = sh([petCards[0], ...picks.slice(1)]);   // undian pertama pasti ada kartu pet
-    if (this.nagaReady() && Math.random() < NAGA.cardChance) picks = sh([{ img: NAGA.card, n: 'Fusion Naga Api & Es', d: 'Api dan Air evolusi 3 melebur jadi satu naga. Pet Api dan Air menghilang.', tag: 'Kartu Emas', gold: 1, go: b => b.fuseNaga() }, ...picks.slice(0, XP_CARDS - 1)]);   // kartu emas: syarat ke-2 fusion
+    Object.values(FUSIONS).map(f => f.naga).forEach(f => console.log('[KARTU] ' + f.id + ': ' + f.els.map(el => { const p = this.pets.find(o => o.el === el); return el + ' (' + (p.on ? 'aktif' : p.fused ? 'sudah melebur' : 'belum dipanggil') + ', evolusi ' + p.stage + ')'; }).join(' + ') + (this.nagaReady(f) ? ' -> SYARAT TERPENUHI, kartu emas dibagikan' : ' -> belum terpenuhi (' + (this.nagaOn ? 'fusion lain sedang aktif' : 'kedua pet harus aktif dan evolusi 3') + ')')));
+    const gold = Object.values(FUSIONS).map(f => f.naga).filter(f => this.nagaReady(f) && Math.random() < f.cardChance).map(f => ({ img: f.card, n: f.title, d: f.cardDesc, tag: 'Kartu Emas', gold: 1, go: b => b.fuseNaga(f.id) }));   // satu kartu emas tiap fusion yang syaratnya terpenuhi
+    if (gold.length) picks = sh([...gold, ...picks.slice(0, Math.max(0, XP_CARDS - gold.length))]);   // kartu emas: syarat ke-2 fusion
     this.petsSeen = true;
     const box = $('cards');
     this.choosing = true; this.tweens.pauseAll(); this.anims.pauseAll(); this.manual = false;
@@ -637,22 +674,23 @@ class Battle extends Base {
     for (let v = 1; v <= p.volley; v++) this.time.delayedCall(260 * v / this.speed, () => { if (!this.over && !this.paused && !this.choosing) this.cast(p, sk, true); });   // tembakan ganda
   }
   nagaStart() {   // awal pertempuran: naga belum ada (baru muncul lewat kartu emas); pet Api dan Air belum melebur
-    this.fusionReset(); this.nagaOn = false; this.pets.forEach(p => { p.fused = false; }); this.tweens.killTweensOf([this.naga, this.nagaSh]); this.naga.setVisible(false).anims.stop(); this.nagaSh.setVisible(false);
-    if (NAGA_TEST === 1) ['api', 'air'].forEach(el => { this.addPet(el); const p = this.pets.find(o => o.el === el); p.stage = 3; p.prog = 0; p.setOrigin(.5, this.petOrigin('pet_' + el + '3')).setScale(petScale(el, 3)); p.play('pet_' + el + '3_idle'); this.petLbl(p); });   // uji: Api + Air langsung evolusi 3
-    if (NAGA_TEST === 2) this.time.delayedCall(800, () => this.nagaSummon());
+    this.fusionReset(); useFusion('api+air'); this.nagaOn = false; this.pets.forEach(p => { p.fused = false; }); this.tweens.killTweensOf([this.naga, this.nagaSh]); this.naga.setVisible(false).anims.stop(); this.nagaSh.setVisible(false);
+    if (NAGA_TEST === 1 || NAGA_TEST === 3 || NAGA_TEST === 5 || NAGA_TEST === 7 || NAGA_TEST === 9) (NAGA_TEST === 1 ? ['api', 'air'] : NAGA_TEST === 5 ? ['air', 'tanah'] : NAGA_TEST === 7 ? ['api', 'angin'] : NAGA_TEST === 9 ? ['tanah', 'angin'] : ['api', 'tanah']).forEach(el => { this.addPet(el); const p = this.pets.find(o => o.el === el); p.stage = 3; p.prog = 0; p.setOrigin(.5, this.petOrigin('pet_' + el + '3')).setScale(petScale(el, 3)); p.play('pet_' + el + '3_idle'); this.petLbl(p); });   // uji: Api + Air langsung evolusi 3
+    if (NAGA_TEST === 2 || NAGA_TEST === 4 || NAGA_TEST === 6 || NAGA_TEST === 8 || NAGA_TEST === 10) { useFusion(NAGA_TEST === 10 ? 'tanah+angin' : NAGA_TEST === 8 ? 'api+angin' : NAGA_TEST === 6 ? 'air+tanah' : NAGA_TEST === 4 ? 'api+tanah' : 'api+air'); this.time.delayedCall(800, () => this.nagaSummon()); }
   }
   fusionReset() {   // awal pertempuran: arena fusion dan laser dikembalikan ke keadaan awal
+    if (this.vortex && this.vortex.sp && this.vortex.sp.active) this.vortex.sp.destroy(); this.vortex = null;
     this.fusionBg = null; this.zoneOn = false; this.zoneT = 0; this.nagaLanded = false;
     const o = this.lz; if (o) [o.gfx, o.charge, o.imp, o.base].forEach(x => x && x.active && x.destroy());
     this.lz = { ph: 'idle', cd: 0, t: 0, tick: 0, target: null, x: 0, y: 0, gfx: null, charge: null, imp: null, base: null };   // ph: idle -> charge -> beam -> idle
   }
   fusionArenaOn() {   // naga dipanggil: arena berubah jadi es + lava (memudar di atas latar lama) dan damage zona mulai berjalan
     if (this.fusionBg) return;
-    if (!this.textures.exists(FUSION_ZONE.key)) { console.warn('[ASET] arena fusion tidak termuat:', FUSION_ZONE.src); this.zoneOn = true; this.zoneT = 0; this.pop(W / 2, 250, 'Arena Es & Lava', '#ffd0ff', 22); return; }   // tanpa gambar: damage zona tetap jalan
+    if (!this.textures.exists(FUSION_ZONE.key)) { console.warn('[ASET] arena fusion tidak termuat:', FUSION_ZONE.src); this.zoneOn = true; this.zoneT = 0; this.pop(W / 2, 250, FUSION_ZONE.name, '#ffd0ff', 22); return; }   // tanpa gambar: damage zona tetap jalan
     const img = this.add.image(W / 2, H / 2, FUSION_ZONE.key).setDisplaySize(W, H).setDepth(-999).setAlpha(0); this.fusionBg = img;
     this.tweens.add({ targets: img, alpha: 1, duration: FUSION_ZONE.fade, onComplete: () => { if (this.bg && this.bg !== img) this.bg.destroy(); this.bg = img; img.setDepth(-1000); } });
     this.zoneOn = true; this.zoneT = 0;
-    this.pop(W / 2, 250, 'Arena Es & Lava', '#ffd0ff', 22);
+    this.pop(W / 2, 250, FUSION_ZONE.name, '#ffd0ff', 22);
   }
   tickTo(e, d, color) {   // damage berkala (zona arena fusion dan laser): tanpa sentakan dan tanpa terpental, sama seperti damage terbakar
     if (e.dead) return; const gain = Math.max(0, Math.min(d, e.hp)); e.hp -= d;
@@ -664,17 +702,90 @@ class Battle extends Base {
     }
     this.addXp(gain);
   }
+  stompCheck(n) {   // raksasa kristal: hentakan terpicu saat frame animasi melewati NAGA.fireFrames (dipanggil dari event animasi DAN dari fusionTick agar tidak pernah terlewat)
+    const pv = this.lastNF; this.lastNF = n;
+    if (pv === undefined || pv === n || !(NAGA.stomp || NAGA.meteor || NAGA.tornado || NAGA.crystals) || !this.nagaOn) return;
+    const d = (n - pv + NAGA.frames) % NAGA.frames; if (d > 30) return;   // lompatan jauh (animasi diulang dari frame lain) tidak dihitung
+    if (NAGA.crystals && NAGA.crystals.prep.some(q => ((q - pv + NAGA.frames) % NAGA.frames) <= d && ((q - pv + NAGA.frames) % NAGA.frames) > 0)) this.crystalPrep();   // sayap mulai terangkat: peluru disiapkan
+    if (NAGA.fireFrames.some(q => ((q - pv + NAGA.frames) % NAGA.frames) <= d && ((q - pv + NAGA.frames) % NAGA.frames) > 0)) this.nagaRoar();
+  }
   fusionTick(dt) {
+    if ((NAGA.stomp || NAGA.meteor || NAGA.tornado || NAGA.crystals) && this.nagaOn && this.naga.visible) {
+      this.stompCheck(this.laserFrameNo());
+      this.stompClk = (this.stompClk || 0) + dt;   // waktu game (berhenti saat pilih kartu); cadangan bila deteksi frame gagal
+      if (this.nagaLanded && this.stompClk > NAGA.frames / NAGA.fps * 1300) { console.warn('[HENTAKAN] dipicu oleh timer cadangan (deteksi frame tidak jalan)'); this.nagaRoar(); this.stompClk = 0; }
+    }
     if (this.zoneOn) {   // zona es + lava: tiap detik semua monster yang sudah tampil kehilangan FUSION_ZONE.dot HP (waktu ikut kecepatan game)
       this.zoneT += dt;
       while (this.zoneT >= FUSION_ZONE.every) { this.zoneT -= FUSION_ZONE.every; this.enemies.filter(e => !e.dead && e.s.y > 10).forEach(e => this.tickTo(e, FUSION_ZONE.dot, '#ffb36b')); }
     }
+    this.vortexTick(dt);
     this.laserTick(dt);
+  }
+  // ---- Tornado Penghisap (Fusion Api + Angin): muncul tepat saat kepakan sayap kuat (NAGA.fireFrames). Semua monster tersedot ke pusat tornado; makin dekat makin kencang (kecepatan = pull[0] + pull[1] x (1 - jarak/range)^2 px per ms). Bos tersedot lebih pelan (bossPull). Monster di dekat pusat terputar dan terkena damage berkala yang makin besar bila makin dekat. Sprite 12 frame: 0-4 tumbuh, 5-7 berputar (diulang), 8-11 memudar.
+  nagaTornado() {   // pembungkus: kesalahan tampil di console dan layar
+    this.stompClk = 0;
+    try { this.nagaTornadoFx(); } catch (err) { console.error('[TORNADO] error:', err); say('Error tornado: ' + (err && err.message)); }
+  }
+  nagaTornadoFx() {
+    const T = NAGA.tornado; if (!T) return;
+    if (!this.textures.exists(T.key)) { console.error('[TORNADO] sprite tidak ada:', T.src); return; }
+    if (this.vortex && this.vortex.sp && this.vortex.sp.active) this.vortex.sp.destroy();
+    const sp = this.add.sprite(T.x, T.y, T.key, 0).setOrigin(.5, T.anchorY).setScale(T.h / T.fh).setDepth(860);
+    this.vortex = { sp, x: T.x, y: T.y - T.h * .2, t: 0, dur: T.dur, tick: 0 };   // y = titik hisap (badan tornado, bukan tanah)
+    const ox = NAGA.x, oy = NAGA.y - NAGA.h * (NAGA.mouth || .6);
+    this.pop(T.x, T.y - T.h - 6, NAGA.roarName, '#ffb36b', 12);
+    const ring = (r, color, ms) => { const g = this.add.image(ox, oy, 'ring').setTint(color).setDepth(852).setScale(.15).setAlpha(.95); this.tweens.add({ targets: g, scale: r / 32, alpha: 0, duration: ms, ease: 'Quad.Out', onComplete: () => g.destroy() }); };
+    ring(150, NAGA.ring[0], 420); ring(110, NAGA.ring[1], 520);
+    this.burst[0].emitParticleAt(ox + 8, oy, 14); this.burst[3].emitParticleAt(ox - 8, oy, 14);
+    this.cameras.main.shake(220, .004);
+    console.log('[TORNADO] muncul di frame', this.laserFrameNo(), '| monster:', this.enemies.filter(e => !e.dead).length);
+  }
+  vortexTick(dt) {   // animasi tornado (ikut waktu game: berhenti saat pilih kartu, ikut x2) + damage berkala
+    const V = this.vortex, T = NAGA.tornado; if (!V || !T) return;
+    V.t += dt;
+    if (!V.sp.active) { this.vortex = null; return; }
+    const pr = Math.min(1, V.t / V.dur), ez = pr * pr * (3 - 2 * pr);   // gerak pelan: mulai dan berhenti halus
+    const gx = T.x + T.drift[0] * ez + Math.sin(V.t * .0016) * T.sway, gy = T.y + T.drift[1] * ez;   // tornado melayang perlahan ke arah monster (drift) + goyang halus (sway)
+    V.sp.setPosition(gx, gy); V.x = gx; V.y = gy - T.h * .2;   // titik hisap ikut bergerak
+    const G = 450, F = 520, t = V.t;
+    let f; if (t < G) f = Math.floor(t / G * 5); else if (t < V.dur - F) f = [5, 6, 7, 6][Math.floor((t - G) / 110) % 4]; else f = 8 + Math.min(3, Math.floor((t - (V.dur - F)) / F * 4));
+    V.sp.setFrame(f);
+    V.on = t > 80 && t < V.dur - F * .6;   // hisapan aktif dari awal sampai tornado mulai memudar
+    V.ramp = Math.min(1, t / G);           // hisapan menguat selagi tornado tumbuh
+    if (V.on) {
+      V.tick += dt;
+      while (V.tick >= T.tick) {
+        V.tick -= T.tick;
+        this.enemies.forEach(e => {
+          if (e.dead) return;
+          const d = Math.hypot(e.x0 - V.x, e.py - V.y); if (d > T.radius) return;
+          const c = 1 - d / T.radius;   // 0 di tepi radius damage, 1 tepat di pusat
+          let dmg = Math.ceil(this.dmg * NAGA.m * T.m * (.4 + 1.6 * c)); try { dmg = Math.ceil(dmg * this.fzMul()); } catch (err) { /* pengali bintang tidak tersedia */ }
+          this.tickTo(e, dmg, '#ffb36b');
+        });
+      }
+    }
+    if (t >= V.dur) { V.sp.destroy(); this.vortex = null; }
+  }
+  vortexPull(e, dt) {   // dipanggil tiap monster tiap frame: true = sedang tersedot (jalan maju dan memukul tembok ditahan)
+    const V = this.vortex, T = NAGA.tornado; if (!V || !V.on || !T) return false;
+    const dx = V.x - e.x0, dy = V.y - e.py, d = Math.hypot(dx, dy), f = Math.max(0, 1 - d / T.range);
+    e.atk = false;
+    if (d < 34) {   // sudah di pusat: berputar mengelilingi tornado
+      const th = Math.atan2(e.py - V.y, e.x0 - V.x) + .012 * dt * (1 + V.ramp), r = Math.max(4, d * .985);
+      e.x0 = V.x + Math.cos(th) * r; e.py = V.y + Math.sin(th) * r * .55; return true;
+    }
+    let spd = (T.pull[0] + T.pull[1] * f * f) * V.ramp * (e.big ? T.bossPull : 1);   // makin dekat makin kuat
+    const step = Math.min(spd * dt, d - 30);
+    e.x0 += dx / d * step; e.py += dy / d * step;
+    e.x0 = Math.max(16, Math.min(W - 16, e.x0));
+    return true;
   }
   laserPick() { let t = null; for (const e of this.enemies) if (!e.dead && e.s.y > 10 && (!t || e.s.y > t.s.y)) t = e; return t; }   // musuh paling depan (paling dekat tembok)
   nagaRestart(start = 0) {   // ulang animasi naga dari frame start tanpa lompatan pose: bayangan frame terakhir memudar sebentar di atas pose baru
-    const n = this.naga, cfg = { key: 'naga_fusion_idle', startFrame: start }; if (!n.visible || !n.frame) { n.play(cfg); return; }
-    const g = this.add.sprite(n.x, n.y, 'naga_fusion', n.frame.name).setOrigin(n.originX, n.originY).setScale(n.scaleX, n.scaleY).setAlpha(n.alpha).setDepth(n.depth);
+    const n = this.naga, cfg = { key: NAGA.anim, startFrame: start }; if (!n.visible || !n.frame) { n.play(cfg); return; }
+    const g = this.add.sprite(n.x, n.y, NAGA.key, n.frame.name).setOrigin(n.originX, n.originY).setScale(n.scaleX, n.scaleY).setAlpha(n.alpha).setDepth(n.depth);
     n.play(cfg);
     this.tweens.add({ targets: g, alpha: 0, duration: 260, onComplete: () => g.destroy() });
   }
@@ -686,34 +797,34 @@ class Battle extends Base {
     return this.add.sprite(x, y, FUSION_LASER.key, frame).setDepth(851).play(anim);
   }
   laserFrame(n) {   // dipanggil tiap frame animasi naga: laser mengikuti gerakan naga (mulut terbuka di NAGA.fireFrames)
-    const L = this.lz, F = FUSION_LASER; if (!L || !this.nagaOn) return;
+    const L = this.lz, F = FUSION_LASER; if (!L || !this.nagaOn || NAGA.noLaser) return;
     if (L.ph === 'wait' && NAGA.fireFrames.includes(n + F.sync)) this.laserCharge();
     else if (L.ph === 'charge' && NAGA.fireFrames.includes(n)) this.laserBeam();
   }
   laserCharge() {   // naga mulai mengumpulkan tenaga (bola es dan api menyatu di mulut)
-    const L = this.lz, F = FUSION_LASER, mx = NAGA.x, my = NAGA.y - NAGA.h * .85;
+    const L = this.lz, F = FUSION_LASER, mx = NAGA.x, my = NAGA.y - NAGA.h * (NAGA.mouth || .85);
     if (L.ph !== 'wait') return;
     console.log('[LASER] charge');
     L.ph = 'charge'; L.t = F.charge + 400; L.tick = 0; L.x = mx; L.y = my;   // +400 = cadangan bila frame terlewat
     L.gfx = this.add.graphics().setDepth(850);   // blend normal: ADD tidak terlihat di salju/es yang putih
-    L.charge = this.laserFx(mx, my, 0, 'fz_charge'); if (L.charge) L.charge.setScale(.45);
+    L.charge = this.laserFx(mx, my, 0, FUSION_LASER.a + 'charge'); if (L.charge) L.charge.setScale(.45);
     this.pop(mx, NAGA.y - NAGA.h - 4, 'Laser Fusion', '#ffd0ff', 12);
   }
   laserBeam() {   // mulut naga terbuka: sinar keluar dari mulut ke target, naga menahan pose menyembur sampai laser habis
-    const L = this.lz, F = FUSION_LASER, mx = NAGA.x, my = NAGA.y - NAGA.h * .85;
+    const L = this.lz, F = FUSION_LASER, mx = NAGA.x, my = NAGA.y - NAGA.h * (NAGA.mouth || .85);
     if (L.ph !== 'charge') return;
     console.log('[LASER] beam');
     if (L.charge) { L.charge.destroy(); L.charge = null; }
     L.ph = 'beam'; L.t = F.dur; L.tick = 0;
     // badan sinar = bagian atas frame (tanpa ledakan di dasar), diputar dan diregangkan dari mulut naga sampai target.
-    L.imp = this.laserFx(mx, my, 9, 'fz_beam'); if (L.imp) L.imp.setOrigin(.5, F.bodyH / F.fh).setCrop(0, 0, F.fw, F.bodyH).setScale(F.bw, 1).setVisible(false);
+    L.imp = this.laserFx(mx, my, 9, FUSION_LASER.a + 'beam'); if (L.imp) L.imp.setOrigin(.5, F.bodyH / F.fh).setCrop(0, 0, F.fw, F.bodyH).setScale(F.bw, 1).setVisible(false);
     // ledakan di mulut naga = bagian bawah frame yang sama (tidak ikut berputar)
-    L.base = this.laserFx(mx, my, 9, 'fz_beam'); if (L.base) L.base.setOrigin(.5, F.anchorY).setCrop(0, F.bodyH - 25, F.fw, F.fh - (F.bodyH - 25)).setScale(F.sc).setDepth(852);
+    L.base = this.laserFx(mx, my, 9, FUSION_LASER.a + 'beam'); if (L.base) L.base.setOrigin(.5, F.anchorY).setCrop(0, F.bodyH - 25, F.fw, F.fh - (F.bodyH - 25)).setScale(F.sc).setDepth(852);
     this.naga.anims.pause();
   }
   laserTick(dt) {   // Laser Fusion: menunggu pose naga -> isi tenaga -> menembak 10 detik (target paling depan, pindah saat mati) -> cooldown 7 detik
-    const L = this.lz, F = FUSION_LASER; if (!L || !this.nagaOn || !this.nagaLanded) return;
-    const mx = NAGA.x, my = NAGA.y - NAGA.h * .85;   // titik keluar laser (mulut naga)
+    const L = this.lz, F = FUSION_LASER; if (!L || !this.nagaOn || !this.nagaLanded || NAGA.noLaser) return;
+    const mx = NAGA.x, my = NAGA.y - NAGA.h * (NAGA.mouth || .85);   // titik keluar laser (mulut naga)
     if (L.ph === 'idle') {
       L.cd = Math.max(0, L.cd - dt); if (L.cd > 0 || !this.laserPick()) return;
       L.ph = 'wait'; L.w = 0; L.target = null; L.x = mx; L.y = my;
@@ -739,7 +850,7 @@ class Battle extends Base {
       console.log('[LASER] selesai');
       L.gfx.destroy(); L.gfx = null; if (L.imp) { L.imp.destroy(); L.imp = null; }
       const base = L.base; L.base = null;
-      if (base) base.play('fz_fade').once('animationcomplete', () => base.destroy());
+      if (base) base.play(FUSION_LASER.a + 'fade').once('animationcomplete', () => base.destroy());
       this.naga.anims.resume(); L.ph = 'idle'; L.cd = F.cd; L.target = null; return;
     }
     if (!L.target || L.target.dead) L.target = this.laserPick();   // target mati -> pindah ke monster paling depan yang baru
@@ -753,13 +864,13 @@ class Battle extends Base {
     L.tick += dt;
     while (L.tick >= F.tick) {
       L.tick -= F.tick;
-      this.burst[0].emitParticleAt(L.x + Phaser.Math.Between(-6, 6), L.y, 2); this.burst[1].emitParticleAt(L.x + Phaser.Math.Between(-6, 6), L.y, 2);
-      if (L.target && !L.target.dead) this.tickTo(L.target, Math.ceil(this.dmg * F.m * (starMul('api', 3) + starMul('air', 3)) / 2), '#bfefff');
+      this.burst[NAGA.b[0]].emitParticleAt(L.x + Phaser.Math.Between(-6, 6), L.y, 2); this.burst[NAGA.b[1]].emitParticleAt(L.x + Phaser.Math.Between(-6, 6), L.y, 2);
+      if (L.target && !L.target.dead) this.tickTo(L.target, Math.ceil(this.dmg * F.m * this.fzMul()), NAGA.dc);
     }
   }
   laserDraw(L, mx, my) {   // halo gelap di bawah sinar (kontras di salju) + titik kena di target; bila sprite tidak termuat, sinar digambar penuh dengan garis
     const g = L.gfx, pulse = 1 + .12 * Math.sin(this.clock * .03);
-    g.lineStyle(30 * pulse, 0x0b1f4a, .30); g.beginPath(); g.moveTo(mx, my); g.lineTo(L.x, L.y); g.strokePath();
+    g.lineStyle(30 * pulse, NAGA.halo, .30); g.beginPath(); g.moveTo(mx, my); g.lineTo(L.x, L.y); g.strokePath();
     if (!L.imp) {
       const dx = L.x - mx, dy = L.y - my, len = Math.hypot(dx, dy) || 1, nx = -dy / len, ny = dx / len, n = Math.max(8, Math.ceil(len / 12)), ph = this.clock * .012, amp = 7;
       const line = (w, col, a, off) => {
@@ -767,35 +878,161 @@ class Battle extends Base {
         for (let i = 0; i <= n; i++) { const u = i / n, o = off === null ? 0 : Math.sin(u * 14 + ph + off) * amp * Math.min(1, u * 6), x = mx + dx * u + nx * o, y = my + dy * u + ny * o; i ? g.lineTo(x, y) : g.moveTo(x, y); }
         g.strokePath();
       };
-      line(20, 0x5fa8ff, .35, null); line(12, 0xffb066, .30, null); line(7, 0x8fdcff, 1, 0); line(7, 0xff7a2e, 1, Math.PI); line(6, 0xffffff, 1, null);
+      line(20, 0x5fa8ff, .35, null); line(12, 0xffb066, .30, null); line(7, NAGA.c2, 1, 0); line(7, 0xff7a2e, 1, Math.PI); line(6, 0xffffff, 1, null);
     }
-    g.fillStyle(0xff7a2e, .28); g.fillCircle(L.x, L.y, 24 * pulse); g.fillStyle(0x8fdcff, .4); g.fillCircle(L.x, L.y, 16 * pulse); g.fillStyle(0xffffff, .95); g.fillCircle(L.x, L.y, 6 * pulse);
+    g.fillStyle(0xff7a2e, .28); g.fillCircle(L.x, L.y, 24 * pulse); g.fillStyle(NAGA.c2, .4); g.fillCircle(L.x, L.y, 16 * pulse); g.fillStyle(0xffffff, .95); g.fillCircle(L.x, L.y, 6 * pulse);
   }
-  nagaReady() { return !this.nagaOn && ['api', 'air'].every(el => { const p = this.pets.find(o => o.el === el); return p.on && p.stage >= 3; }); }   // syarat ke-1: Api dan Air sama-sama evolusi 3
-  fuseNaga() {   // kartu emas dipilih: pet Api dan Air melebur (menghilang), naga muncul
-    this.pets.filter(p => p.el === 'api' || p.el === 'air').forEach(p => {
+  fzMul() { return NAGA.els.reduce((s, el) => s + starMul(el, 3), 0) / NAGA.els.length; }   // rata-rata pengali bintang kedua pet penyusun fusion
+  nagaReady(f = NAGA) { return !this.nagaOn && f.els.every(el => { const p = this.pets.find(o => o.el === el); return p.on && p.stage >= 3; }); }   // syarat ke-1: Api dan Air sama-sama evolusi 3
+  fuseNaga(id = 'api+air') {   // kartu emas dipilih: kedua pet penyusun melebur (menghilang), naga / raung muncul
+    useFusion(id); console.log('[FUSION] dipanggil:', id, '| stomp:', !!NAGA.stomp);
+    this.pets.filter(p => NAGA.els.includes(p.el)).forEach(p => {
       p.on = false; p.fused = true; p.lbl.setVisible(false); this.flash.emitParticleAt(p.x, p.y - petH(p) * .5, 24); this.burst[ELS.indexOf(p.el)].emitParticleAt(p.x, p.y - petH(p) * .5, 16);
       this.tweens.add({ targets: p, alpha: 0, scaleX: p.scaleX * 1.3, scaleY: p.scaleY * 1.3, duration: 450, onComplete: () => p.setVisible(false) });
     });
     this.time.delayedCall(420, () => { if (!this.over) this.nagaSummon(); });
   }
   nagaSummon() {   // naga turun dari atas ke rumput di depan benteng (tengah), lalu menggeram dan menyerang tiap putaran animasi
-    this.fusionArenaOn(); this.nagaOn = true; this.naga.setVisible(true).setPosition(NAGA.x, NAGA.y - 160).setAlpha(0).play('naga_fusion_idle'); this.nagaSh.setVisible(true).setAlpha(0);
+    this.fusionArenaOn(); this.nagaOn = true; this.lastNF = undefined; this.stompClk = 0; console.log('[FUSION] muncul di arena:', NAGA.id);
+    this.naga.setTexture(NAGA.key, 0).setOrigin(.5, NAGA.anchorY).setScale(NAGA.h / NAGA.fh); this.nagaSh.setScale(NAGA.shadow[0], NAGA.shadow[1]);   // pakai sprite fusion yang dipanggil
+    this.naga.setVisible(true).setPosition(NAGA.x, NAGA.y - 160).setAlpha(0).play(NAGA.anim); this.nagaSh.setVisible(true).setAlpha(0);
     this.cameras.main.flash(260, 255, 235, 200);
     this.tweens.add({ targets: this.naga, y: NAGA.y, alpha: 1, duration: 700, ease: 'Bounce.Out', onComplete: () => { this.nagaLanded = true; this.flash.emitParticleAt(NAGA.x, NAGA.y, 18); this.cameras.main.shake(170, .004); } });
     this.tweens.add({ targets: this.nagaSh, alpha: .85, duration: 700 });
   }
+  waitMs(ms, fn) { this.time.delayedCall(ms / this.speed, fn); }   // jeda ikut kecepatan game (x1 / x2)
+  crystalAt(x, y, sc, delay) {   // kristal tumbuh dari tanah di titik (x, y): sprite sheet 16 frame, ditahan sebentar lalu memudar
+    const S = NAGA.stomp; if (!this.textures.exists(S.key) || !this.anims.exists(S.anim)) { console.error('[HENTAKAN] sprite kristal / animasi tidak ada:', S.src); return; }
+    const sp = this.add.sprite(x, y, S.key, 0).setOrigin(.5, S.oy).setScale(sc).setDepth(850).setVisible(false);
+    this.waitMs(delay, () => {
+      if (this.over) { sp.destroy(); return; }
+      sp.setVisible(true).play(S.anim); sp.anims.timeScale = this.speed;
+      sp.once('animationcomplete', () => this.tweens.add({ targets: sp, alpha: 0, delay: 450, duration: 350, onComplete: () => sp.destroy() }));
+    });
+  }
+  nagaStomp() {   // pembungkus: apa pun yang error di dalam, kesalahannya tampil di console dan di layar (bukan diam-diam)
+    this.stompClk = 0;
+    try { this.nagaStompFx(); } catch (err) { console.error('[HENTAKAN] error:', err); say('Error hentakan: ' + (err && err.message)); }
+  }
+  nagaStompFx() {   // hentakan raksasa kristal (frame NAGA.fireFrames): gempa -> gelombang kristal merambat dari kaki ke tiap musuh -> damage + beku tepat saat kristal meletus (frame S.hit)
+    console.log('[HENTAKAN] frame', this.laserFrameNo(), '- musuh tampil:', this.enemies.filter(e => !e.dead && e.s.y > 10).length);
+    const S = NAGA.stomp, ox = NAGA.x, oy = NAGA.y; let d = Math.ceil(this.dmg * NAGA.m * .6); try { d = Math.ceil(d * this.fzMul()); } catch (err) { console.warn('[HENTAKAN] pengali bintang gagal dihitung:', err.message); }
+    const ring = (r, color, ms) => { const g = this.add.image(ox, oy - 4, 'ring').setTint(color).setDepth(852).setScale(.15, .08).setAlpha(.95); this.tweens.add({ targets: g, scaleX: r / 32, scaleY: r / 80, alpha: 0, duration: ms, ease: 'Quad.Out', onComplete: () => g.destroy() }); };
+    this.pop(ox, oy - NAGA.h - 4, NAGA.roarName, '#bfe6ff', 11);
+    this.cameras.main.shake(S.quake[0], S.quake[1]);   // gempa
+    ring(300, NAGA.ring[1], 520); ring(220, NAGA.ring[0], 420);
+    this.burst[2].emitParticleAt(ox - 20, oy - 6, 12); this.burst[2].emitParticleAt(ox + 20, oy - 6, 12); this.burst[1].emitParticleAt(ox, oy - 10, 10);
+    this.crystalAt(ox, oy + 2, .5, 0);   // kristal besar di bawah kaki raksasa, muncul bersamaan dengan hentakan
+    const lst = this.enemies.filter(e => !e.dead && e.s.y > 10).sort((a, b) => Math.hypot(a.s.x - ox, a.s.y - oy) - Math.hypot(b.s.x - ox, b.s.y - oy));
+    lst.forEach(e => {
+      const dist = Math.hypot(e.s.x - ox, e.s.y - oy), delay = Math.min(450, 80 + dist * .9);   // gempa merambat: yang dekat kena duluan
+      this.crystalAt(e.s.x, e.s.y, Math.max(.2, Math.min(.38, (e.h || 50) / 150)), delay);
+      this.waitMs(delay + S.hit, () => {   // damage tepat saat kristal meletus keluar (frame 4 dari 16)
+        if (e.dead || this.over) return;
+        this.burst[1].emitParticleAt(e.s.x, e.s.y - (e.h || 40) * .4, 6); this.burst[2].emitParticleAt(e.s.x, e.s.y - 4, 6);
+        this.dmgTo(e, d); if (e.dead) return;
+        e.frz = NAGA.stun; e.stun = NAGA.stun; this.tintFor(e, NAGA.tint, NAGA.stun);   // terkunci kristal sebentar
+      });
+    });
+  }
+  nagaMeteor() {   // pembungkus: kesalahan tampil di console dan layar
+    this.stompClk = 0;
+    try { this.nagaMeteorFx(); } catch (err) { console.error('[METEOR] error:', err); say('Error meteor: ' + (err && err.message)); }
+  }
+  nagaMeteorFx() {   // raung (frame NAGA.fireFrames): cincin api di mulut -> meteor jatuh dari atas ke tiap monster (yang terdepan dulu) -> ledakan + damage tepat saat meteor menghantam
+    const M = NAGA.meteor, ox = NAGA.x, oy = NAGA.y - NAGA.h * (NAGA.mouth || .85);
+    console.log('[METEOR] raung, frame', this.laserFrameNo(), '- musuh tampil:', this.enemies.filter(e => !e.dead && e.s.y > 10).length);
+    let d = Math.ceil(this.dmg * NAGA.m * .6); try { d = Math.ceil(d * this.fzMul()); } catch (err) { console.warn('[METEOR] pengali bintang gagal dihitung:', err.message); }
+    const ring = (r, color, ms) => { const g = this.add.image(ox, oy, 'ring').setTint(color).setDepth(852).setScale(.15).setAlpha(.95); this.tweens.add({ targets: g, scale: r / 32, alpha: 0, duration: ms, ease: 'Quad.Out', onComplete: () => g.destroy() }); };
+    this.pop(ox, NAGA.y - NAGA.h - 4, NAGA.roarName, '#ffb36b', 11); ring(150, NAGA.ring[0], 420); ring(110, NAGA.ring[1], 520);
+    this.burst[0].emitParticleAt(ox + 8, oy, 14); this.burst[2].emitParticleAt(ox - 8, oy, 14);
+    this.cameras.main.shake(260, .005);
+    this.enemies.filter(e => !e.dead && e.s.y > 10).sort((a, b) => b.s.y - a.s.y).slice(0, M.max).forEach((e, i) => this.meteorAt(e, 120 + i * M.gap, d));   // yang paling dekat markas kena duluan
+  }
+  meteorAt(e, delay, d) {   // satu meteor: jatuh dari atas (agak miring) ke posisi monster, ekor api mengarah ke atas
+    const M = NAGA.meteor; if (!this.textures.exists(M.key)) { console.error('[METEOR] sprite tidak ada:', M.src); return; }
+    const tx = e.s.x, ty = e.s.y, sx = tx + M.dx, sy = -40, dur = Math.min(720, 260 + Math.hypot(sx - tx, ty - sy) * .55);
+    const m = this.add.sprite(sx, sy, M.key, 0).setOrigin(.38, .6).setScale(M.sc).setAngle(M.ang).setDepth(853).setVisible(false);
+    this.tweens.add({ targets: m, x: tx, y: ty - (e.h || 40) * .25, delay, duration: dur, ease: 'Quad.In', onStart: () => m.setVisible(true), onComplete: () => { m.destroy(); if (!this.over) this.meteorImpact(tx, ty, e, d); } });
+  }
+  meteorImpact(x, y, e, d) {   // meteor menghantam: kilatan benturan (frame 1) -> ledakan (frame 2) -> kawah lava + kristal (frame 3) memudar pelan; damage + terbakar + terhenti sebentar
+    const M = NAGA.meteor, fx = (frame, ox, oy, sc, depth) => this.add.sprite(x, y, M.key, frame).setOrigin(ox, oy).setScale(sc).setDepth(depth);
+    const fade = (o, delay, ms) => this.tweens.add({ targets: o, alpha: 0, delay, duration: ms, onComplete: () => o.destroy() });
+    fade(fx(3, .5, .68, M.sc, 840), 1100, 500);   // kawah tertinggal
+    fade(fx(1, .5, .88, M.sc, 855), 40, 110);   // benturan
+    this.waitMs(60, () => { if (this.over) return; const b = fx(2, .47, .76, M.sc * .55, 856); this.tweens.add({ targets: b, scale: M.sc * 1.15, duration: 380, ease: 'Quad.Out' }); fade(b, 120, 300); });
+    this.cameras.main.shake(110, .004);
+    this.burst[0].emitParticleAt(x, y - 8, 10); this.burst[2].emitParticleAt(x, y - 4, 8);
+    this.enemies.forEach(o => {
+      if (o.dead || o.s.y <= 10) return;
+      const isT = o === e, near = Math.hypot(o.s.x - x, o.s.y - y) <= M.splash; if (!isT && !near) return;
+      const dd = isT ? d : Math.ceil(d * .4);   // sasaran langsung 100%, percikan di sekitarnya 40%
+      this.dmgTo(o, dd); if (o.dead) return;
+      this.ignite(o, dd, NAGA.burn); o.stun = Math.max(o.stun || 0, M.hit); this.tintFor(o, NAGA.tint, M.hit);
+    });
+  }
+  // ---- Peluru Kristal Angin (Fusion Tanah + Angin): sayap terangkat (NAGA.crystals.prep) -> n butir kristal muncul melengkung di atas sayap dan berputar (frame 0-3 sheet) -> kepakan kuat (NAGA.fireFrames) -> semuanya dihempaskan LURUS KE ATAS (frame 4-7), menembus musuh di jalurnya. Tiap peluru melukai tiap musuh sekali: damage = dmg x NAGA.m x .6 x pengali bintang x C.k. spread = lebar sebaran (px), fan = sudut kipas maks (derajat), hit = radius kena, flight = durasi terbang (ms).
+  crystalSlots() { const C = NAGA.crystals, n = C.n; return Array.from({ length: n }, (_, i) => { const t = n > 1 ? (i - (n - 1) / 2) / ((n - 1) / 2) : 0; return { t, x: NAGA.x + t * C.spread, y: NAGA.y - NAGA.h * .8 - (1 - t * t) * 26 + (i % 2) * 10 }; }); }
+  crystalPrep() {
+    const C = NAGA.crystals; if (!C || !this.nagaOn || this.over || !this.textures.exists(C.key)) return;
+    if (this.cry && this.cry.length) return;   // sudah siap
+    const list = this.cry = [];
+    this.crystalSlots().forEach((p, i) => this.waitMs(i * C.stagger, () => {
+      if (this.over || !this.nagaOn || this.cry !== list) return;
+      const s = this.add.sprite(p.x, p.y, C.key, 0).setOrigin(C.ox, C.oy).setScale(0).setDepth(853); s.t = p.t; s.alpha = 0;
+      this.tweens.add({ targets: s, scale: C.sc, alpha: 1, duration: 260, ease: 'Back.Out' });
+      s.play('cry_prep'); s.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => { if (s.active && !s.flying) s.play('cry_hold'); });
+      s.hover = this.tweens.add({ targets: s, y: p.y - 4, duration: 420 + (i % 3) * 80, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+      list.push(s);
+      this.waitMs(4200, () => { if (s.active && !s.flying) { s.hover && s.hover.stop(); s.destroy(); } });   // cadangan bila tidak pernah dilepas
+    }));
+  }
+  nagaCrystals() {   // pembungkus: kesalahan tampil di console dan layar
+    this.stompClk = 0;
+    try { this.nagaCrystalsFx(); } catch (err) { console.error('[PELURU] error:', err); say('Error peluru: ' + (err && err.message)); }
+  }
+  nagaCrystalsFx() {
+    const C = NAGA.crystals; if (!this.textures.exists(C.key)) { console.error('[PELURU] sprite tidak ada:', C.src); return; }
+    let list = this.cry && this.cry.length ? this.cry : null;
+    if (!list) { this.cry = null; this.crystalPrep(); list = this.cry; this.waitMs(C.n * C.stagger + 320, () => this.crystalLaunch(list)); }   // belum sempat disiapkan: siapkan cepat lalu lepas
+    else this.crystalLaunch(list);
+    this.pop(NAGA.x, NAGA.y - NAGA.h - 4, NAGA.roarName, '#ffe6b0', 11);
+  }
+  crystalLaunch(list) {
+    if (this.over || !list) return; if (this.cry === list) this.cry = null;
+    const C = NAGA.crystals; let d = Math.ceil(this.dmg * NAGA.m * .6 * C.k); try { d = Math.ceil(d * this.fzMul()); } catch (err) { console.warn('[PELURU] pengali bintang gagal:', err.message); }
+    this.cameras.main.shake(200, .004);
+    list.filter(s => s.active).forEach((s, i) => this.waitMs(i * 35, () => {
+      if (!s.active || this.over) return; s.flying = true; s.hover && s.hover.stop(); this.tweens.killTweensOf(s);
+      const a = (s.t || 0) * C.fan, rad = a * Math.PI / 180, dist = (s.y + 90) / Math.cos(rad), tx = s.x + Math.sin(rad) * dist;
+      s.setAngle(a).setScale(C.sc).setAlpha(1).play('cry_fly'); s.hitSet = new Set();
+      this.burst[NAGA.b[0]].emitParticleAt(s.x, s.y, 5); this.burst[NAGA.b[1]].emitParticleAt(s.x, s.y, 5);
+      this.tweens.add({ targets: s, x: tx, y: -90, duration: C.flight, ease: 'Quad.In',
+        onUpdate: () => { if (this.over) return; const hx = s.x + Math.sin(rad) * 18, hy = s.y - Math.cos(rad) * 18;
+          this.enemies.forEach(e => { if (e.dead || e.s.y <= 10 || s.hitSet.has(e)) return; if (Math.abs(e.s.x - hx) > C.hit || Math.abs((e.s.y - e.h * .4) - hy) > C.hit + 14) return; s.hitSet.add(e); this.crystalHit(e, d, C); }); },
+        onComplete: () => s.destroy() });
+    }));
+  }
+  crystalHit(e, d, C) {
+    this.burst[NAGA.b[0]].emitParticleAt(e.s.x - 5, e.s.y - e.h * .4, 6); this.burst[NAGA.b[1]].emitParticleAt(e.s.x + 5, e.s.y - e.h * .4, 6);
+    this.dmgTo(e, d); if (e.dead) return;
+    e.stun = Math.max(e.stun || 0, C.stun); this.tintFor(e, NAGA.tint, C.stun);
+  }
   nagaRoar() {   // geraman naga: napas api + es mengenai semua musuh yang sudah tampil; musuh terbakar dan membeku sebentar
     if (!this.naga.visible || this.over || this.paused || this.choosing) return;
-    const ox = NAGA.x, oy = NAGA.y - NAGA.h * .85, ring = (r, color, ms) => { const g = this.add.image(ox, oy, 'ring').setTint(color).setDepth(852).setScale(.15).setAlpha(.95); this.tweens.add({ targets: g, scale: r / 32, alpha: 0, duration: ms, ease: 'Quad.Out', onComplete: () => g.destroy() }); };
-    this.pop(ox, NAGA.y - NAGA.h - 4, 'Napas Api & Es', '#ffd0ff', 11); ring(150, 0xff762e, 420); ring(110, 0x7fd8ff, 520);
-    this.burst[0].emitParticleAt(ox + 8, oy, 14); this.burst[1].emitParticleAt(ox - 8, oy, 14);
+    if (NAGA.crystals) { this.nagaCrystals(); return; }   // griffin tanah & angin: 10 peluru kristal melesat ke atas
+    if (NAGA.stomp) { this.nagaStomp(); return; }   // raksasa kristal: hentakan tanah
+    if (NAGA.tornado) { this.nagaTornado(); return; }   // phoenix api & angin: kepakan kuat memanggil tornado penghisap
+    if (NAGA.meteor) { this.nagaMeteor(); return; }   // raung lava & batu: hujan meteor   // raksasa kristal: hentakan tanah, bukan napas
+    const ox = NAGA.x, oy = NAGA.y - NAGA.h * (NAGA.mouth || .85), ring = (r, color, ms) => { const g = this.add.image(ox, oy, 'ring').setTint(color).setDepth(852).setScale(.15).setAlpha(.95); this.tweens.add({ targets: g, scale: r / 32, alpha: 0, duration: ms, ease: 'Quad.Out', onComplete: () => g.destroy() }); };
+    this.pop(ox, NAGA.y - NAGA.h - 4, NAGA.roarName, '#ffd0ff', 11); ring(150, NAGA.ring[0], 420); ring(110, NAGA.ring[1], 520);
+    this.burst[NAGA.b[0]].emitParticleAt(ox + 8, oy, 14); this.burst[NAGA.b[1]].emitParticleAt(ox - 8, oy, 14);
     const lst = this.enemies.filter(e => !e.dead && e.s.y > 10); if (!lst.length) return;
-    const d = Math.ceil(this.dmg * NAGA.m * .6 * (starMul('api', 3) + starMul('air', 3)) / 2);
+    const d = Math.ceil(this.dmg * NAGA.m * .6 * this.fzMul());
     lst.forEach(e => {
-      this.burst[0].emitParticleAt(e.s.x - 6, e.s.y - e.h * .4, 6); this.burst[1].emitParticleAt(e.s.x + 6, e.s.y - e.h * .4, 6);
+      this.burst[NAGA.b[0]].emitParticleAt(e.s.x - 6, e.s.y - e.h * .4, 6); this.burst[NAGA.b[1]].emitParticleAt(e.s.x + 6, e.s.y - e.h * .4, 6);
       this.dmgTo(e, d); if (e.dead) return;
-      this.ignite(e, d, NAGA.burn); e.frz = NAGA.stun; e.stun = NAGA.stun; this.tintFor(e, 0x9fdcff, NAGA.stun);   // terbakar + terkunci es, sama seperti Bola Lava dan Kristal Es evolusi 3
+      this.ignite(e, d, NAGA.burn); e.frz = NAGA.stun; e.stun = NAGA.stun; this.tintFor(e, NAGA.tint, NAGA.stun);   // terbakar + terkunci es, sama seperti Bola Lava dan Kristal Es evolusi 3
     });
   }
   petLbl(p) { p.lbl.setText(p.stage >= 3 ? 'MAX' : p.prog + '/' + EVO_NEED[p.stage - 1]).setPosition(p.x, PET_Y + 7).setVisible(p.on); }
@@ -1235,9 +1472,10 @@ class Battle extends Base {
         if (e.dead) continue;
         if (e.burn.left <= 0) e.burn = null;
       }
+      const pulled = this.vortexPull(e, dt);   // tornado penghisap: tersedot ke pusat
       if (e.atk && e.py < e.stopY - 2) e.atk = false;
       if (!e.atk && e.chg) { e.chg.destroy(); e.chg = null; }   // terdorong mundur (mis. knockback skill tanah): berhenti memukul dan berjalan maju lagi
-      if (!e.atk) { e.py += e.sp * dt * mv; if (e.py >= e.stopY) { e.py = e.stopY; e.atk = true; e.atT = 0; e.hitDone = false; } }   // sampai tembok: berhenti dan mulai memukul
+      if (!e.atk && !pulled) { e.py += e.sp * dt * mv; if (e.py >= e.stopY) { e.py = e.stopY; e.atk = true; e.atT = 0; e.hitDone = false; } }   // sampai tembok: berhenti dan mulai memukul
       e.ph += dt * (e.big ? .007 : .012) * mv;
       const s = Math.sin(e.ph), hop = Math.abs(s);   // gerak badan (kaki, sayap, tentakel) sudah ada di frame sprite; di sini hanya jalur melayang
       let x = e.x0, yo, ang, sx = 1, sy = 1;
@@ -1336,11 +1574,11 @@ const LOBBY_PET_STAGE = 1;   // pet teman Tois di lobi selalu tampil sebagai tah
 // Kunci = dua elemen sesuai urutan ELS (api, air, tanah, angin). Isi n (nama), img (gambar), d (deskripsi) tiap fusion di sini.
 const FUSION = {
   'api+air': { n: 'Fusion Api + Air', img: 'assets/pets/fusion_api_air.gif', d: 'Naga berkaki empat hasil peleburan Api dan Air: separuh kristal es, separuh lava.' },
-  'api+tanah': { n: 'Fusion Api + Tanah', img: 'assets/pets/fusion_api_tanah.png', d: 'Gabungan kekuatan Api dan Tanah.' },
-  'api+angin': { n: 'Fusion Api + Angin', img: 'assets/pets/fusion_api_angin.png', d: 'Gabungan kekuatan Api dan Angin.' },
+  'api+tanah': { n: 'Fusion Api + Tanah', img: 'assets/pets/fusion_api_tanah.png', d: 'Raung berkaki dua hasil peleburan Api dan Tanah: bersisik kristal biru, berbulu coklat, ekor dan surai menyala lava.' },
+  'api+angin': { n: 'Fusion Api + Angin', img: 'assets/pets/fusion_api_angin.png', d: 'Phoenix serigala hasil peleburan Api dan Angin: sayap hitam berujung api, retakan lava di tubuh, ekor menyala.' },
   'air+tanah': { n: 'Fusion Air + Tanah', img: 'assets/pets/fusion_air_tanah.png', d: 'Gabungan kekuatan Air dan Tanah.' },
   'air+angin': { n: 'Fusion Air + Angin', img: 'assets/pets/fusion_air_angin.png', d: 'Gabungan kekuatan Air dan Angin.' },
-  'tanah+angin': { n: 'Fusion Tanah + Angin', img: 'assets/pets/fusion_tanah_angin.png', d: 'Gabungan kekuatan Tanah dan Angin.' }
+  'tanah+angin': { n: 'Fusion Tanah + Angin', img: 'assets/pets/fusion_tanah_angin.png', d: 'Griffin berkaki dua hasil peleburan Tanah dan Angin: sayap lebar berbulu coklat, punggung dan ekor bersisik kristal biru.' }
 };
 const FUSION_NEED = 2;   // jumlah pet ★MAX yang dibutuhkan agar fusion terbuka
 const fusionKey = (a, b) => [a, b].sort((x, y) => ELS.indexOf(x) - ELS.indexOf(y)).join('+');

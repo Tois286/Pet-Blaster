@@ -46,6 +46,60 @@ class GameApi extends ApiController
         }
     }
 
+    // ---- Sistem gem ----
+    // Gem HANYA didapat saat bos stage 5, 10, 15, 20 (dan stage 25 = Boss Final) dikalahkan, yaitu saat stage itu dimenangkan.
+    // Pulau 1 (Terra): stage 5/10/15/20 = 50 gem, stage 25 = 100 gem.
+    // Tiap pulau berikutnya: stage 5/10/15/20 bertambah 25 gem (Aquaria 75, Ignis 100, Zephyria 125), stage 25 bertambah 35 gem (135, 170, 205).
+    // Ubah juga GEM_RULE di game.js (hanya tampilan; jumlah gem asli selalu dihitung di sini).
+    private const GEM_RULE = ['base' => 50, 'island' => 25, 'final_base' => 100, 'final_island' => 35];
+    private const ISLAND_COUNT = 4;
+    private const STAGES_PER_ISLAND = 25;
+    private const WAVES_PER_STAGE = 10;
+    private const FINAL_STAGE_WAVES = 15;
+    // true = gem tiap bos hanya didapat SEKALI per akun (kemenangan pertama). false = gem didapat lagi setiap bos dikalahkan ulang.
+    private const GEM_ONLY_FIRST_CLEAR = true;
+
+    // Jumlah gem untuk bos stage tertentu (island dihitung dari 0 = Terra). 0 bila stage itu bukan stage bos.
+    private function gemReward(int $island, int $stage): int
+    {
+        if ($island < 0 || $island >= self::ISLAND_COUNT || $stage < 5 || $stage > self::STAGES_PER_ISLAND || $stage % 5 !== 0) {
+            return 0;
+        }
+        $r = self::GEM_RULE;
+        return $stage === self::STAGES_PER_ISLAND
+            ? $r['final_base'] + $r['final_island'] * $island
+            : $r['base'] + $r['island'] * $island;
+    }
+
+    // Menyiapkan tabel/kolom gem jika database lama belum dimigrasi (database/migration_v6.sql). Mengembalikan false jika gagal;
+    // dalam kasus itu game tetap jalan normal, hanya saja gem tidak diberikan. Jangan dipanggil di dalam transaksi (ALTER TABLE meng-commit otomatis).
+    private function ensureGemSchema($db): bool
+    {
+        try {
+            if (!$db->fieldExists('gems', 'game_progress')) {
+                $db->query('ALTER TABLE game_progress ADD COLUMN gems BIGINT UNSIGNED NOT NULL DEFAULT 0');
+            }
+            if (!$db->fieldExists('island', 'game_sessions')) {
+                $db->query('ALTER TABLE game_sessions ADD COLUMN island TINYINT UNSIGNED NULL DEFAULT NULL, ADD COLUMN stage TINYINT UNSIGNED NULL DEFAULT NULL, ADD COLUMN gems_awarded INT UNSIGNED NOT NULL DEFAULT 0');
+            }
+            $db->query(
+                'CREATE TABLE IF NOT EXISTS game_boss_clears (
+                    user_id BIGINT UNSIGNED NOT NULL,
+                    island TINYINT UNSIGNED NOT NULL,
+                    stage TINYINT UNSIGNED NOT NULL,
+                    gems INT UNSIGNED NOT NULL,
+                    cleared_at INT UNSIGNED NOT NULL,
+                    PRIMARY KEY (user_id, island, stage),
+                    CONSTRAINT fk_bossclear_user FOREIGN KEY (user_id) REFERENCES game_users(id) ON DELETE CASCADE
+                )'
+            );
+            return true;
+        } catch (\Throwable $e) {
+            log_message('error', 'Skema gem gagal disiapkan: {m}', ['m' => $e->getMessage()]);
+            return false;
+        }
+    }
+
     public function profile()
     {
         $uid = $this->userId();
@@ -54,12 +108,24 @@ class GameApi extends ApiController
         }
         $db = db_connect();
         $this->ensurePetStarColumns($db);
+        $gemOk = $this->ensureGemSchema($db);
         $user = $db->table('game_users')->select('username')->where('id', $uid)->get()->getRowArray();
         $progress = $db->table('game_progress')->where('user_id', $uid)->get()->getRowArray();
         if (!$user || !$progress) {
             return $this->fail('Data tidak ditemukan.', 404);
         }
-        return $this->respond(['success' => true, 'username' => $user['username'], 'progress' => $progress, 'afk' => $this->afkPending($progress)]);
+        // Bos yang gemnya sudah diambil, format "pulau-stage" (pulau dari 0). Dipakai tampilan untuk menandai hadiah yang sudah didapat.
+        $gemClears = [];
+        if ($gemOk) {
+            try {
+                foreach ($db->table('game_boss_clears')->select('island, stage')->where('user_id', $uid)->get()->getResultArray() as $c) {
+                    $gemClears[] = (int) $c['island'] . '-' . (int) $c['stage'];
+                }
+            } catch (\Throwable $e) {
+                log_message('error', 'Daftar bos gagal dibaca: {m}', ['m' => $e->getMessage()]);
+            }
+        }
+        return $this->respond(['success' => true, 'username' => $user['username'], 'progress' => $progress, 'afk' => $this->afkPending($progress), 'gemClears' => $gemClears]);
     }
 
     // Koin AFK = menit berlalu (maks 8 jam) x (1 + rekor gelombang). Dihitung penuh di server.
@@ -205,9 +271,17 @@ class GameApi extends ApiController
             return $this->fail('Silakan login.', 401);
         }
         $token = bin2hex(random_bytes(16));
-        db_connect()->table('game_sessions')->insert([
-            'user_id' => $uid, 'token' => $token, 'started_at' => time(),
-        ]);
+        $db = db_connect();
+        $row = ['user_id' => $uid, 'token' => $token, 'started_at' => time()];
+        // Pulau dan stage yang dimainkan disimpan di sesi supaya gem bisa dihitung server saat pertempuran selesai.
+        $d = $this->body();
+        $island = is_numeric($d['island'] ?? null) ? (int) $d['island'] : -1;
+        $stage  = is_numeric($d['stage'] ?? null) ? (int) $d['stage'] : -1;
+        if ($island >= 0 && $island < self::ISLAND_COUNT && $stage >= 1 && $stage <= self::STAGES_PER_ISLAND && $this->ensureGemSchema($db)) {
+            $row['island'] = $island;
+            $row['stage']  = $stage;
+        }
+        $db->table('game_sessions')->insert($row);
         return $this->respond(['success' => true, 'session' => $token]);
     }
 
@@ -242,16 +316,42 @@ class GameApi extends ApiController
             $kills   = min($kills, $elapsed * 3 + 3, 400);         // batas wajar jumlah kill
             $coins   = $kills * 5 + $wave * 10;
 
+            // Gem: hanya bila stage dimenangkan, stage itu stage bos (5/10/15/20/25), dan durasi sesi masuk akal untuk jumlah wave stage itu.
+            $gems = 0;
+            $gemClaimed = false;   // true = bos ini sudah pernah memberi gem (mode sekali per akun), jadi kali ini tidak ada gem
+            $island = isset($s['island']) ? (int) $s['island'] : -1;
+            $stage  = isset($s['stage']) ? (int) $s['stage'] : -1;
+            $reward = !empty($d['won']) ? $this->gemReward($island, $stage) : 0;
+            if ($reward > 0) {
+                $stageWaves = $stage >= self::STAGES_PER_ISLAND ? self::FINAL_STAGE_WAVES : self::WAVES_PER_STAGE;
+                if ($elapsed >= ($stageWaves - 1) * 5) {   // sama dengan batas ~5 detik per gelombang di atas
+                    $db->query(
+                        'INSERT IGNORE INTO game_boss_clears (user_id, island, stage, gems, cleared_at) VALUES (?, ?, ?, ?, ?)',
+                        [$uid, $island, $stage, $reward, time()]
+                    );
+                    $firstTime = $db->affectedRows() > 0;
+                    if ($firstTime || !self::GEM_ONLY_FIRST_CLEAR) {
+                        $gems = $reward;
+                    } else {
+                        $gemClaimed = true;
+                    }
+                }
+            }
+
             $db->query('UPDATE game_sessions SET finished = 1, coins_awarded = ? WHERE id = ?', [$coins, $s['id']]);
             $db->query(
                 'UPDATE game_progress SET coins = coins + ?, level = GREATEST(level, ?), best_wave = GREATEST(best_wave, ?) WHERE user_id = ?',
                 [$coins, 1 + intdiv($wave, 3), $wave, $uid]
             );
+            if ($gems > 0) {
+                $db->query('UPDATE game_progress SET gems = gems + ? WHERE user_id = ?', [$gems, $uid]);
+                $db->query('UPDATE game_sessions SET gems_awarded = ? WHERE id = ?', [$gems, $s['id']]);
+            }
             if ($db->transStatus() === false) {
                 throw new \RuntimeException('Gagal menyimpan hadiah.');
             }
             $db->transCommit();
-            return $this->respond(['success' => true, 'coins' => $coins, 'wave' => $wave]);
+            return $this->respond(['success' => true, 'coins' => $coins, 'wave' => $wave, 'gems' => $gems, 'gemClaimed' => $gemClaimed]);
         } catch (\Throwable $e) {
             $db->transRollback();
             log_message('error', 'Hadiah gagal: {m}', ['m' => $e->getMessage()]);

@@ -247,6 +247,7 @@ function showProfile(d) {
   const bw = +p.best_wave;
   updateLobbyInfo();
   const afk = +d.afk || 0; $('afkAmt').textContent = afk; $('afkBtn').disabled = afk < 1;
+  updateAttendanceBadge(); if (!$('att').hidden) renderAttendance();
   $('hubCoins').textContent = p.coins; $('hubGems').textContent = +p.gems || 0; if (!$('hub').hidden) renderHub();   // panel menu bawah ikut diperbarui
 }
 async function refreshProfile() { showProfile(await api('/profile')); }
@@ -302,6 +303,7 @@ $('restNo').addEventListener('click', () => { $('rest').hidden = true; });   // 
 $('rest').addEventListener('click', e => { if (e.target === $('rest')) $('rest').hidden = true; });   // klik di luar kartu = Lanjut
 $('restYes').addEventListener('click', async () => {   // Istirahat = keluar akun
   $('rest').hidden = true;
+  attAuto = false; closeAttendance();   // login berikutnya (mungkin akun lain) boleh memunculkan popup absensi lagi
   if (game) { game.destroy(true); game = null; }
   try { await api('/logout', 'POST', {}); } catch (err) { console.error(err); }
   $('result').hidden = true; $('gamePanel').classList.remove('battle'); $('gamePanel').hidden = true; $('authPanel').hidden = false;
@@ -1840,11 +1842,41 @@ function startBattle() {
   $('gamePanel').classList.add('battle'); game.scene.stop('Lobby'); game.scene.start('Battle');
 }
 function toLobby() { clearBattleSnap(); $('result').hidden = true; $('gamePanel').classList.remove('battle'); game.scene.stop('Battle'); game.scene.start('Lobby'); }
-const menu = (el, items) => items.forEach(([ic, label, act]) => {
-  const b = document.createElement('button'); b.className = 'ico'; b.innerHTML = `<i>${ic}</i><span>${label}</span>`;
-  b.onclick = () => act ? openHub(act) : say('Fitur ' + label + ' segera hadir.'); $(el).appendChild(b);
+// ---- Absensi 7 hari yang berulang terus. Hari dan hadiah dihitung server (App\Libraries\Attendance); tampilan hanya membaca profile.attendance. ----
+let attAuto = false, attBusy = false;
+const attData = () => (profile && profile.attendance) || null;
+const attFmt = n => (+n).toLocaleString('id-ID');
+function updateAttendanceBadge() {   // tombol Absen disembunyikan bila server tidak mengirim data absensi; titik merah bila ada hadiah yang belum diambil
+  const a = attData(), b = document.querySelector('#sideL [data-k="att"]'); if (!b) return;
+  b.hidden = !a; b.classList.toggle('new', !!(a && a.canClaim));
+}
+function renderAttendance() {
+  const a = attData(); if (!a) return;
+  $('attSub').textContent = a.canClaim ? 'Hari ' + a.day + ' siap diambil. Hadiah berulang terus setiap 7 hari.' : 'Hadiah hari ini sudah diambil. Kembali besok untuk hari ' + (a.day >= 7 ? 1 : a.day + 1) + '.';
+  $('attGrid').innerHTML = a.rewards.map((r, i) => {
+    const d = i + 1, st = d < a.day || (d === a.day && a.claimedToday) ? 'done' : d === a.day ? 'now' : 'wait';
+    return `<div class="att-day ${st}${d === 7 ? ' big' : ''}"><small>Hari ${d}</small><i>${d === 7 ? '💰' : '🪙'}</i><b>${attFmt(r)}</b>${st === 'done' ? '<em>✓</em>' : ''}</div>`;
+  }).join('');
+  const btn = $('attClaim'); btn.disabled = !a.canClaim || attBusy;
+  btn.textContent = a.canClaim ? 'Ambil Hadiah: +' + attFmt(a.reward) + ' 🪙' : 'Sudah diambil hari ini';
+}
+function openAttendance() { if (!attData()) return say('Absensi belum tersedia.'); renderAttendance(); $('att').hidden = false; }
+function closeAttendance() { $('att').hidden = true; }
+function maybeShowAttendance() { if (attAuto) return; attAuto = true; const a = attData(); if (a && a.canClaim) openAttendance(); }   // sekali per login, saat lobi sudah tampil
+$('attClose').onclick = closeAttendance;
+$('att').addEventListener('click', e => { if (e.target === $('att')) closeAttendance(); });
+$('attClaim').onclick = async () => {
+  const a = attData(); if (!a || !a.canClaim || attBusy) return;
+  attBusy = true; renderAttendance();
+  try { const r = await api('/attendance/claim', 'POST', {}); await refreshProfile(); say('Absensi hari ' + r.day + ': +' + attFmt(r.reward) + ' 🪙'); }
+  catch (err) { say(err.message); try { await refreshProfile(); } catch (_) { } }   // galat (mis. sudah diambil di perangkat lain): muat ulang status
+  attBusy = false; renderAttendance(); updateAttendanceBadge();
+};
+const menu = (el, items) => items.forEach(([ic, label, act, key]) => {
+  const b = document.createElement('button'); b.className = 'ico'; b.innerHTML = `<i>${ic}</i><span>${label}</span>`; if (key) b.dataset.k = key;
+  b.onclick = () => typeof act === 'function' ? act() : act ? openHub(act) : say('Fitur ' + label + ' segera hadir.'); $(el).appendChild(b);
 });
-menu('sideL', [['🎖️', 'Battle Pass'], ['🎁', 'Hadiah'], ['📜', 'Event']]);
+menu('sideL', [['🎖️', 'Battle Pass'], ['📅', 'Absen', openAttendance, 'att'], ['📜', 'Event']]);
 menu('sideR', [['📢', 'Info'], ['✉️', 'Surat'], ['👥', 'Teman'], ['📋', 'Misi']]);
 const HUB = [['shop', '🛒', 'Toko'], ['pet', '🐾', 'Pet'], ['char', '🎸', 'Karakter'], ['zone', '🏰', 'Wilayah'], ['guild', '🛡️', 'Guild']];
 menu('botNav', HUB.map(([k, ic, n]) => [ic, n, k]));
@@ -2058,6 +2090,7 @@ class Lobby extends Base {
     this.add.particles(0, 0, 'leaf', { x: { min: -20, max: W }, y: -10, speedX: { min: 12, max: 38 }, speedY: { min: 20, max: 40 }, rotate: { start: 0, end: 360 }, lifespan: 9000, scale: { start: 1, end: .7 }, alpha: { start: .95, end: .25 }, tint: [0x8fd36a, 0xc8e07a, 0xf2c14e, 0x6fbf5a], frequency: 1400 }).setDepth(900);
     this.add.particles(0, 0, 'spark', { x: { min: 0, max: W }, y: { min: 250, max: 640 }, speedY: { min: -40, max: -15 }, lifespan: 3000, scale: { start: .5, end: 0 }, alpha: { start: .7, end: 0 }, tint: 0xffe3b8, frequency: 160 });
     hideLoading();   // lobi sudah tergambar penuh, buka layar pemuatan
+    maybeShowAttendance();   // popup absensi muncul sendiri bila ada hadiah hari ini yang belum diambil
   }
 }
 

@@ -2,6 +2,8 @@
 
 namespace App\Controllers\Api;
 
+use App\Libraries\Attendance;
+
 class GameApi extends ApiController
 {
     private const MAX_WAVE = 10;
@@ -100,6 +102,66 @@ class GameApi extends ApiController
         }
     }
 
+    // Kolom absensi harian (database/migration_v8.sql): attendance_day = hari terakhir yang diklaim (0-7), attendance_date = tanggal klaim terakhir.
+    // Dibuat otomatis bila belum ada. Jangan dipanggil di dalam transaksi (ALTER TABLE meng-commit otomatis). false = gagal.
+    private function ensureAttendanceColumns($db): bool
+    {
+        try {
+            if (!$db->fieldExists('attendance_day', 'game_progress')) {
+                $db->query('ALTER TABLE game_progress ADD COLUMN attendance_day TINYINT UNSIGNED NOT NULL DEFAULT 0');
+            }
+            if (!$db->fieldExists('attendance_date', 'game_progress')) {
+                $db->query('ALTER TABLE game_progress ADD COLUMN attendance_date DATE NULL DEFAULT NULL');
+            }
+            return true;
+        } catch (\Throwable $e) {
+            log_message('error', 'Kolom absensi gagal dibuat: {m}', ['m' => $e->getMessage()]);
+            return false;
+        }
+    }
+
+    // Klaim hadiah absensi hari ini (satu kali per hari WIB). Hari dan jumlah koin dihitung sepenuhnya di server (App\Libraries\Attendance).
+    public function attendanceClaim()
+    {
+        $uid = $this->userId();
+        if (!$uid) {
+            return $this->fail('Silakan login.', 401);
+        }
+        $db = db_connect();
+        if (!$this->ensureAttendanceColumns($db)) {
+            return $this->fail('Database belum diperbarui. Jalankan database/migration_v8.sql.', 500);
+        }
+        $today = Attendance::today();
+        $db->transBegin();
+        try {
+            $p = $db->query('SELECT * FROM game_progress WHERE user_id = ? FOR UPDATE', [$uid])->getRowArray();   // kunci baris: dua klaim bersamaan tidak bisa lolos dua-duanya
+            if (!$p) {
+                throw new \RuntimeException('Progres tidak ditemukan.');
+            }
+            $s = Attendance::state($p['attendance_date'] ?? null, (int) ($p['attendance_day'] ?? 0), $today);
+            if (!$s['canClaim']) {
+                $db->transRollback();
+                return $this->fail('Absensi hari ini sudah diambil. Kembali lagi besok.', 409);
+            }
+            $db->query(
+                'UPDATE game_progress SET coins = coins + ?, attendance_day = ?, attendance_date = ? WHERE user_id = ?',
+                [$s['reward'], $s['day'], $today, $uid]
+            );
+            if ($db->transStatus() === false) {
+                throw new \RuntimeException('Gagal menyimpan absensi.');
+            }
+            $db->transCommit();
+            return $this->respond([
+                'success' => true, 'reward' => $s['reward'], 'day' => $s['day'],
+                'attendance' => Attendance::state($today, $s['day'], $today),
+            ]);
+        } catch (\Throwable $e) {
+            $db->transRollback();
+            log_message('error', 'Absensi gagal: {m}', ['m' => $e->getMessage()]);
+            return $this->fail('Absensi gagal.', 500);
+        }
+    }
+
     public function profile()
     {
         $uid = $this->userId();
@@ -108,6 +170,7 @@ class GameApi extends ApiController
         }
         $db = db_connect();
         $this->ensurePetStarColumns($db);
+        $attOk = $this->ensureAttendanceColumns($db);
         $gemOk = $this->ensureGemSchema($db);
         $user = $db->table('game_users')->select('username')->where('id', $uid)->get()->getRowArray();
         $progress = $db->table('game_progress')->where('user_id', $uid)->get()->getRowArray();
@@ -125,7 +188,9 @@ class GameApi extends ApiController
                 log_message('error', 'Daftar bos gagal dibaca: {m}', ['m' => $e->getMessage()]);
             }
         }
-        return $this->respond(['success' => true, 'username' => $user['username'], 'progress' => $progress, 'afk' => $this->afkPending($progress), 'gemClears' => $gemClears]);
+        return $this->respond(['success' => true, 'username' => $user['username'], 'progress' => $progress, 'afk' => $this->afkPending($progress), 'gemClears' => $gemClears,
+            // null bila kolom absensi gagal dibuat: game menyembunyikan tombol absensi
+            'attendance' => $attOk ? Attendance::state($progress['attendance_date'] ?? null, (int) ($progress['attendance_day'] ?? 0), Attendance::today()) : null]);
     }
 
     // Koin AFK = menit berlalu (maks 8 jam) x (1 + rekor gelombang). Dihitung penuh di server.

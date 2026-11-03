@@ -2292,3 +2292,116 @@ input:focus-visible {
   .rfx { display: none; }
   .ricon { animation: none; }
 }
+
+/* ---- Absensi 7 hari (berulang) ---- */
+.att {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  display: grid;
+  place-items: center;
+  padding: 0 4%;
+  background: rgba(21, 13, 43, 0.72);
+  animation: hubIn 0.2s ease-out;
+}
+.att-card {
+  position: relative;
+  width: 100%;
+  background: var(--card);
+  border: 0.12em solid rgba(255, 211, 77, 0.35);
+  border-radius: 1.6em;
+  padding: 1.4em 1.1em 1.2em;
+  text-align: center;
+  box-shadow: 0 0.8em 2.4em rgba(0, 0, 0, 0.5);
+}
+.att-card h3 {
+  margin: 0 0 0.2em;
+  font-size: 1.25em;
+}
+.att-sub {
+  margin: 0 0 0.9em;
+  font-size: 0.82em;
+  opacity: 0.85;
+}
+.att-x {
+  position: absolute;
+  top: 0.6em;
+  right: 0.6em;
+  width: 2em;
+  height: 2em;
+}
+.att-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5em;
+  margin-bottom: 1em;
+}
+.att-day {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 0.1em;
+  padding: 0.55em 0.2em 0.5em;
+  border: 0.1em solid transparent;
+  border-radius: 0.9em;
+  background: rgba(0, 0, 0, 0.25);
+}
+.att-day.big {
+  grid-column: span 2;
+  background: linear-gradient(135deg, rgba(255, 211, 77, 0.22), rgba(255, 140, 60, 0.18));
+}
+.att-day small {
+  font-size: 0.7em;
+  opacity: 0.8;
+}
+.att-day i {
+  font-style: normal;
+  font-size: 1.6em;
+}
+.att-day b {
+  font-size: 0.85em;
+  color: var(--gold);
+}
+.att-day.now {
+  border-color: var(--gold);
+  box-shadow: 0 0 0.9em rgba(255, 211, 77, 0.55);
+  animation: attPulse 1.4s ease-in-out infinite;
+}
+.att-day.done {
+  opacity: 0.55;
+}
+.att-day.done em {
+  position: absolute;
+  top: 0.2em;
+  right: 0.35em;
+  font-style: normal;
+  font-weight: 800;
+  color: var(--mint);
+}
+.att-claim {
+  width: 100%;
+}
+.att-claim:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+@keyframes attPulse {
+  50% {
+    box-shadow: 0 0 1.4em rgba(255, 211, 77, 0.9);
+  }
+}
+/* titik merah di tombol Absen bila ada hadiah yang belum diambil */
+.ico.new i {
+  position: relative;
+}
+.ico.new i::after {
+  content: "";
+  position: absolute;
+  top: -0.05em;
+  right: -0.2em;
+  width: 0.38em;
+  height: 0.38em;
+  border: 0.07em solid #fff;
+  border-radius: 50%;
+  background: #ff4d4d;
+}

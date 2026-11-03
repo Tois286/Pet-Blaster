@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#2b1d4a">
   <meta name="mobile-web-app-capable" content="yes">
   <title>Pet Blaster: Wild Guardians</title>
-  <link rel="stylesheet" href="css/game.css?v=gem8">
+  <link rel="stylesheet" href="css/game.css?v=att1">
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
 </head>
 
@@ -134,13 +134,22 @@
           </div>
           <nav class="htabs" id="hubTabs"></nav>
         </div>
+        <div id="att" class="att" hidden role="dialog" aria-modal="true" aria-labelledby="attTitle">
+          <div class="att-card">
+            <button id="attClose" class="icon att-x" aria-label="Tutup">✕</button>
+            <h3 id="attTitle">📅 Absensi 7 Hari</h3>
+            <p id="attSub" class="att-sub"></p>
+            <div id="attGrid" class="att-grid"></div>
+            <button id="attClaim" class="btn main att-claim">Ambil Hadiah</button>
+          </div>
+        </div>
         <div id="gameMessage" class="toast" role="status"></div>
       </div>
     </section>
   </main>
   <script src="js/sprites-data.js"></script>
   <script src="js/sprites-extra.js?v=pet1"></script>
-  <script src="js/game.js?v=gem5"></script>
+  <script src="js/game.js?v=att1"></script>
 </body>
 
 </html>

@@ -18,6 +18,9 @@ CREATE TABLE IF NOT EXISTS game_progress (
  best_wave INT UNSIGNED NOT NULL DEFAULT 0,
  last_claim INT UNSIGNED NOT NULL DEFAULT 0,
  gems BIGINT UNSIGNED NOT NULL DEFAULT 0,
+ -- Absensi harian 7 hari (berulang): hari terakhir yang diklaim (0-7) dan tanggal klaim terakhir.
+ attendance_day TINYINT UNSIGNED NOT NULL DEFAULT 0,
+ attendance_date DATE NULL DEFAULT NULL,
  star_api TINYINT UNSIGNED NOT NULL DEFAULT 1,
  star_air TINYINT UNSIGNED NOT NULL DEFAULT 1,
  star_tanah TINYINT UNSIGNED NOT NULL DEFAULT 1,

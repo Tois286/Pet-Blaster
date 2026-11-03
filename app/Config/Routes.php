@@ -15,4 +15,5 @@ $routes->group('api', ['namespace' => 'App\Controllers\Api'], static function ($
     $routes->post('battle/start', 'GameApi::battleStart');
     $routes->post('battle/finish', 'GameApi::battleFinish');
     $routes->post('afk/claim', 'GameApi::afkClaim');
+    $routes->post('attendance/claim', 'GameApi::attendanceClaim');
 });

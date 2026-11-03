@@ -82,6 +82,7 @@ const BATTLE_HERO_KEY = 'tois_battle_gatling', BATTLE_HERO_SRC = 'assets/charact
 const BATTLE_SHEET = { fw: 166, fh: 382, burst: 8, reload: 51, ready: 59, charH: 269.3, anchorX: .5, anchorY: .9933, tipUp: 272.5 };
 const BURN_PCT = .1;   // Bola Lava (api evolusi 3): terbakar 10 detik, tiap detik HP target berkurang 10% dari damage yang diterimanya
 const SKILL_ICON = 'assets/ui/gatling-icon.png?v=1';   // gambar ikon tombol ultimate (path dihitung dari index.html, sama seperti aset lain)
+let autoPlay = false; try { autoPlay = localStorage.getItem('petblaster-auto') === '1'; } catch (_) { }   // Auto Play: ultimate dipakai otomatis, kartu upgrade dipilih otomatis, kartu evolusi ditutup otomatis
 const SKILL_BUFF_MS = 10000, SKILL_BUFF = 1.1;   // Badai Peluru: Tois +10% damage & +10% kecepatan tembak selama 10 detik
 const MAG_SIZE = 35, RELOAD_MS = 2400;   // 35 peluru per magasin; habis -> reload 2,4 dtk -> penuh lagi, berulang sampai pertempuran selesai
 const ELS = ['api', 'air', 'tanah', 'angin'];
@@ -151,6 +152,7 @@ const isFinalWave = (stage, wave) => stage >= STAGES_PER_ISLAND && wave === FINA
 // Stage final (Stage 25): elite muncul di wave 3, 6, 9 (tiap kali satu elite, bergiliran dari roster elemen pulau), lalu Boss Final di wave 15.
 // Stage 1-24 tidak berubah: monster besar muncul di tiap kelipatan wave 5.
 const FINAL_ELITE_WAVES = [3, 6, 9];
+const BOSS_ESCORT = 10;   // jumlah monster biasa yang keluar bersamaan dengan bos / elite (ubah angka ini untuk menyetel)
 // Jenis wave: 'final' = Boss Final, 'elite' = elite stage final, 'boss' = monster besar stage biasa, null = wave biasa
 function waveKind(stage, wave) {
   if (stage >= STAGES_PER_ISLAND) return wave === FINAL_STAGE_WAVES ? 'final' : FINAL_ELITE_WAVES.includes(wave) ? 'elite' : null;
@@ -182,15 +184,37 @@ function saveStageStars(island, stage, n) { const d = starData(), k = island + '
 function islandStars(island) { let t = 0; for (let s = 1; s <= STAGES_PER_ISLAND; s++) t += stageStars(island, s); return t; }
 const calcStars = ratio => ratio >= STAR_RULES.three ? 3 : ratio >= STAR_RULES.two ? 2 : 1;
 const starStr = n => '★'.repeat(n) + '☆'.repeat(3 - n);
-document.head.appendChild(Object.assign(document.createElement('style'), {
-  textContent: '#resultStars{display:flex;justify-content:center;gap:6px;font-size:42px;line-height:1;margin:6px 0 8px}'
-    + '#resultStars span{color:#5b4a7a;opacity:0;transform:scale(.4);animation:starpop .45s ease-out forwards}'
-    + '#resultStars span.on{color:#ffd34d;text-shadow:0 0 10px rgba(255,211,77,.7)}'
-    + '@keyframes starpop{60%{transform:scale(1.25);opacity:1}100%{transform:scale(1);opacity:1}}'
-    + '.stage-node small{white-space:nowrap}'
-}));
+document.head.appendChild(Object.assign(document.createElement('style'), { textContent: '.stage-node small{white-space:nowrap}' }));   // gaya kotak hasil (bintang, kartu) ada di css/game.css
+
 
 let game = null, profile = null;
+
+// ---- Simpan & pulihkan pertempuran terakhir ----
+// Saat halaman dimuat ulang (refresh, tab dimatikan, dsb.) pertempuran yang sedang berjalan tidak diulang dari awal:
+// kondisi terakhir disimpan di perangkat (localStorage) dan dipulihkan begitu pemain masuk lagi. Dihapus saat pertempuran selesai atau pemain keluar ke lobi.
+const BATTLE_SNAP_TTL = 12 * 3600e3;   // snapshot lebih tua dari 12 jam diabaikan
+let resumeSnap = null;   // diisi saat akan memulihkan pertempuran; dibaca Battle.create
+const battleKey = () => 'petblaster-battle-' + (profile?.username || 'guest');
+function clearBattleSnap() { try { localStorage.removeItem(battleKey()); } catch (_) { } }
+function loadBattleSnap() {
+  try {
+    const s = JSON.parse(localStorage.getItem(battleKey()) || 'null');
+    if (!s || s.v !== 1 || !(Date.now() - s.t < BATTLE_SNAP_TTL)) return null;
+    if (!(s.island >= 0 && s.island < ISLANDS.length && s.stage >= 1 && s.stage <= STAGES_PER_ISLAND && s.wave >= 1 && Array.isArray(s.pets) && Array.isArray(s.enemies))) return null;
+    return s;
+  } catch (_) { return null; }
+}
+function saveBattleSnap() {
+  try {
+    if (!game || !profile || !game.scene.isActive('Battle')) return;
+    const b = game.scene.getScene('Battle');
+    if (!b || b.over || !b.token || !(b.wave >= 1)) return;
+    localStorage.setItem(battleKey(), JSON.stringify(b.snapshot()));
+  } catch (_) { }
+}
+window.addEventListener('pagehide', saveBattleSnap);
+window.addEventListener('beforeunload', saveBattleSnap);
+document.addEventListener('visibilitychange', () => { if (document.hidden) saveBattleSnap(); });
 
 async function api(path, method = 'GET', body = null) {
   const o = { method, credentials: 'same-origin', headers: { Accept: 'application/json' } };
@@ -241,6 +265,17 @@ async function enterGame() {
   $('authPanel').hidden = true; $('gamePanel').hidden = false;   // halaman login ditutup (lihat aturan [hidden] di game.css)
   $('password').value = '';
   if (!game) startGame();
+  const snap = loadBattleSnap();   // ada pertempuran yang belum selesai (mis. setelah refresh): langsung masuk lagi ke pertempuran itu
+  if (snap && !NAGA_TEST && !window.__resumeAuto) {
+    window.__resumeAuto = 1; let tries = 0;
+    const t = setInterval(() => {
+      if (++tries > 200) { clearInterval(t); return; }
+      if (game && game.scene.isActive('Lobby')) {
+        clearInterval(t); selectedIsland = snap.island; selectedStage = snap.stage; updateLobbyInfo();
+        resumeSnap = snap; startBattle();
+      }
+    }, 100);
+  }
   if (NAGA_TEST && !window.__nagaAuto) {   // uji ?naga=N: langsung masuk gameplay (tanpa menekan Main) begitu lobi siap
     window.__nagaAuto = 1; let tries = 0;
     const t = setInterval(() => {
@@ -262,7 +297,11 @@ $('authForm').addEventListener('submit', async e => {
   } catch (err) { $('authMessage').textContent = err.message; }
   finally { setAuthBusy(false); }
 });
-$('logoutButton').addEventListener('click', async () => {
+$('logoutButton').addEventListener('click', () => { $('rest').hidden = false; });   // tombol istirahat: tanya dulu, belum langsung keluar
+$('restNo').addEventListener('click', () => { $('rest').hidden = true; });   // Lanjut: tutup dialog, tetap di lobi
+$('rest').addEventListener('click', e => { if (e.target === $('rest')) $('rest').hidden = true; });   // klik di luar kartu = Lanjut
+$('restYes').addEventListener('click', async () => {   // Istirahat = keluar akun
+  $('rest').hidden = true;
   if (game) { game.destroy(true); game = null; }
   try { await api('/logout', 'POST', {}); } catch (err) { console.error(err); }
   $('result').hidden = true; $('gamePanel').classList.remove('battle'); $('gamePanel').hidden = true; $('authPanel').hidden = false;
@@ -373,6 +412,7 @@ class Base extends Phaser.Scene {
     if (!this.textures.exists('earth_hole')) this.load.image('earth_hole', 'assets/pet-actions/earth_hole.png?v=t1');   // lubang Penggalian Lubang (tanah evolusi 1)
     if (!this.textures.exists('earth_ball')) this.load.spritesheet('earth_ball', 'assets/pet-actions/earth_ball.png?v=t2', { frameWidth: 280, frameHeight: 280 });   // bola batu Menggelinding (tanah evolusi 2)
     if (!this.textures.exists('earth_crystal')) this.load.spritesheet('earth_crystal', 'assets/pet-actions/earth_crystal.png?v=t3', { frameWidth: 500, frameHeight: 440 });   // efek kristal Gali & Tabrak (tanah evolusi 3)
+    if (!this.textures.exists('fire_crater')) this.load.image('fire_crater', 'assets/pet-actions/fire_crater.webp?v=1');   // kawah lava (api evolusi 3): menggantikan elips hitam di titik ledakan
     if (!this.textures.exists('fire_lava_claw')) this.load.spritesheet('fire_lava_claw', 'assets/pet-actions/fire_lava_claw.png', { frameWidth: 256, frameHeight: 256 });
     // Gambar arena (latar biasa + arena fusion, total beberapa MB) dimuat di sini, bukan saat tombol Mulai Game ditekan: ikut layar pemuatan setelah login, jadi klik Mulai tidak perlu mengunduh apa pun lagi.
     ARENAS.forEach((n, i) => { if (!this.textures.exists('arena' + i)) this.load.image('arena' + i, 'assets/backgrounds/arena' + (i + 1) + '.jpg'); });
@@ -433,6 +473,9 @@ class Base extends Phaser.Scene {
 // ---- Aturan EXP & kartu upgrade ----
 // EXP terisi dari damage yang diberikan ke musuh. Tiap bar penuh -> game berhenti & muncul 3 kartu pilihan.
 // Target EXP berikutnya = target sebelumnya x XP_GROWTH (naik 10%). XP_GAIN = pengali EXP yang didapat dari damage (naikkan agar kartu lebih sering muncul). ISLAND_XP = EXP berlipat tiap pulau (pulau ke-n x ISLAND_XP^n), jadi makin jauh makin banyak EXP.
+// Kartu Emas (fusion): syarat pet evolusi 3 saja tidak cukup, kartunya muncul secara acak tiap naik level.
+// GOLD_CHANCE = peluang dasar per naik level; GOLD_PITY = tambahan peluang tiap naik level yang gagal (reset saat kartu emas didapat). Ubah dua angka ini untuk mengatur tingkat kesulitan.
+const GOLD_CHANCE = .10, GOLD_PITY = .03;
 const XP_BASE = 150, XP_GROWTH = 1.1, XP_GAIN = 1.3, ISLAND_XP = 2, XP_CARDS = 3;
 // Evolusi pet: jumlah kartu milik pet itu sendiri yang dibutuhkan. Evolusi 1 -> 2 butuh 4 kartu, lalu 2 -> 3 butuh 6 kartu baru.
 const EVO_NEED = [4, 6];
@@ -459,20 +502,22 @@ const NAGA_TEST = +((location.search.match(/[?&]naga=(\d+)/) || [])[1] || 0);   
 // 2) Skill Laser Fusion (FUSION_LASER): aktif dur ms, menembak monster paling depan, pindah target saat target mati, lalu cooldown cd ms (dihitung setelah laser selesai).
 //    Sprite sheet fusion_laser.webp (transparan) = 4x4 frame (483x269): 0-8 pengisian tenaga, 9-12 pilar laser (diulang), 13-15 memudar. tick = jeda damage (ms), m = pengali damage per tick dari damage Tois.
 //    SINKRON DENGAN NAGA: pengisian tenaga mulai sync frame sebelum salah satu NAGA.fireFrames (mulut terbuka), laser keluar tepat di titik itu, naga menahan pose itu selama laser, lalu melanjutkan animasi. sync = durasi charge (ms) x NAGA.fps / 1000.
-const ZONE_AIR = { key: 'arena_fusion', src: 'assets/backgrounds/arena_fusion.jpg', name: 'Arena Es & Lava', dot: 10, every: 1000, fade: 900 };
-const ZONE_TANAH = { key: 'arena_fusion_tanah', src: 'assets/backgrounds/arena_fusion_tanah.jpg', name: 'Arena Batu & Lava', dot: 10, every: 1000, fade: 900 };
+// Tiap fusion punya arena sendiri (780x1280, sama seperti arena pulau): Api+Air = es & lava, Api+Tanah = batu & lava, Air+Tanah = es retak, Api+Angin = lava berangin, Tanah+Angin = kristal malam, Air+Angin = salju berangin.
+const ZONE_AIR = { key: 'arena_fusion', src: 'assets/backgrounds/arena_fusion.jpg?v=2', name: 'Arena Es & Lava', dot: 10, every: 1000, fade: 900 };
+const ZONE_TANAH = { key: 'arena_fusion_tanah', src: 'assets/backgrounds/arena_fusion_tanah.jpg?v=2', name: 'Arena Batu & Lava', dot: 10, every: 1000, fade: 900 };
 const LASER_AIR = { key: 'fusion_laser', a: 'fz_', src: 'assets/pet-actions/fusion_laser.webp', fw: 483, fh: 269, dur: 10000, cd: 7000, charge: 500, sync: 15, tick: 250, m: 1.5, sc: .38, anchorY: .86, bw: .4, bodyH: 190 };   // sc = skala ledakan di mulut, bw = lebar sinar, bodyH = tinggi badan sinar di frame (px) yang diregangkan sampai target
 const LASER_TANAH = { key: 'fusion_laser_tanah', a: 'fzt_', src: 'assets/pet-actions/fusion_laser_tanah.webp', fw: 483, fh: 269, dur: 10000, cd: 7000, charge: 500, sync: 12, tick: 250, m: 1.5, sc: .38, anchorY: .86, bw: .4, bodyH: 190 };   // sync = durasi charge (ms) x fps naga / 1000 (500 ms x 24 fps = 12 frame)
 // Fusion aktif: NAGA / FUSION_ZONE / FUSION_LASER menunjuk ke set milik fusion yang sedang dipanggil (default Api + Air). Fusion baru = tambah satu set NAGA_x + ZONE_x + LASER_x lalu daftarkan di FUSIONS.
-const ZONE_AT = { ...ZONE_AIR, name: 'Arena Kristal' };
-const ZONE_ANGIN = { ...ZONE_AIR, name: 'Arena Badai & Lava' };   // aset arena sama dengan Es & Lava (key + src sama, jadi tidak dimuat dua kali)
+const ZONE_AT = { ...ZONE_AIR, key: 'arena_fusion_air_tanah', src: 'assets/backgrounds/arena_fusion_tanah_air.jpg?v=2', name: 'Arena Es Retak' };
+const ZONE_ANGIN = { ...ZONE_AIR, key: 'arena_fusion_api_angin', src: 'assets/backgrounds/arena_fusion_api_angin.jpg?v=2', name: 'Arena Badai & Lava' };
 const LASER_ANGIN = { ...LASER_AIR, sync: 12 };   // tidak dipakai (noLaser), hanya agar struktur FUSIONS lengkap
-const ZONE_TA = { ...ZONE_AIR, name: 'Arena Badai Pasir' };   // aset arena sama dengan Es & Lava
+const ZONE_TA = { ...ZONE_AIR, key: 'arena_fusion_tanah_angin', src: 'assets/backgrounds/arena_fusion_tanah_angin.jpg?v=2', name: 'Arena Kristal Malam' };
 const LASER_TA = { ...LASER_AIR, sync: 12 };   // tidak dipakai (noLaser), hanya agar struktur FUSIONS lengkap
 const LASER_AT = { ...LASER_AIR, sync: 12 };   // sync = durasi charge (500 ms) x fps raksasa (24) / 1000 = 12 frame; key + prefix animasi sama dengan LASER_AIR sehingga sprite sheet tidak dimuat dua kali
-const ZONE_AA = { ...ZONE_AIR, name: 'Arena Badai Es' };   // aset arena sama dengan Es & Lava (key + src sama, jadi tidak dimuat dua kali)
+const ZONE_AA = { ...ZONE_AIR, key: 'arena_fusion_air_angin', src: 'assets/backgrounds/arena_fusion_air_angin.jpg?v=2', name: 'Arena Badai Es' };
 const LASER_AA = { ...LASER_AIR, sync: 12 };   // tidak dipakai (noLaser), hanya agar struktur FUSIONS lengkap
 const FUSIONS = { 'api+air': { naga: NAGA_AIR, zone: ZONE_AIR, laser: LASER_AIR }, 'api+tanah': { naga: NAGA_TANAH, zone: ZONE_TANAH, laser: LASER_TANAH }, 'air+tanah': { naga: NAGA_AT, zone: ZONE_AT, laser: LASER_AT }, 'api+angin': { naga: NAGA_ANGIN, zone: ZONE_ANGIN, laser: LASER_ANGIN }, 'tanah+angin': { naga: NAGA_TA, zone: ZONE_TA, laser: LASER_TA }, 'air+angin': { naga: NAGA_AA, zone: ZONE_AA, laser: LASER_AA } };
+const FUSION_TIME = 45000;   // lama fusion aktif (ms, waktu game: berhenti saat pilih kartu, ikut x2). Habis -> fusion berakhir, pet kembali ke posisi semula, semua efek dihapus
 let NAGA = NAGA_AIR, FUSION_ZONE = ZONE_AIR, FUSION_LASER = LASER_AIR;
 function useFusion(id) { const f = FUSIONS[id] || FUSIONS['api+air']; NAGA = f.naga; FUSION_ZONE = f.zone; FUSION_LASER = f.laser; }
 NAGA_AIR.b = [0, 1]; NAGA_TANAH.b = [0, 2]; NAGA_AT.b = [1, 2]; NAGA_ANGIN.b = [0, 3]; NAGA_TA.b = [2, 3]; NAGA_AA.b = [1, 3];   // indeks ELS (api, air, tanah, angin) untuk partikel burst
@@ -545,21 +590,24 @@ class Battle extends Base {
     this.speed = 1; this.paused = false; this.clock = 0; this.tweens.timeScale = 1;
     $('speedBtn').textContent = 'x1'; $('pauseBtn').textContent = '⏸';
     $('speedBtn').onclick = () => { this.speed = this.speed === 1 ? 2 : 1; this.tweens.timeScale = this.speed; $('speedBtn').textContent = 'x' + this.speed; };
+    const autoB = $('autoBtn'), autoSync = () => autoB.classList.toggle('on', autoPlay);   // tombol AUTO: nyala = auto play aktif
+    autoSync(); autoB.onclick = () => { autoPlay = !autoPlay; try { localStorage.setItem('petblaster-auto', autoPlay ? '1' : '0'); } catch (_) { } autoSync(); say(autoPlay ? 'Auto play aktif' : 'Auto play mati'); if (autoPlay && this.choosing) this.autoPick(this.cardBtns || []); };
     $('pauseBtn').onclick = () => { if (this.choosing) return; this.paused = !this.paused; $('pauseBtn').textContent = this.paused ? '▶' : '⏸'; if (this.paused) { this.tweens.pauseAll(); this.anims.pauseAll(); } else { this.tweens.resumeAll(); this.anims.resumeAll(); } };
     const mk = c => this.add.particles(0, 0, 'spark', { speed: { min: 50, max: 170 }, lifespan: 400, scale: { start: 1, end: 0 }, tint: c, emitting: false }).setDepth(900);
     this.burst = ELS.map(el => mk(EL[el])); this.flash = mk(0xffe27a);
     this.hud = this.add.graphics().setDepth(1000);
-    this.hpTxt = this.add.text(W / 2, 66, '', TS(10, '#ffffff')).setOrigin(.5).setDepth(1001);
-    this.ammoTxt = this.add.text(W / 2, 83.5, '', TS(9, '#ffffff')).setOrigin(.5).setDepth(1001);
+    this.hpTxt = this.add.text(W / 2, 45, '', TS(10, '#ffffff')).setOrigin(.5).setDepth(1001);
+    this.ammoTxt = this.add.text(W / 2, 62.5, '', TS(9, '#ffffff')).setOrigin(.5).setDepth(1001);
     this.waveTxt = this.add.text(W - 12, 10, '', TS(15, '#ffffff')).setOrigin(1, 0).setDepth(1001);
-    this.killTxt = this.add.text(W - 12, 64, '', TS(13, '#ffd34d')).setOrigin(1, 0).setDepth(1001);
+    this.killTxt = this.add.text(W - 12, 23, '', TS(13, '#ffd34d')).setOrigin(1, .5).setDepth(1001);
     this.banner = this.add.text(W / 2, 230, '', TS(28, '#ffffff')).setAlign('center').setOrigin(.5).setDepth(1001).setAlpha(0);
     this.manual = false;
     this.input.on('pointerdown', () => { this.manual = true; });
     this.input.on('pointerup', () => { this.manual = false; });
     const req = battleReq || api('/battle/start', 'POST', { island: selectedIsland, stage: selectedStage }); battleReq = null;   // permintaan sudah dikirim saat tombol ditekan (startBattle); bila tidak ada (mis. mulai ulang) kirim sekarang
-    req.then(r => { this.token = r.session; this.begin(); })
-      .catch(err => { say(err.message); });
+    const snap = resumeSnap; resumeSnap = null;   // ada snapshot = pertempuran terakhir dipulihkan, bukan mulai dari awal
+    req.then(r => { this.token = r.session; snap ? this.resume(snap) : this.begin(); })
+      .catch(err => { say(err.message); if (snap) { clearBattleSnap(); toLobby(); } });
   }
 
   begin() {
@@ -571,7 +619,48 @@ class Battle extends Base {
     this.nagaStart();
     this.nextWave();
   }
+  resume(s) {   // pulihkan pertempuran terakhir dari snapshot (setelah halaman dimuat ulang); pemain dijeda dulu agar sempat bersiap
+    this.baseHp = s.baseHp; this.baseMax = s.baseMax; this.dmg = s.dmg; this.rate = s.rate;
+    this.wave = s.wave; this.islandIndex = selectedIsland; this.stageNo = selectedStage; this.kills = s.kills; this.enemies = []; this.bullets = []; this.spawnT = s.spawnT || 0; this.shotT = 0; this.petT = 0; this.skillCd = s.skillCd; this.over = false; this.toSpawn = s.toSpawn;
+    this.magMax = s.magMax; this.ammo = s.ammo; this.reloading = false; this.reloadT = 0; this.hero.reset();
+    if (s.reloading) { this.reloading = true; this.reloadT = s.reloadT || 0; this.hero.startReload(); }
+    this.evoQ = []; this.evoCur = null; this.level = s.level; this.petsSeen = !!s.petsSeen; this.xp = s.xp; this.xpNeed = s.xpNeed; this.skillMax = s.skillMax; this.buffT = s.buffT || 0; this.clock = s.clock || 0;
+    this.nagaStart();
+    if (s.speed === 2) { this.speed = 2; this.tweens.timeScale = 2; $('speedBtn').textContent = 'x2'; }
+    s.pets.forEach(d => {   // pet: tahap evolusi, kartu upgrade, dan slot dipulihkan
+      const p = this.pets.find(o => o.el === d.el); if (!p) return;
+      Object.assign(p, { stage: d.stage, prog: d.prog, pow: d.pow, cdMul: d.cdMul, volley: d.volley, reach: d.reach, extra: d.extra });
+      if (!(d.on || d.fused)) return;
+      p.on = true; p.cd = Math.max(500, d.cd || 1000); p.x = d.x;
+      p.setOrigin(.5, this.petOrigin('pet_' + p.el + p.stage)).setScale(petScale(p.el, p.stage)).setPosition(d.x, p.by).setVisible(true).setAlpha(1);
+      p.play('pet_' + p.el + p.stage + '_idle'); this.petLbl(p);
+    });
+    s.enemies.filter(d => MON[d.id] && SPR['mon' + d.id]).forEach(d => this.addEnemy(d));
+    if (s.nagaId && FUSIONS[s.nagaId] && s.nagaT > 1500 && FUSIONS[s.nagaId].naga.els.every(el => this.pets.find(o => o.el === el).on)) {   // fusion masih aktif saat refresh: naga dipanggil lagi dengan sisa waktu yang sama
+      this.fuseNaga(s.nagaId);
+      this.time.delayedCall(520, () => { if (this.nagaOn) this.nagaT = s.nagaT; });
+    }
+    this.ui();
+    const evoEls = (s.evo || []).map(el => this.pets.find(o => o.el === el)).filter(Boolean);
+    if (evoEls.length) { this.evoQ = evoEls; this.showEvo(this.evoQ.shift()); }
+    else if (s.needCards) this.showCards();
+    else this.time.delayedCall(s.nagaId ? 1100 : 150, () => { if (!this.over && !this.paused && !this.choosing) $('pauseBtn').click(); });   // jeda otomatis; pemain menekan ▶ untuk lanjut
+    say('Pertempuran terakhir dipulihkan' + (this.choosing ? '.' : ' - tekan ▶ untuk lanjut.'));
+  }
+  snapshot() {   // keadaan pertempuran yang cukup untuk dipulihkan setelah refresh (peluru, proyektil, dan efek sesaat tidak ikut disimpan)
+    const pk = ['stage', 'prog', 'pow', 'cdMul', 'volley', 'reach', 'extra'];
+    return {
+      v: 1, t: Date.now(), island: this.islandIndex, stage: this.stageNo, wave: this.wave, toSpawn: this.toSpawn, spawnT: this.spawnT, kills: this.kills, clock: this.clock,
+      baseHp: this.baseHp, baseMax: this.baseMax, dmg: this.dmg, rate: this.rate, magMax: this.magMax, ammo: this.ammo, reloading: this.reloading, reloadT: this.reloadT,
+      level: this.level, xp: this.xp, xpNeed: this.xpNeed, skillMax: this.skillMax, skillCd: this.skillCd, buffT: this.buffT, petsSeen: this.petsSeen, speed: this.speed,
+      needCards: !!this.choosing && !$('upgrade').hidden, evo: [this.evoCur, ...this.evoQ].filter(Boolean).map(p => p.el),
+      nagaId: this.nagaOn ? NAGA.id : null, nagaT: this.nagaT,
+      pets: this.pets.map(p => Object.assign({ el: p.el, on: !!p.on, fused: !!p.fused, x: p.fused ? p.fx : p.x, cd: p.cd }, Object.fromEntries(pk.map(k => [k, p[k]])))),
+      enemies: this.enemies.filter(e => !e.dead).map(e => ({ id: e.id, big: !!e.big, fin: !!e.fin, x: e.x0, py: e.py, hp: e.hp, mhp: e.mhp, ph: e.ph }))
+    };
+  }
   showEvo(p) {   // kartu detail setiap evolusi; game berhenti sampai pemain menekan Lanjut
+    this.evoCur = p;
     const sk = SK[p.el][p.stage - 1], old = SK[p.el][p.stage - 2], st = p.stage, box = $('evoCard');
     const eff = [sk.stun ? (p.el === 'air' ? 'Membekukan ' : 'Menyetrum ') + sk.stun / 1000 + ' dtk' : '', sk.slow ? 'Memperlambat ' + sk.slow / 1000 + ' dtk' : '', sk.burn ? 'Membakar ' + sk.burn / 1000 + ' dtk' : ''].filter(Boolean).join(', ') || '-';
     const next = st >= 3 ? 'Evolusi maksimal tercapai!' : 'Evolusi berikutnya: kumpulkan ' + EVO_NEED[st - 1] + ' kartu ' + EVO[p.el][st - 1];
@@ -584,11 +673,12 @@ class Battle extends Base {
       <dt>Efek</dt><dd>${eff}</dd><dt>Tembakan</dt><dd>${p.volley + 1}x beruntun</dd></dl>
       <p class="next">${next}</p><button class="btn main" id="evoOk">Lanjut</button>`;
     this.choosing = true; this.tweens.pauseAll(); this.anims.pauseAll(); $('evo').hidden = false;
-    $('evoOk').onclick = () => { $('evo').hidden = true; this.choosing = false; if (!this.paused) { this.tweens.resumeAll(); this.anims.resumeAll(); } this.checkLevel(); };
+    if (autoPlay) setTimeout(() => { if (autoPlay && this.choosing && !this.over && !$('evo').hidden) $('evoOk').click(); }, 1600);
+    $('evoOk').onclick = () => { $('evo').hidden = true; this.evoCur = null; this.choosing = false; if (!this.paused) { this.tweens.resumeAll(); this.anims.resumeAll(); } this.checkLevel(); };
   }
   hasPet() { return this.pets.some(p => p.on); }
   addPet(el) {   // pet pendukung muncul di slot kosong berikutnya (kiri ke kanan)
-    const p = this.pets.find(o => o.el === el), used = this.pets.filter(o => o.on).map(o => o.x), n = Math.max(0, PET_SLOTS.findIndex(x => !used.includes(x)));   // slot kosong pertama (slot Api/Air yang ditinggalkan karena fusion bisa terisi lagi)
+    const p = this.pets.find(o => o.el === el), used = this.pets.filter(o => o.on || o.fused).map(o => o.x), n = Math.max(0, PET_SLOTS.findIndex(x => !used.includes(x)));   // slot kosong pertama; slot pet yang sedang melebur dicadangkan agar saat fusion berakhir ia kembali ke posisi aslinya
     p.on = true; p.cd = 1000; p.x = PET_SLOTS[n]; p.setVisible(true).setAlpha(0);
     this.tweens.add({ targets: p, alpha: 1, duration: 300 }); this.flash.emitParticleAt(p.x, p.y - 30, 18); this.petLbl(p);
   }
@@ -612,14 +702,17 @@ class Battle extends Base {
     let picks = sh([...petCards, ...upCards, ...stat]).slice(0, XP_CARDS);
     if (!this.petsSeen && petCards.length && !picks.some(u => u.img)) picks = sh([petCards[0], ...picks.slice(1)]);   // undian pertama pasti ada kartu pet
     Object.values(FUSIONS).map(f => f.naga).forEach(f => console.log('[KARTU] ' + f.id + ': ' + f.els.map(el => { const p = this.pets.find(o => o.el === el); return el + ' (' + (p.on ? 'aktif' : p.fused ? 'sudah melebur' : 'belum dipanggil') + ', evolusi ' + p.stage + ')'; }).join(' + ') + (this.nagaReady(f) ? ' -> SYARAT TERPENUHI, kartu emas dibagikan' : ' -> belum terpenuhi (' + (this.nagaOn ? 'fusion lain sedang aktif' : 'kedua pet harus aktif dan evolusi 3') + ')')));
-    const gold = Object.values(FUSIONS).map(f => f.naga).filter(f => this.nagaReady(f) && Math.random() < f.cardChance).map(f => ({ img: f.card, n: f.title, d: f.cardDesc, tag: 'Kartu Emas', gold: 1, go: b => b.fuseNaga(f.id) }));   // satu kartu emas tiap fusion yang syaratnya terpenuhi
+    const readyF = Object.values(FUSIONS).map(f => f.naga).filter(f => this.nagaReady(f)), gp = Math.min(1, GOLD_CHANCE + (this.goldMiss || 0) * GOLD_PITY);
+    const gold = readyF.filter(f => Math.random() < gp * f.cardChance).map(f => ({ img: f.card, n: f.title, d: f.cardDesc, tag: 'Kartu Emas', gold: 1, go: b => b.fuseNaga(f.id) }));   // satu kartu emas tiap fusion yang syaratnya terpenuhi
+    if (readyF.length) this.goldMiss = gold.length ? 0 : (this.goldMiss || 0) + 1;   // kartu emas belum keluar: peluang naik sedikit di level berikutnya
     if (gold.length) picks = sh([...gold, ...picks.slice(0, Math.max(0, XP_CARDS - gold.length))]);   // kartu emas: syarat ke-2 fusion
     this.petsSeen = true;
     const box = $('cards');
     this.choosing = true; this.tweens.pauseAll(); this.anims.pauseAll(); this.manual = false;
     $('upLv').textContent = 'Lv ' + this.level; box.textContent = '';
+    this.cardBtns = [];
     picks.forEach(u => {
-      const b = document.createElement('button'); b.className = 'ucard';
+      const b = document.createElement('button'); b.className = 'ucard'; this.cardBtns.push([u, b]);
       b.innerHTML = (u.img ? `<img src="${u.img}" alt="" onerror="this.onerror=null;this.src='assets/pets/api3.png'">` : `<i>${u.ic}</i>`) + `<b>${u.n}</b><span>${u.d}</span>` + (u.tag ? `<em>${u.tag}</em>` : '');
       if (u.gold) { b.style.cssText = 'background:linear-gradient(160deg,#fff3b0,#ffd34d 45%,#d89a1c);border:2px solid #fff3b0;box-shadow:0 0 16px 4px rgba(255,211,77,.85)'; b.querySelectorAll('b,span,em').forEach(x => x.style.color = '#4a2f00'); }
       b.onclick = () => {
@@ -633,6 +726,21 @@ class Battle extends Base {
       box.appendChild(b);
     });
     $('upgrade').hidden = false;
+    if (autoPlay) this.autoPick(this.cardBtns);
+  }
+  autoScore(u) {   // prioritas auto play: kartu emas fusion > pulihkan HP bila kritis > panggil pet > evolusi pet > upgrade Tois
+    if (u.gold) return 100;
+    const low = this.baseHp / this.baseMax < .5;
+    if (u.id === 'heal') return low ? 95 : 30;
+    if (u.id === 'hp') return low ? 70 : 45;
+    if (u.img && !u.tag) return 85;
+    if (u.tag) return 80;
+    return { dmg: 60, rate: 58, storm: 55, mag: 50 }[u.id] || 40;
+  }
+  autoPick(list) {   // pilih kartu terbaik setelah jeda singkat supaya pemain sempat melihat pilihannya
+    if (!list.length) return;
+    const best = list.reduce((a, c) => this.autoScore(c[0]) > this.autoScore(a[0]) ? c : a);
+    setTimeout(() => { if (autoPlay && this.choosing && !this.over && best[1].isConnected) best[1].click(); }, 900);
   }
   nextWave() {
     this.wave++;
@@ -646,13 +754,21 @@ class Battle extends Base {
   spawn() {
     const big = this.toSpawn === 1 && !!waveKind(this.stageNo, this.wave); this.toSpawn--;
     const island = ISLANDS[this.islandIndex], pool = island.pool, id = big ? getWaveBoss(this.islandIndex, this.stageNo, this.wave) : Phaser.Utils.Array.GetRandom(pool), m = MON[id], fin = big && isFinalWave(this.stageNo, this.wave);
-    const h = big ? m.h * (fin ? FINAL_BOSS.size : 1.7) : m.h, sc = h / SPR['mon' + id].ih;   // ih = tinggi gambar karakter di dalam frame sprite
     const difficulty = difficultyOf(this.islandIndex, this.stageNo);
-    const x = fin ? Phaser.Math.Between(115, W - 115) : Phaser.Math.Between(44, W - 44), hp = Math.ceil((20 + this.wave * 12) * difficulty * (big ? (fin ? FINAL_BOSS.hp : 7) : m.hp)), bw = Math.max(34, h * .7);
-    const sh = this.add.image(x, -20, 'shadow').setScale(h / 46), s = this.add.sprite(x, -20, 'mon' + id).setScale(sc); s.play({ key: 'mon' + id + '_move', startFrame: Phaser.Math.Between(0, 7) });
-    const bg = this.add.rectangle(x, -20, bw, 5, 0x2b1d4a).setDepth(950);
-    const fg = this.add.rectangle(x - bw / 2, -20, bw, 5, 0x6be3a2).setOrigin(0, .5).setDepth(951);
-    this.enemies.push({ s, sh, bg, fg, rg: RANGED[id] || null, stopY: RANGED[id] ? BASE_Y - RANGED[id].stop : BASE_Y, hp, mhp: hp, bw, k: m.el, id, h, big, sc, x0: x, py: -20, ph: Math.random() * 6.283, fly: !!m.fly, hitT: 0, r: h * .42, sp: (.03 + this.wave * .004 + (this.stageNo - 1) * .0015 + this.islandIndex * DIFF.speed) * m.sp * (big ? .6 : 1) });
+    const x = fin ? Phaser.Math.Between(115, W - 115) : Phaser.Math.Between(44, W - 44), hp = Math.ceil((20 + this.wave * 12) * difficulty * (big ? (fin ? FINAL_BOSS.hp : 7) : m.hp));
+    this.addEnemy({ id, big, fin, x, py: -20, hp });
+    if (big) for (let i = 0; i < BOSS_ESCORT; i++) {   // bos tidak pernah keluar sendirian: 10 monster biasa muncul bersamanya (tambahan di luar jumlah wave), disebar di belakang/sekitar bos
+      const eid = Phaser.Utils.Array.GetRandom(pool), em = MON[eid];
+      this.addEnemy({ id: eid, big: false, fin: false, x: Phaser.Math.Between(44, W - 44), py: -20 - (i % 5) * 26 - Phaser.Math.Between(0, 14), hp: Math.ceil((20 + this.wave * 12) * difficulty * em.hp) });
+    }
+  }
+  addEnemy(o) {   // buat satu monster; o.py / o.hp / o.mhp / o.ph dipakai saat memulihkan pertempuran dari snapshot
+    const { id, big, fin, x } = o, m = MON[id], py = o.py ?? -20, hp = o.hp, mhp = o.mhp || hp;
+    const h = big ? m.h * (fin ? FINAL_BOSS.size : 1.7) : m.h, sc = h / SPR['mon' + id].ih, bw = Math.max(34, h * .7);   // ih = tinggi gambar karakter di dalam frame sprite
+    const sh = this.add.image(x, py, 'shadow').setScale(h / 46), s = this.add.sprite(x, py, 'mon' + id).setScale(sc); s.play({ key: 'mon' + id + '_move', startFrame: Phaser.Math.Between(0, 7) });
+    const bg = this.add.rectangle(x, py, bw, 5, 0x2b1d4a).setDepth(950);
+    const fg = this.add.rectangle(x - bw / 2, py, bw * Math.max(0, Math.min(1, hp / mhp)), 5, 0x6be3a2).setOrigin(0, .5).setDepth(951);
+    this.enemies.push({ s, sh, bg, fg, rg: RANGED[id] || null, stopY: RANGED[id] ? BASE_Y - RANGED[id].stop : BASE_Y, hp, mhp, bw, k: m.el, id, h, big: !!big, fin: !!fin, sc, x0: x, py, ph: o.ph ?? Math.random() * 6.283, fly: !!m.fly, hitT: 0, r: h * .42, sp: (.03 + this.wave * .004 + (this.stageNo - 1) * .0015 + this.islandIndex * DIFF.speed) * m.sp * (big ? .6 : 1) });
   }
   ui() {   // HUD DOM: timer, judul stage, progres gelombang
     const s = Math.floor(this.clock / 1000), w = Math.min(this.wave, wavesFor(this.stageNo)), tot = monstersPerWave(this.islandIndex, this.wave), left = this.toSpawn + this.enemies.length;
@@ -692,11 +808,47 @@ class Battle extends Base {
     if (NAGA_TEST === 2 || NAGA_TEST === 4 || NAGA_TEST === 6 || NAGA_TEST === 8 || NAGA_TEST === 10 || NAGA_TEST === 12) { useFusion(NAGA_TEST === 12 ? 'air+angin' : NAGA_TEST === 10 ? 'tanah+angin' : NAGA_TEST === 8 ? 'api+angin' : NAGA_TEST === 6 ? 'air+tanah' : NAGA_TEST === 4 ? 'api+tanah' : 'api+air'); this.time.delayedCall(800, () => this.nagaSummon()); }
   }
   fusionReset() {   // awal pertempuran: arena fusion dan laser dikembalikan ke keadaan awal
+    this.fusionBg = null; this.zoneOn = false; this.zoneT = 0; this.nagaLanded = false; this.nagaT = 0;
+    this.fusionFxClear();
+  }
+  fusionFxClear() {   // hapus semua efek skill fusion yang masih ada: laser, tornado, badai salju, peluru kristal, label timer
     if (this.vortex && this.vortex.sp && this.vortex.sp.active) this.vortex.sp.destroy(); this.vortex = null;
     if (this.blizz && this.blizz.sp && this.blizz.sp.active) this.blizz.sp.destroy(); this.blizz = null;
-    this.fusionBg = null; this.zoneOn = false; this.zoneT = 0; this.nagaLanded = false;
+    if (this.cry) this.cry.forEach(c => { if (c && c.active) { c.hover && c.hover.stop(); c.destroy(); } }); this.cry = null;
+    this.fusionBar(null);
     const o = this.lz; if (o) [o.gfx, o.charge, o.imp, o.base].forEach(x => x && x.active && x.destroy());
     this.lz = { ph: 'idle', cd: 0, t: 0, tick: 0, target: null, x: 0, y: 0, gfx: null, charge: null, imp: null, base: null };   // ph: idle -> charge -> beam -> idle
+  }
+  fusionArenaOff() {   // fusion berakhir: damage zona berhenti dan latar es + lava memudar kembali ke arena pulau semula
+    this.zoneOn = false; this.zoneT = 0;
+    const fb = this.fusionBg; this.fusionBg = null; if (!fb || !fb.active) return;
+    this.tweens.killTweensOf(fb);
+    if (this.bg !== fb) { this.tweens.add({ targets: fb, alpha: 0, duration: FUSION_ZONE.fade, onComplete: () => fb.destroy() }); return; }   // latar semula belum sempat diganti: cukup pudarkan latar fusion
+    const img = this.add.image(W / 2, H / 2, 'arena' + this.arena).setDisplaySize(W, H).setDepth(-999).setAlpha(0);   // arena pulau saat ini (aman bila pulau berganti selama fusion)
+    this.tweens.add({ targets: img, alpha: 1, duration: FUSION_ZONE.fade, onComplete: () => { fb.destroy(); img.setDepth(-1000); this.bg = img; } });
+  }
+  ultBar() {   // bar durasi ultimate (Badai Peluru) di kanan layar, di samping bar fusion: tampil selama buff aktif dan menyusut dari atas ke bawah
+    const b = $('ubar'), on = this.buffT > 0; if (!b) return; if (b.hidden === on) b.hidden = !on; if (!on) return;
+    $('uFill').style.height = Math.round(this.buffT / SKILL_BUFF_MS * 1000) / 10 + '%'; $('uSec').textContent = Math.ceil(this.buffT / 1000); b.classList.toggle('low', this.buffT <= 3000);
+    if (!$('uIc').style.backgroundImage) $('uIc').style.backgroundImage = $('skillBtn').style.backgroundImage;
+  }
+  fusionBar(r, sec) {   // bar waktu fusion tegak di kanan layar: r = sisa waktu 0..1 (null = sembunyikan), sec = sisa detik; <= 10 detik berubah merah
+    const b = $('fbar'); if (!b) return; if (r === null) { b.hidden = true; return; }
+    b.hidden = false; $('fFill').style.height = Math.round(r * 1000) / 10 + '%'; $('fSec').textContent = sec; b.classList.toggle('low', sec <= 10);
+  }
+  nagaEnd() {   // waktu fusion habis (FUSION_TIME): naga hilang, efek dihapus, arena kembali, kedua pet muncul lagi di slot semula
+    if (!this.nagaOn) return;
+    this.nagaOn = false; this.nagaLanded = false; this.nagaT = 0; console.log('[FUSION] waktu habis:', NAGA.id);
+    this.fusionFxClear(); this.fusionArenaOff();
+    const n = this.naga; this.tweens.killTweensOf([n, this.nagaSh]); n.anims.resume();
+    this.flash.emitParticleAt(NAGA.x, NAGA.y - NAGA.h * .5, 24); this.cameras.main.flash(200, 255, 235, 200);
+    this.tweens.add({ targets: [n, this.nagaSh], alpha: 0, duration: 450, onComplete: () => { if (this.nagaOn) return; n.setVisible(false).anims.stop(); this.nagaSh.setVisible(false); } });
+    this.pop(W / 2, 250, 'Fusion berakhir', '#ffd0ff', 18);
+    this.pets.filter(p => p.fused && NAGA.els.includes(p.el)).forEach(p => {   // pet kembali: posisi, ukuran, level, dan progres evolusi tetap seperti sebelum fusion
+      this.tweens.killTweensOf(p); p.fused = false; p.on = true; p.cd = 1000;
+      p.setPosition(p.fx, p.by).setScale(p.fsx, p.fsy).setVisible(true).setAlpha(0);
+      this.tweens.add({ targets: p, alpha: 1, duration: 400 }); this.flash.emitParticleAt(p.x, p.y - petH(p) * .5, 24); this.burst[ELS.indexOf(p.el)].emitParticleAt(p.x, p.y - petH(p) * .5, 16); this.petLbl(p);
+    });
   }
   fusionArenaOn() {   // naga dipanggil: arena berubah jadi es + lava (memudar di atas latar lama) dan damage zona mulai berjalan
     if (this.fusionBg) return;
@@ -724,6 +876,11 @@ class Battle extends Base {
     if (NAGA.fireFrames.some(q => ((q - pv + NAGA.frames) % NAGA.frames) <= d && ((q - pv + NAGA.frames) % NAGA.frames) > 0)) this.nagaRoar();
   }
   fusionTick(dt) {
+    if (this.nagaOn) {   // hitung mundur fusion (waktu game); habis -> fusion berakhir
+      this.nagaT -= dt; const sec = Math.max(0, Math.ceil(this.nagaT / 1000));
+      this.nagaSec = sec; this.fusionBar(Math.max(0, this.nagaT / FUSION_TIME), sec);
+      if (this.nagaT <= 0) { this.nagaEnd(); return; }
+    }
     if ((NAGA.stomp || NAGA.meteor || NAGA.tornado || NAGA.blizzard || NAGA.crystals) && this.nagaOn && this.naga.visible) {
       this.stompCheck(this.laserFrameNo());
       this.stompClk = (this.stompClk || 0) + dt;   // waktu game (berhenti saat pilih kartu); cadangan bila deteksi frame gagal
@@ -950,13 +1107,15 @@ class Battle extends Base {
   fuseNaga(id = 'api+air') {   // kartu emas dipilih: kedua pet penyusun melebur (menghilang), naga / raung muncul
     useFusion(id); console.log('[FUSION] dipanggil:', id, '| stomp:', !!NAGA.stomp);
     this.pets.filter(p => NAGA.els.includes(p.el)).forEach(p => {
+      p.fx = p.x; p.fsx = p.scaleX; p.fsy = p.scaleY;   // ingat slot dan ukuran asli untuk dikembalikan saat fusion berakhir
       p.on = false; p.fused = true; p.lbl.setVisible(false); this.flash.emitParticleAt(p.x, p.y - petH(p) * .5, 24); this.burst[ELS.indexOf(p.el)].emitParticleAt(p.x, p.y - petH(p) * .5, 16);
       this.tweens.add({ targets: p, alpha: 0, scaleX: p.scaleX * 1.3, scaleY: p.scaleY * 1.3, duration: 450, onComplete: () => p.setVisible(false) });
     });
     this.time.delayedCall(420, () => { if (!this.over) this.nagaSummon(); });
   }
   nagaSummon() {   // naga turun dari atas ke rumput di depan benteng (tengah), lalu menggeram dan menyerang tiap putaran animasi
-    this.fusionArenaOn(); this.nagaOn = true; this.lastNF = undefined; this.stompClk = 0; console.log('[FUSION] muncul di arena:', NAGA.id);
+    this.fusionArenaOn(); this.nagaOn = true; this.nagaT = FUSION_TIME; this.lastNF = undefined; this.stompClk = 0;
+    this.nagaSec = Math.ceil(FUSION_TIME / 1000); this.fusionBar(1, this.nagaSec);   // bar waktu fusion di kanan layar muncul penuh console.log('[FUSION] muncul di arena:', NAGA.id);
     this.naga.setTexture(NAGA.key, 0).setOrigin(.5, NAGA.anchorY).setScale(NAGA.h / NAGA.fh); this.nagaSh.setScale(NAGA.shadow[0], NAGA.shadow[1]);   // pakai sprite fusion yang dipanggil
     this.naga.setDepth(NAGA.depth || 0); this.nagaSh.setDepth(NAGA.depth ? NAGA.depth - 1 : 0);   // depth 880 = fusion tampil di atas efek (laser / tornado / meteor / badai, semuanya <= 875) dan monster (depth = y); fusion tanpa depth (Air + Tanah) tetap di lapisan 0 seperti monster
     this.naga.setVisible(true).setPosition(NAGA.x, NAGA.y - 160).setAlpha(0).play(NAGA.anim); this.nagaSh.setVisible(true).setAlpha(0);
@@ -1174,6 +1333,20 @@ class Battle extends Base {
     this.burst[1].emitParticleAt(ic.x, ic.y - 14, 12);
     this.tweens.add({ targets: ic, alpha: 0, scaleX: ic.scaleX * 1.12, scaleY: ic.scaleY * 1.12, duration: 160, onComplete: () => ic.destroy() });
   }
+  // Kawah lava di titik ledakan Bola Lava (api evolusi 3). Gambar assets/pet-actions/fire_crater.webp (480x358, latar transparan):
+  // tanah retak berlava di bagian bawah, asap + api di atasnya. Titik (CR.gx, CR.gy) = pusat tanah di gambar; lebar tanah (CR.gw) disamakan dengan lebar area ledakan.
+  // Waktu (ms, ikut kecepatan x1/x2): muncul tepat saat bola menghantam (0 - in), bertahan (hold) selagi cakar lava menyambar dan monster terbakar, lalu memudar (out).
+  lavaCrater(cx, cy, R) {
+    const CR = { gx: 241, gy: 240, gw: 469, w: 480, h: 358, span: 2.1, in: 160, hold: 1000, out: 450 };
+    if (!this.textures.exists('fire_crater')) {   // gambar gagal dimuat: pakai elips gelap seperti semula
+      const cr = this.add.ellipse(cx, cy + 6, R * 1.5, R * .6, 0x2b1208, .65).setDepth(840);
+      this.tweens.add({ targets: cr, alpha: 0, delay: 350, duration: 500, onComplete: () => cr.destroy() }); return;
+    }
+    const sc = R * CR.span / CR.gw;   // lebar tanah kawah = span x radius ledakan
+    const img = this.add.image(cx, cy + 6, 'fire_crater').setOrigin(CR.gx / CR.w, CR.gy / CR.h).setDepth(840).setScale(sc * .55).setAlpha(0);
+    this.tweens.add({ targets: img, scale: sc, alpha: .95, duration: CR.in, ease: 'Back.Out' });   // menghantam: membesar cepat
+    this.tweens.add({ targets: img, alpha: 0, delay: CR.in + CR.hold, duration: CR.out, ease: 'Quad.In', onComplete: () => img.destroy() });   // lalu memudar
+  }
   skillFx(p, sk, targets, cx, cy, lx, ens = []) {   // ens = musuh yang benar-benar terkena (untuk efek yang menempel di musuh, mis. beku)
     const el = p.el, st = p.stage, ox = p.x, oy = p.y - petH(p) * .52, R = (sk.r || 0) * p.reach, rnd = (a, b) => Phaser.Math.FloatBetween(a, b);
     const bi = ELS.indexOf(el), burst = (x, y, n) => this.burst[bi].emitParticleAt(x, y, n);
@@ -1236,7 +1409,7 @@ class Battle extends Base {
         this.tweens.add({
           targets: o, scale: FIRE_ORB_SCALE * 1.15, x: cx, y: cy, duration: 420, ease: 'Quad.In', onUpdate: () => burst(o.x, o.y + 20, 1), onComplete: () => {
             o.destroy(); ring(cx, cy, R * 1.3, 0xff6a2e, 480); ring(cx, cy, R * .7, 0xffd34d, 320); impact(cx, cy, 0xff762e, 2.0); burst(cx, cy, 28); area(0xff6a2e, .3);
-            const cr = this.add.ellipse(cx, cy + 6, R * 1.5, R * .6, 0x2b1208, .65).setDepth(840); fade(cr, 500, 350); this.cameras.main.shake(90, .004);
+            this.lavaCrater(cx, cy, R); this.cameras.main.shake(90, .004);
             lavaClaw(cx, cy, LAVA_CLAW_SCALE * 1.2, 0);
             targets.filter(t => Math.hypot(t.x - cx, t.y - cy) > 4).slice(0, 5).forEach((t, i) => lavaClaw(t.x, t.y, LAVA_CLAW_SCALE, 70 + i * 55));
           }
@@ -1440,7 +1613,7 @@ class Battle extends Base {
   get heroDmg() { return this.buffT > 0 ? Math.ceil(this.dmg * SKILL_BUFF - 1e-9) : this.dmg; }   // damage peluru Tois (pet tidak ikut terpengaruh)
   skill() {     // Badai Peluru: Tois +10% damage & +10% kecepatan tembak selama 10 detik, cooldown 25 detik (tanpa damage ke musuh)
     if (this.over || this.paused || this.choosing || this.skillCd > 0) return;
-    this.skillCd = this.skillMax; this.buffT = SKILL_BUFF_MS; this.cameras.main.flash(150, 255, 230, 120);
+    this.skillCd = this.skillMax; this.buffT = SKILL_BUFF_MS;
     this.hero.jump(); this.hero.buffed = true;
     const tip = this.hero.tip(); this.pop(tip.x, tip.y - 24, 'Damage & Kecepatan +10%', '#ffd34d', 12);
   }
@@ -1512,6 +1685,7 @@ class Battle extends Base {
     this.addXp(gain);
   }
   update(time, dt) {
+    if (!this.over && this.wave >= 1 && time - (this.lastSave || 0) > 2000) { this.lastSave = time; saveBattleSnap(); }   // simpan kondisi terakhir tiap 2 detik (juga saat dijeda)
     if (this.over || this.paused || this.choosing) return;
     dt *= this.speed; this.clock += dt;
     if (!this.enemies.length) this.hero.aimGoal = 0;
@@ -1525,7 +1699,8 @@ class Battle extends Base {
     this.pets.forEach(p => this.petTick(p, dt));
     this.fusionTick(dt);   // damage zona arena fusion + skill Laser Fusion
     this.skillCd = Math.max(0, this.skillCd - dt);
-    this.buffT = Math.max(0, this.buffT - dt); this.hero.buffed = this.buffT > 0;   // waktu buff ikut kecepatan game (x2)
+    this.buffT = Math.max(0, this.buffT - dt); this.hero.buffed = this.buffT > 0; this.ultBar();
+    if (autoPlay && this.skillCd <= 0 && this.enemies.some(e => !e.dead && e.s.y > 10)) this.skill();   // auto play: ultimate dipakai begitu siap dan ada musuh   // waktu buff ikut kecepatan game (x2)
     const sb = $('skillBtn'), st = this.skillCd > 0 ? Math.ceil(this.skillCd / 1000) + 's' : '';   // siap = tampil gambar ikon dari CSS (.skill), cooldown = hitungan detik
     if (sb.textContent !== st) { sb.textContent = st; sb.disabled = this.skillCd > 0; }
     if (!this.reloading && this.shotT >= Math.max(120, 700 / this.rate) / (this.buffT > 0 ? SKILL_BUFF : 1) / (this.manual ? 2 : 1)) { this.shotT = 0; this.fire(); }
@@ -1584,12 +1759,12 @@ class Battle extends Base {
     }
     this.bullets = this.bullets.filter(b => !b.dead); this.enemies = this.enemies.filter(e => !e.dead);
     const r = Math.max(0, this.baseHp / this.baseMax);
-    this.hud.clear().fillStyle(0x1b1230, .9).fillRoundedRect(HX, 59, 220, 14, 7)
-      .fillStyle(r > .35 ? 0x4cd964 : 0xff6b6b).fillRoundedRect(HX + 2, 61, Math.max(0, 216 * r), 10, 5);
+    this.hud.clear().fillStyle(0x1b1230, .9).fillRoundedRect(HX, 38, 220, 14, 7)
+      .fillStyle(r > .35 ? 0x4cd964 : 0xff6b6b).fillRoundedRect(HX + 2, 40, Math.max(0, 216 * r), 10, 5);
     const ar = this.reloading ? this.reloadT / RELOAD_MS : this.ammo / this.magMax;
-    this.hud.fillStyle(0x1b1230, .9).fillRoundedRect(HX, 77, 220, 13, 6)
-      .fillStyle(this.reloading ? 0x5ec8ff : 0xffc233).fillRoundedRect(HX + 2, 79, Math.max(0, 216 * ar), 9, 4);
-    for (let i = 5; i < this.magMax; i += 5) this.hud.fillStyle(0x1b1230, .7).fillRect(HX + 2 + 216 * i / this.magMax - .5, 79, 1, 9);
+    this.hud.fillStyle(0x1b1230, .9).fillRoundedRect(HX, 56, 220, 13, 6)
+      .fillStyle(this.reloading ? 0x5ec8ff : 0xffc233).fillRoundedRect(HX + 2, 58, Math.max(0, 216 * ar), 9, 4);
+    for (let i = 5; i < this.magMax; i += 5) this.hud.fillStyle(0x1b1230, .7).fillRect(HX + 2 + 216 * i / this.magMax - .5, 58, 1, 9);
     this.ammoTxt.setText(this.reloading ? 'RELOAD...' : '🔫 ' + this.ammo + '/' + this.magMax);
     this.hpTxt.setText('❤ ' + Math.max(0, this.baseHp)); this.waveTxt.setText(''); this.killTxt.setText('💀 ' + this.kills);
     this.ui();
@@ -1598,19 +1773,50 @@ class Battle extends Base {
   }
   async end(win) {
     const hpRatio = Math.max(0, this.baseHp) / this.baseMax, stars = win ? calcStars(hpRatio) : 0, hpPct = Math.round(hpRatio * 100);
-    this.over = true; if (win) { saveWorldProgress(); saveStageStars(this.islandIndex, this.stageNo, stars); } this.banner.setText(win ? 'MENANG!' : 'KALAH').setAlpha(1).setScale(1);
-    $('resultTitle').textContent = win ? 'Menang! 🎉' : 'Markas jebol 😵';
-    let rs = $('resultStars'); if (!rs) { rs = document.createElement('div'); rs.id = 'resultStars'; $('resultTitle').after(rs); }
-    rs.innerHTML = win ? [1, 2, 3].map(i => `<span class="${i <= stars ? 'on' : ''}" style="animation-delay:${(i * .25).toFixed(2)}s">★</span>`).join('') : '';
-    $('resultText').textContent = 'Menyimpan hadiah...'; $('againButton').hidden = true; $('result').hidden = false;
+    this.over = true; clearBattleSnap(); if (win) { saveWorldProgress(); saveStageStars(this.islandIndex, this.stageNo, stars); } this.banner.setText(win ? 'MENANG!' : 'KALAH').setAlpha(1).setScale(1);
+    const R = { win, stars, hpPct, kills: this.kills, island: ISLANDS[this.islandIndex].name, stage: this.stageNo };
+    showResult(R, true); $('againButton').hidden = true; $('result').hidden = false;   // kotak hasil tampil dulu; hadiah menyusul setelah server membalas
     try {
       const r = await api('/battle/finish', 'POST', { session: this.token, wave: win ? WAVES : Math.min(WAVES, Math.max(1, this.wave - 1)), kills: this.kills, won: !!win });
       if (win && this.stageNo < STAGES_PER_ISLAND) selectedStage = this.stageNo + 1;
       await refreshProfile();
-      $('resultText').textContent = 'Pulau ' + ISLANDS[this.islandIndex].name + ' · Stage ' + this.stageNo + '. Kamu mengalahkan ' + this.kills + ' monster dan mendapat ' + r.coins + ' koin.' + (+r.gems > 0 ? ' Bos dikalahkan: +' + r.gems + ' 💎 gem!' : r.gemClaimed ? ' Gem bos ini sudah pernah kamu ambil (hanya didapat sekali).' : '') + (win && this.stageNo < 25 ? ' Stage berikutnya kini terbuka.' : '') + (win ? ' Sisa HP markas ' + hpPct + '%.' + (stars < 3 ? ' Butuh sisa HP ≥ ' + Math.round((stars < 2 ? STAR_RULES.two : STAR_RULES.three) * 100) + '% untuk ' + (stars + 1) + ' bintang.' : ' Sempurna, 3 bintang!') : '');
-    } catch (err) { $('resultText').textContent = err.message; }
+      showResult({ ...R, coins: r.coins, gems: +r.gems || 0, gemClaimed: !!r.gemClaimed });
+    } catch (err) { showResult({ ...R, error: err.message }); }
     $('againButton').hidden = false;
   }
+}
+
+// Kotak hasil pertempuran (menang / kalah). first = true: gambar bintang + confetti (animasi hanya sekali); panggilan berikutnya hanya memperbarui angka hadiah.
+function showResult(R, first) {
+  const win = R.win, card = $('resultCard'), pend = R.coins === undefined && !R.error;
+  card.classList.toggle('win', win); card.classList.toggle('lose', !win);
+  $('resultIcon').textContent = win ? '🏆' : '💥';
+  $('resultTitle').textContent = win ? 'Menang!' : 'Markas jebol';
+  $('resultSub').textContent = R.island + ' · Stage ' + R.stage;
+  if (first) {
+    $('resultStars').innerHTML = win ? [1, 2, 3].map(i => `<span class="${i <= R.stars ? 'on' : ''}" style="animation-delay:${(.25 + i * .22).toFixed(2)}s">★</span>`).join('') : '';
+    const fx = $('resultFx'); fx.textContent = '';
+    if (win) for (let i = 0; i < 22; i++) {
+      const c = document.createElement('i'), col = ['#ffd34d', '#6be3a2', '#7fd8ff', '#ff8fb1', '#ffffff'][i % 5];
+      c.style.cssText = `left:${(Math.random() * 100).toFixed(1)}%;background:${col};animation-delay:${(Math.random() * .9).toFixed(2)}s;animation-duration:${(2.2 + Math.random() * 1.6).toFixed(2)}s;--dx:${Math.round(Math.random() * 80 - 40)}px;--rot:${Math.round(360 + Math.random() * 540)}deg`;
+      fx.appendChild(c);
+    }
+  }
+  const tile = (ic, lab, val, cls = '') => `<div class="rt ${cls}"><i>${ic}</i><b>${val}</b><span>${lab}</span></div>`;
+  let tiles = tile('💀', 'Monster', R.kills) + tile('🪙', 'Koin', R.error ? '-' : pend ? '…' : '+' + R.coins);
+  if (R.gems > 0) tiles += tile('💎', 'Gem bos', '+' + R.gems, 'gem'); else if (R.gemClaimed) tiles += tile('💎', 'Gem bos', 'Sudah diambil', 'dim');
+  $('resultStats').innerHTML = tiles;
+  const hp = $('resultHp'); hp.hidden = !win;
+  if (win) hp.innerHTML = `<div class="rhp-h"><span>❤ Sisa HP markas</span><b>${R.hpPct}%</b></div><div class="rhp-bar"><i style="width:${R.hpPct}%"></i><u style="left:${STAR_RULES.two * 100}%"></u><u style="left:${STAR_RULES.three * 100}%"></u></div>`;
+  const notes = [];
+  if (R.error) notes.push(R.error);
+  else if (pend) notes.push('Menyimpan hadiah...');
+  else {
+    if (win && R.stage < STAGES_PER_ISLAND) notes.push('🔓 Stage berikutnya kini terbuka.');
+    if (win) notes.push(R.stars < 3 ? 'Butuh sisa HP ≥ ' + Math.round((R.stars < 2 ? STAR_RULES.two : STAR_RULES.three) * 100) + '% untuk ' + (R.stars + 1) + ' bintang.' : 'Sempurna, 3 bintang! ✨');
+    else notes.push('Perkuat Tois dan pet, lalu coba lagi.');
+  }
+  $('resultText').replaceChildren(...notes.map(t => { const d = document.createElement('div'); d.textContent = t; return d; }));
 }
 
 function startGame() {
@@ -1633,7 +1839,7 @@ function startBattle() {
   battleReq.catch(() => { });   // galat ditampilkan oleh Battle.create lewat say(); ini hanya mencegah peringatan "unhandled rejection"
   $('gamePanel').classList.add('battle'); game.scene.stop('Lobby'); game.scene.start('Battle');
 }
-function toLobby() { $('result').hidden = true; $('gamePanel').classList.remove('battle'); game.scene.stop('Battle'); game.scene.start('Lobby'); }
+function toLobby() { clearBattleSnap(); $('result').hidden = true; $('gamePanel').classList.remove('battle'); game.scene.stop('Battle'); game.scene.start('Lobby'); }
 const menu = (el, items) => items.forEach(([ic, label, act]) => {
   const b = document.createElement('button'); b.className = 'ico'; b.innerHTML = `<i>${ic}</i><span>${label}</span>`;
   b.onclick = () => act ? openHub(act) : say('Fitur ' + label + ' segera hadir.'); $(el).appendChild(b);
@@ -1861,7 +2067,7 @@ function prefetchAssets() {
   Object.keys(MON).forEach(i => { const s = SPR['mon' + i]; if (s) urls.push('assets/' + s.file); });
   ELS.forEach(el => [1, 2, 3].forEach(n => { const s = SPR['pet_' + el + n]; if (s) urls.push('assets/' + s.file); }));
   ['fire_slash.png', 'fire_orb.png', 'ice_arrow.png', 'ice_freeze.png', 'water_fx.png', 'wind_blade.png?v=w2', 'wind_tornado.png?v=w3',
-    'earth_hole.png?v=t1', 'earth_ball.png?v=t2', 'earth_crystal.png?v=t3', 'fire_lava_claw.png'].forEach(f => urls.push('assets/pet-actions/' + f));
+    'earth_hole.png?v=t1', 'earth_ball.png?v=t2', 'earth_crystal.png?v=t3', 'fire_lava_claw.png', 'fire_crater.webp?v=1'].forEach(f => urls.push('assets/pet-actions/' + f));
   const next = () => { const u = urls.shift(); if (!u) return; fetch(u).catch(() => { }).finally(next); };   // maksimal 3 unduhan bersamaan
   setTimeout(() => { next(); next(); next(); }, 800);
 }

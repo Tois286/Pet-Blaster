@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#2b1d4a">
   <meta name="mobile-web-app-capable" content="yes">
   <title>Pet Blaster: Wild Guardians</title>
-  <link rel="stylesheet" href="css/game.css?v=gem1">
+  <link rel="stylesheet" href="css/game.css?v=gem8">
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
 </head>
 
@@ -47,7 +47,7 @@
               <div class="xp"><i id="xpBar"></i></div>
             </div>
             <button class="icon" id="fsBtn" aria-label="Layar penuh">⛶</button>
-            <button class="icon" id="logoutButton" aria-label="Keluar akun">⎋</button>
+            <button class="icon" id="logoutButton" aria-label="Istirahat">☕</button>
           </div>
           <div class="side left" id="sideL"></div>
           <div class="side right" id="sideR"></div>
@@ -80,6 +80,11 @@
                 <path d="M16 17l5-5-5-5" />
                 <path d="M21 12H9" />
               </svg></button></div>
+          <button id="autoBtn" aria-label="Auto play"><span>AUTO</span></button>
+        </div>
+        <div id="sbars" class="sbars">
+          <div id="fbar" class="fbar" hidden aria-label="Sisa waktu fusion"><span class="fic">✨</span><div class="ftrack"><i id="fFill"></i></div><b id="fSec">45</b></div>
+          <div id="ubar" class="fbar ubar" hidden aria-label="Sisa durasi ultimate"><span class="fic" id="uIc"></span><div class="ftrack"><i id="uFill"></i></div><b id="uSec">10</b></div>
         </div>
         <div id="upgrade" class="upgrade" hidden>
           <h3>Naik Level! <span id="upLv"></span></h3>
@@ -90,11 +95,24 @@
           <div id="evoCard" class="evocard"></div>
         </div>
         <div id="result" class="result" hidden>
-          <div class="card">
+          <div id="resultFx" class="rfx"></div>
+          <div id="resultCard" class="card rcard">
+            <div id="resultIcon" class="ricon"></div>
             <h2 id="resultTitle"></h2>
-            <p id="resultText"></p>
+            <div id="resultSub" class="rsub"></div>
+            <div id="resultStars" class="rstars"></div>
+            <div id="resultStats" class="rstats"></div>
+            <div id="resultHp" class="rhp" hidden></div>
+            <div id="resultText" class="rnote"></div>
             <div class="row"><button id="againButton" class="btn main">Main lagi</button><button id="lobbyBtn"
                 class="btn alt">Ke lobi</button></div>
+          </div>
+        </div>
+        <div id="rest" class="result" role="dialog" aria-modal="true" aria-labelledby="restTitle" hidden>
+          <div class="card">
+            <h2 id="restTitle">Istirahat dulu?</h2>
+            <p>Pilih istirahat untuk keluar dari akun, atau lanjut bermain.</p>
+            <div class="row"><button id="restYes" class="btn alt">Istirahat</button><button id="restNo" class="btn main">Lanjut</button></div>
           </div>
         </div>
         <div id="hub" class="hub" hidden>
@@ -122,7 +140,7 @@
   </main>
   <script src="js/sprites-data.js"></script>
   <script src="js/sprites-extra.js?v=pet1"></script>
-  <script src="js/game.js?v=gem1"></script>
+  <script src="js/game.js?v=gem5"></script>
 </body>
 
 </html>

@@ -1,0 +1,2294 @@
+:root {
+  --bg1: #2b1d4a;
+  --bg2: #150d2b;
+  --card: #3a2866;
+  --gold: #ffd34d;
+  --mint: #6be3a2;
+}
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+[hidden] {
+  display: none !important;
+}
+html,
+body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+body {
+  background: radial-gradient(circle at 50% 0%, var(--bg1), var(--bg2));
+  color: #fff;
+  font-family: system-ui, "Segoe UI", Roboto, sans-serif;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.app {
+  height: 100vh;
+  height: 100dvh;
+  display: grid;
+}
+.auth {
+  display: grid;
+  place-items: center;
+  min-height: 0;
+  overflow-y: auto;
+  padding: max(12px, env(safe-area-inset-top))
+    max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom))
+    max(12px, env(safe-area-inset-left));
+}
+.auth .card {
+  margin: auto;
+}
+.card {
+  background: var(--card);
+  border-radius: 24px;
+  padding: 22px;
+  width: min(100%, 380px);
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+}
+.logo {
+  display: block;
+  width: 96px;
+  height: 96px;
+  margin: 0 auto;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.35));
+}
+h1,
+h2,
+h3 {
+  margin: 6px 0;
+}
+.sub {
+  margin: 0 0 14px;
+  opacity: 0.8;
+}
+input {
+  width: 100%;
+  margin: 5px 0;
+  padding: 14px;
+  font: inherit;
+  border: 0;
+  border-radius: 14px;
+  background: #fff;
+  color: #1a1233;
+}
+.row {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+.row .btn {
+  flex: 1;
+}
+.btn {
+  border: 0;
+  border-radius: 14px;
+  padding: 14px 18px;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+.btn.main {
+  background: var(--gold);
+  color: #3a2866;
+}
+.btn.alt {
+  background: var(--mint);
+  color: #12412a;
+}
+#authMessage {
+  min-height: 22px;
+  color: #ffb3a1;
+}
+#gamePanel {
+  display: grid;
+  place-items: center;
+  min-height: 0;
+}
+.frame {
+  position: relative;
+  container-type: inline-size;
+  aspect-ratio: 39 / 64;
+  width: min(100vw, calc(100vh * 39 / 64));
+  width: min(100vw, calc(100dvh * 39 / 64));
+  overflow: hidden;
+  background: #3a4f8f;
+}
+.frame > * {
+  font-size: 3.9cqw;
+}
+#game-container {
+  position: absolute;
+  inset: 0;
+}
+#game-container canvas {
+  touch-action: none;
+}
+.lobby-ui {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.lobby-ui > * {
+  pointer-events: auto;
+}
+#gamePanel.battle .lobby-ui,
+#gamePanel:not(.battle) .quit {
+  display: none;
+}
+.hud {
+  position: absolute;
+  top: max(2%, env(safe-area-inset-top));
+  left: 2%;
+  right: 2%;
+  display: flex;
+  gap: 0.5em;
+  align-items: flex-start;
+}
+.ava {
+  position: relative;
+  width: 4.2em;
+  height: 4.2em;
+  border: 0.2em solid #fff3c4;
+  border-radius: 0.8em;
+  background: #2b3a6b;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 2px 6px #0006;
+}
+.ava {
+  overflow: visible;
+}
+.ava img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 0.6em;
+}
+.ava i {
+  position: absolute;
+  bottom: -0.1em;
+  right: -0.1em;
+  background: #2b1d4a;
+  font-style: normal;
+  font-size: 0.8em;
+  padding: 0 0.5em;
+  border-radius: 0.6em;
+}
+.hud-mid {
+  flex: 1;
+  min-width: 0;
+}
+.pills {
+  display: flex;
+  flex-wrap: wrap;   /* koin + gem + gelombang terbaik: turun ke baris kedua bila layar sempit */
+  gap: 0.4em;
+}
+.pill {
+  background: rgba(30, 20, 60, 0.78);
+  border-radius: 1em;
+  padding: 0.25em 0.7em;
+  white-space: nowrap;
+}
+.name {
+  font-weight: 700;
+  text-shadow: 0 1px 3px #000;
+  margin: 0.1em 0 0.2em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.xp {
+  height: 0.7em;
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 0.4em;
+  overflow: hidden;
+}
+.xp i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: #4fe0b0;
+}
+.icon {
+  width: 2.6em;
+  height: 2.6em;
+  border: 0;
+  border-radius: 0.8em;
+  background: rgba(30, 20, 60, 0.78);
+  color: #fff;
+  font-size: 1em;
+}
+.side {
+  position: absolute;
+  top: 19%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4em;
+}
+.side.left {
+  left: 2%;
+}
+.side.right {
+  right: 2%;
+}
+.ico {
+  display: grid;
+  justify-items: center;
+  min-width: 4.4em;
+  background: none;
+  border: 0;
+  color: #fff;
+  font: inherit;
+  font-size: 0.82em;
+  text-shadow: 0 1px 3px #000;
+}
+.ico i {
+  font-style: normal;
+  font-size: 2em;
+  filter: drop-shadow(0 2px 2px #0008);
+}
+.stage-info {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.7em;
+  pointer-events: none !important;
+}
+.badge {
+  width: 2.6em;
+  height: 2.6em;
+  border-radius: 50%;
+  background: #b3261e;
+  border: 0.15em solid #ffb199;
+  display: grid;
+  place-items: center;
+  font-size: 1.4em;
+  font-weight: 900;
+}
+.stage-info h2 {
+  margin: 0;
+  font-size: 1.9em;
+  color: #ff6a55;
+  -webkit-text-stroke: 0.16em #3a1010;
+  paint-order: stroke fill;
+}
+.stage-info p {
+  margin: 0;
+  text-shadow: 0 1px 3px #000;
+}
+.goal {
+  position: absolute;
+  top: 69.5%;
+  left: 6%;
+  right: 6%;
+  background: rgba(30, 20, 60, 0.72);
+  border-radius: 1em;
+  padding: 0.4em 0.8em;
+  text-align: center;
+}
+.ms {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 0.2em;
+}
+.m {
+  display: grid;
+  justify-items: center;
+  opacity: 0.55;
+  font-size: 0.85em;
+}
+.m.on {
+  opacity: 1;
+}
+.m i {
+  font-style: normal;
+  font-size: 1.5em;
+}
+.start {
+  position: absolute;
+  left: 20%;
+  right: 20%;
+  top: 82%;
+  padding: 0.45em;
+  border: 0;
+  border-bottom: 0.3em solid #b86d10;
+  border-radius: 1.1em;
+  background: linear-gradient(#ffe27a, #f5a623);
+  color: #fff;
+  font: inherit;
+  font-size: 1.7em;
+  font-weight: 900;
+  text-shadow: 0 0.1em 0.1em #8a4a00;
+  animation: pulse 1.6s ease-in-out infinite;
+}
+.start:active {
+  transform: translateY(3px);
+}
+@keyframes pulse {
+  50% {
+    transform: scale(1.05);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .start {
+    animation: none;
+  }
+}
+.bottom {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 12%;
+  padding-bottom: env(safe-area-inset-bottom);
+  display: flex;
+  background: linear-gradient(#5a3a2a, #3a2418);
+  border-top: 0.25em solid #d9a05b;
+}
+.bottom .ico {
+  flex: 1;
+  font-size: 0.9em;
+}
+.quit {
+  position: absolute;
+  right: 3%;
+  bottom: 2%;
+  border: 0;
+  border-radius: 1em;
+  padding: 0.5em 1em;
+  background: rgba(30, 20, 60, 0.8);
+  color: #fff;
+  font: inherit;
+  z-index: 3;
+}
+.result {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(21, 13, 43, 0.65);
+  z-index: 6;
+}
+.result[hidden],
+.sheet[hidden] {
+  display: none;
+}
+.sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 7;
+  background: var(--card);
+  border-radius: 1.2em 1.2em 0 0;
+  padding: 1em;
+  text-align: center;
+}
+.sheet .btn {
+  margin-top: 0.6em;
+  width: 100%;
+}
+.toast {
+  position: absolute;
+  left: 50%;
+  bottom: 14%;
+  transform: translateX(-50%);
+  max-width: 90%;
+  background: rgba(0, 0, 0, 0.75);
+  border-radius: 1em;
+  padding: 0.4em 0.9em;
+  z-index: 9;
+  pointer-events: none;
+  text-align: center;
+}
+.toast:empty {
+  display: none;
+}
+.dock {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.6em;
+}
+.dock button {
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+  min-height: 5.6em;
+  padding: 0.5em 0.2em;
+  border: 0;
+  border-radius: 1em;
+  background: #4a3680;
+  color: #fff;
+  font: inherit;
+  border-bottom: 0.25em solid #241649;
+}
+.dock button:disabled {
+  opacity: 0.45;
+}
+.dock i {
+  font-style: normal;
+  font-size: 1.6em;
+}
+.dock span {
+  font-size: 0.85em;
+  opacity: 0.85;
+}
+.dock b {
+  color: var(--mint);
+}
+.dock em {
+  font-style: normal;
+  font-size: 0.9em;
+  color: var(--gold);
+  font-weight: 700;
+}
+button:focus-visible,
+input:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 2px;
+}
+
+/* ---- Responsif ---- */
+/* Layar sangat sempit: kecilkan elemen HUD agar tidak berdesakan */
+@media (max-width: 340px) {
+  .pill {
+    padding: 0.2em 0.5em;
+  }
+  .side .ico {
+    min-width: 3.6em;
+  }
+  .card {
+    padding: 16px;
+  }
+}
+/* Layar pendek / mode lanskap ponsel: kartu login dibuat ringkas dan bisa digulir saat keyboard muncul */
+@media (max-height: 520px) {
+  .auth {
+    place-items: start center;
+  }
+  .logo {
+    width: 56px;
+    height: 56px;
+  }
+  h1 {
+    font-size: 1.3rem;
+  }
+  .sub {
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+  }
+  input {
+    padding: 10px;
+  }
+  .btn {
+    padding: 10px 14px;
+  }
+}
+/* Desktop / layar lebar: bingkai game di tengah dengan bayangan dan sudut membulat */
+@media (min-width: 700px) and (min-height: 600px) {
+  #gamePanel {
+    padding: 12px 0;
+  }
+  .frame {
+    width: min(100vw, calc((100vh - 24px) * 39 / 64), 540px);
+    width: min(100vw, calc((100dvh - 24px) * 39 / 64), 540px);
+    border-radius: 18px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---- v4: hadiah AFK & tombol skill ---- */
+.afk {
+  position: absolute;
+  top: 59.5%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 0;
+  border-radius: 1em;
+  padding: 0.4em 0.9em;
+  background: rgba(30, 20, 60, 0.85);
+  color: var(--gold);
+  font: inherit;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.afk:disabled {
+  opacity: 0.5;
+}
+.skill {
+  position: absolute;
+  left: 3%;
+  bottom: 2%;
+  width: 4em;
+  height: 4em;
+  border: 0.2em solid #ffffff;
+  border-radius: 50%;
+  --skill-alpha: 0.45; /* TINGKAT TRANSPARAN isi tombol: 0 = bening, 1 = pekat */
+  background-color: rgba(0, 0, 0, var(--skill-alpha));
+  /* gambar ikon dipasang dari game.js (SKILL_ICON) supaya path-nya sama dengan aset lain */
+  background-size: 90%; /* ukuran gambar di dalam tombol */
+  background-position: center;
+  background-repeat: no-repeat;
+  color: #fff;
+  text-shadow: 0 1px 3px #000;
+  font: inherit;
+  font-weight: 900;
+  z-index: 3;
+}
+.skill:disabled {
+  background-color: rgba(85, 85, 85, var(--skill-alpha));
+  opacity: 0.6;
+}
+#gamePanel:not(.battle) .skill {
+  display: none;
+}
+
+/* ---- v5: HUD pertempuran ala referensi ---- */
+.skill {
+  left: 75%;
+  right: auto;
+  top: 85%;
+  bottom: auto;
+}
+.bui {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+.bui > * {
+  pointer-events: auto;
+}
+#gamePanel:not(.battle) .bui {
+  display: none;
+}
+.btop {
+  position: absolute;
+  top: max(1.5%, env(safe-area-inset-top));
+  left: 2%;
+  right: 2%;
+  display: flex;
+  gap: 0.6em;
+  align-items: flex-start;
+  pointer-events: none !important;
+}
+.bmid {
+  flex: 1;
+  text-align: center;
+  margin-right: 4.5em;
+}
+.bmid b {
+  display: block;
+  font-size: 1.15em;
+  text-shadow: 0 1px 3px #000;
+}
+.bxp {
+  position: relative;
+  height: 1.1em;
+  margin-top: 0.25em;
+  background: rgba(0, 0, 0, 0.55);
+  border: 0.12em solid #3a2418;
+  border-radius: 0.6em;
+  overflow: hidden;
+}
+.bxp i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: linear-gradient(#ffd34d, #f5a623);
+}
+.bxp span {
+  position: absolute;
+  inset: 0;
+  font-size: 0.75em;
+  line-height: 1.5;
+  text-shadow: 0 1px 2px #000;
+}
+.bleft {
+  position: absolute;
+  top: 12%;
+  left: 2%;
+  display: grid;
+  gap: 0.5em;
+}
+.bleft button {
+  width: 2.8em;
+  height: 2.8em;
+  border: 0.12em solid #fff3c4;
+  border-radius: 50%;
+  background: rgba(30, 20, 60, 0.8);
+  color: #fff;
+  font: inherit;
+  font-weight: 800;
+}
+
+/* v9: tombol kiri berisi ikon */
+.bleft button {
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+
+/* ---- v13: tata letak lobi lebih lega (atas ke bawah: HUD, bos, judul stage, panggung, AFK, target, Mulai Game, menu) ---- */
+.side {
+  top: 13%;
+  gap: 0.15em;
+}
+.ico {
+  font-size: 0.72em;
+  min-width: 4em;
+}
+.ico i {
+  font-size: 1.8em;
+}
+.stage-info {
+  top: 39.5%;
+  gap: 0.5em;
+}
+.badge {
+  width: 2.2em;
+  height: 2.2em;
+  font-size: 1.15em;
+  border-width: 0.12em;
+}
+.stage-info h2 {
+  font-size: 1.35em;
+  line-height: 1.1;
+  -webkit-text-stroke: 0.12em #3a1010;
+}
+.stage-info p {
+  font-size: 0.8em;
+}
+.afk {
+  top: 68%;
+  font-size: 0.8em;
+  padding: 0.3em 0.8em;
+}
+.goal {
+  top: 73.5%;
+  left: 10%;
+  right: 10%;
+  padding: 0.3em 0.6em;
+  font-size: 0.8em;
+}
+.ms {
+  margin-top: 0.1em;
+}
+.m {
+  display: flex;
+  align-items: center;
+  gap: 0.3em;
+  font-size: 0.85em;
+}
+.m i {
+  font-size: 1.2em;
+}
+.start {
+  top: 80.5%;
+  left: 22%;
+  right: 22%;
+  font-size: 1.45em;
+  padding: 0.35em;
+}
+.bottom {
+  height: 10.5%;
+}
+.bottom .ico {
+  font-size: 0.8em;
+}
+.bottom .ico i {
+  font-size: 1.7em;
+}
+
+/* ---- v14: kartu pilihan upgrade saat bar EXP penuh ---- */
+.upgrade {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 0.4em;
+  padding: 4%;
+  background: rgba(21, 13, 43, 0.78);
+  text-align: center;
+}
+.upgrade h3 {
+  margin: 0;
+  font-size: 1.6em;
+  color: var(--gold);
+  text-shadow: 0 2px 4px #000;
+}
+.upgrade p {
+  margin: 0 0 0.6em;
+  opacity: 0.85;
+}
+.cards {
+  display: flex;
+  gap: 0.6em;
+  width: 100%;
+  justify-content: center;
+}
+.ucard {
+  flex: 1;
+  max-width: 9.5em;
+  min-height: 13em;
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  gap: 0.35em;
+  padding: 0.8em 0.4em;
+  border: 0.15em solid #fff3c4;
+  border-bottom-width: 0.3em;
+  border-radius: 1em;
+  background: linear-gradient(#5a41a0, #3a2866);
+  color: #fff;
+  font: inherit;
+  animation: cardIn 0.3s ease-out backwards;
+}
+.ucard:nth-child(2) {
+  animation-delay: 0.08s;
+}
+.ucard:nth-child(3) {
+  animation-delay: 0.16s;
+}
+.ucard:active {
+  transform: translateY(3px);
+}
+.ucard i {
+  font-style: normal;
+  font-size: 2.6em;
+}
+.ucard b {
+  color: var(--gold);
+  font-size: 1em;
+}
+.ucard span {
+  font-size: 0.8em;
+  opacity: 0.9;
+}
+.ucard em {
+  font-style: normal;
+  font-size: 0.8em;
+  color: var(--mint);
+  font-weight: 700;
+  margin-top: auto;
+}
+@keyframes cardIn {
+  from {
+    transform: translateY(30px) scale(0.9);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ucard {
+    animation: none;
+  }
+}
+.ucard img {
+  width: 3.6em;
+  height: 3.6em;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 3px #0008);
+}
+
+/* ---- v15: kartu detail evolusi ---- */
+.evocard {
+  width: 92%;
+  max-height: 94%;
+  overflow-y: auto;
+  padding: 0.9em 0.8em;
+  border: 0.15em solid var(--gold);
+  border-radius: 1.1em;
+  background: linear-gradient(#5a41a0, #3a2866);
+  text-align: center;
+  animation: cardIn 0.35s ease-out backwards;
+}
+.evocard h3 {
+  margin: 0;
+  font-size: 1.5em;
+  color: var(--gold);
+  text-shadow: 0 2px 4px #000;
+}
+.evocard h4 {
+  margin: 0.2em 0 0;
+  font-size: 1.1em;
+}
+.evoimg {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5em;
+  margin: 0.3em 0;
+}
+.evoimg img {
+  width: 5em;
+  height: 5em;
+  object-fit: contain;
+  opacity: 0.7;
+}
+.evoimg img.big {
+  width: 7.5em;
+  height: 7.5em;
+  opacity: 1;
+  filter: drop-shadow(0 0 0.5em #ffd34d);
+}
+.evoimg span {
+  font-size: 1.6em;
+  color: var(--gold);
+}
+.evocard .tag {
+  display: inline-block;
+  margin: 0.3em 0;
+  padding: 0.1em 0.7em;
+  border-radius: 1em;
+  background: rgba(0, 0, 0, 0.35);
+  font-size: 0.85em;
+}
+.evocard .desc {
+  margin: 0.2em 0 0.5em;
+  font-size: 0.85em;
+  opacity: 0.92;
+}
+.evocard dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.25em 0.8em;
+  margin: 0 0 0.5em;
+  padding: 0.5em 0.7em;
+  border-radius: 0.8em;
+  background: rgba(0, 0, 0, 0.28);
+  text-align: left;
+  font-size: 0.82em;
+}
+.evocard dt {
+  color: var(--mint);
+  font-weight: 700;
+}
+.evocard dd {
+  margin: 0;
+}
+.evocard dd b {
+  color: var(--gold);
+}
+.evocard .next {
+  margin: 0 0 0.5em;
+  font-size: 0.8em;
+  opacity: 0.85;
+}
+.evocard .btn {
+  width: 100%;
+}
+
+/* ---- v16: panel menu bawah (Toko, Pet, Karakter, Wilayah, Guild) ---- */
+.hub {
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+  display: flex;
+  flex-direction: column;
+  background: radial-gradient(circle at 50% 0%, #3a2866, #150d2b 70%);
+  animation: hubIn 0.22s ease-out;
+}
+/* Mode peta: peta memenuhi seluruh area game, detail pulau tampil sebagai popup */
+.hub:has(#v-zone:not([hidden])) {
+  background: #10251d;
+}
+.hub:has(#v-zone:not([hidden])) .hhead {
+  position: absolute;
+  z-index: 5;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(#160f2dcc, transparent);
+  border: 0;
+  pointer-events: none;
+}
+.hub:has(#v-zone:not([hidden])) .hhead > * {
+  pointer-events: auto;
+}
+.hub:has(#v-zone:not([hidden])) .hbody {
+  padding: 0;
+  overflow: hidden;
+}
+.hub:has(#v-zone:not([hidden])) .htabs {
+  display: flex;
+}
+#v-zone {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+#v-zone > * {
+  margin: 0;
+}
+.world-map-viewport {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  background: #10251d;
+  touch-action: pan-x pan-y;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+.world-map-viewport::-webkit-scrollbar {
+  display: none;
+}
+.world-map {
+  position: relative;
+  width: auto;
+  height: 620px;
+  background-size: 100% 100%;
+  background-position: center;
+  background-repeat: no-repeat;
+  cursor: grab;
+  touch-action: none;
+}
+.world-map:active {
+  cursor: grabbing;
+}
+.island-popup-backdrop {
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 3.5em 0.7em 0.7em;
+  background: #080d18a8;
+  backdrop-filter: blur(3px);
+}
+.island-popup {
+  width: min(100%, 360px);
+  max-height: calc(100% - 0.3em);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 2px solid #e5b75c;
+  border-radius: 1.1em;
+  background: linear-gradient(160deg, #35245c, #17132d 72%);
+  box-shadow: 0 12px 40px #000c;
+}
+.island-popup-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  justify-content: space-between;
+  padding: 0.7em 0.8em;
+  border-bottom: 1px solid #ffffff2b;
+  background: #ffffff0b;
+}
+.island-popup-head small {
+  color: var(--gold);
+  font-size: 0.62em;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+.island-popup-head h3 {
+  margin: 0.1em 0 0;
+  color: #fff;
+  font-size: 1.15em;
+}
+.island-popup-content {
+  overflow-y: auto;
+  padding: 0.7em 0.8em 0.9em;
+  overscroll-behavior: contain;
+}
+.island-description {
+  margin: 0 0 0.5em;
+  font-size: 0.76em;
+  line-height: 1.4;
+}
+.island-arena {
+  margin: 0.4em 0;
+  padding: 0.5em 0.6em;
+  border: 1px solid #ffd34d66;
+  border-radius: 0.65em;
+  color: #ffe18a;
+  background: #6a4b1f44;
+  font-size: 0.72em;
+  line-height: 1.4;
+}
+.island-arena small {
+  color: #fff;
+  opacity: 0.8;
+}
+.island-progress {
+  margin: 0.35em 0;
+  font-size: 0.7em;
+  color: #cdebd8;
+}
+.island-popup-content h5 {
+  margin: 0.65em 0 0.3em;
+  color: var(--mint);
+  font-size: 0.85em;
+}
+.island-popup .stage-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.28em;
+}
+.island-popup .stage-node {
+  min-height: 2.8em;
+}
+.island-popup .stage-node small {
+  font-size: 0.52em;
+}
+.island-popup .zone-detail {
+  margin-top: 0.55em;
+  padding: 0.55em;
+}
+.island-popup .zone-detail h4 {
+  font-size: 0.88em;
+}
+.island-popup .monster-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.island-popup .monster-detail img {
+  width: 2.2em;
+  height: 2.2em;
+}
+.island-popup .boss-detail img {
+  width: 3.2em;
+  height: 3.2em;
+}
+.island-popup .zone-play {
+  width: 100%;
+  padding: 0.65em;
+}
+
+@keyframes hubIn {
+  from {
+    transform: translateY(4%);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hub {
+    animation: none;
+  }
+}
+.hhead {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  padding: max(2.5%, env(safe-area-inset-top)) 3% 0.6em;
+  border-bottom: 0.15em solid #d9a05b55;
+}
+.hhead h3 {
+  flex: 1;
+  margin: 0;
+  font-size: 1.4em;
+  color: var(--gold);
+  text-shadow: 0 2px 4px #000;
+}
+.hbody {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  padding: 0.8em 3%;
+}
+.hview > * + * {
+  margin-top: 0.6em;
+}
+.hview h5 {
+  margin: 0.9em 0 0.3em;
+  font-size: 0.95em;
+  color: var(--mint);
+}
+.hint {
+  margin: 0;
+  font-size: 0.8em;
+  opacity: 0.85;
+  line-height: 1.35;
+}
+.tag {
+  display: inline-block;
+  padding: 0.05em 0.7em;
+  border-radius: 1em;
+  background: rgba(0, 0, 0, 0.35);
+  font-size: 0.8em;
+}
+.htabs {
+  display: flex;
+  height: 10.5%;
+  padding-bottom: env(safe-area-inset-bottom);
+  background: linear-gradient(#5a3a2a, #3a2418);
+  border-top: 0.25em solid #d9a05b;
+}
+.htabs button {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  border: 0;
+  background: none;
+  color: #fff;
+  font: inherit;
+  font-size: 0.8em;
+  opacity: 0.65;
+}
+.htabs button i {
+  font-style: normal;
+  font-size: 1.7em;
+}
+.htabs button.on {
+  opacity: 1;
+  background: rgba(255, 211, 77, 0.18);
+  box-shadow: inset 0 0.25em 0 var(--gold);
+}
+.shoplist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45em;
+}
+.shoplist li {
+  display: flex;
+  gap: 0.7em;
+  align-items: center;
+  padding: 0.55em 0.7em;
+  border-radius: 0.9em;
+  background: rgba(255, 255, 255, 0.07);
+  font-size: 0.85em;
+}
+.shoplist li > i {
+  font-style: normal;
+  font-size: 1.8em;
+}
+.shoplist b {
+  display: block;
+  color: var(--gold);
+}
+.pcard {
+  padding: 0.6em;
+  border-radius: 1em;
+  border: 0.12em solid var(--c);
+  background: linear-gradient(#ffffff14, #00000030);
+}
+.pcard h4,
+.ccard h4,
+.zcard h4,
+.gcard h4 {
+  margin: 0 0 0.3em;
+  font-size: 1.05em;
+}
+.pcard h4 {
+  color: var(--c);
+}
+.pcard p {
+  margin: 0.4em 0 0;
+  font-size: 0.8em;
+  opacity: 0.9;
+}
+.evos {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.4em;
+}
+.evo {
+  display: grid;
+  justify-items: center;
+  gap: 0.1em;
+  padding: 0.4em 0.2em;
+  border-radius: 0.8em;
+  background: rgba(0, 0, 0, 0.28);
+  text-align: center;
+}
+.evo img {
+  width: 4em;
+  height: 4em;
+  object-fit: contain;
+}
+.evo b {
+  font-size: 0.8em;
+}
+.evo small {
+  font-size: 0.7em;
+  opacity: 0.85;
+}
+.evo.cur {
+  outline: 0.13em solid var(--gold);
+}
+.evo.lock img {
+  filter: grayscale(1) brightness(0.5);
+}
+.evo.lock {
+  opacity: 0.75;
+}
+.ccard {
+  display: flex;
+  gap: 0.8em;
+  align-items: center;
+  padding: 0.7em;
+  border-radius: 1em;
+  background: linear-gradient(#5a41a0, #3a2866);
+  border: 0.12em solid #fff3c4;
+}
+.ccard img {
+  width: 6em;
+  height: 6em;
+  object-fit: contain;
+  filter: drop-shadow(0 3px 4px #0008);
+}
+.ccard p {
+  margin: 0.3em 0 0;
+  font-size: 0.82em;
+  opacity: 0.9;
+}
+.stats {
+  display: grid;
+  gap: 0.45em;
+}
+.stat {
+  display: grid;
+  grid-template-columns: 1.6em 5.2em 1fr 3.4em;
+  gap: 0.4em;
+  align-items: center;
+  font-size: 0.85em;
+}
+.stat > i {
+  font-style: normal;
+}
+.stat b {
+  text-align: right;
+  color: var(--gold);
+}
+.sbar {
+  height: 0.7em;
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 0.4em;
+  overflow: hidden;
+}
+.sbar i {
+  display: block;
+  height: 100%;
+  min-width: 0.5em;
+  background: linear-gradient(90deg, var(--mint), #4fe0b0);
+}
+.zcard {
+  position: relative;
+  padding: 0.7em 0.8em;
+  border-radius: 1em;
+  border: 0.12em solid #fff3c4;
+  background-size: cover;
+  background-position: center;
+  display: grid;
+  gap: 0.3em;
+}
+.zcard.lock {
+  filter: grayscale(0.85) brightness(0.75);
+  border-color: #ffffff44;
+}
+.zcard small,
+.zcard em {
+  font-size: 0.8em;
+  font-style: normal;
+}
+.zcard em {
+  color: var(--gold);
+  font-weight: 800;
+}
+.mons {
+  display: flex;
+  gap: 0.3em;
+}
+.mons img {
+  width: 2.4em;
+  height: 2.4em;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 2px #000);
+}
+.gcard {
+  display: grid;
+  justify-items: center;
+  gap: 0.4em;
+  padding: 1em;
+  text-align: center;
+  border-radius: 1em;
+  background: linear-gradient(#5a41a0, #3a2866);
+  border: 0.12em dashed #fff3c4aa;
+}
+.gcard > i {
+  font-style: normal;
+  font-size: 3em;
+  opacity: 0.85;
+}
+.gcard p {
+  margin: 0;
+  font-size: 0.85em;
+  opacity: 0.9;
+}
+.gcard small {
+  opacity: 0.7;
+}
+.gcard .row {
+  width: 100%;
+}
+.gcard .btn:disabled {
+  opacity: 0.5;
+}
+
+#bStage {
+  display: none !important;
+}
+
+/* Peta dunia interaktif: peta lebar dapat digeser dan setiap pulau punya penanda klik */
+.world-map-wrap {
+  height: 13em;
+  overflow: auto;
+  touch-action: pan-x pan-y;
+  overscroll-behavior: contain;
+  border: 0.14em solid #d9a05b;
+  border-radius: 1em;
+  background: #10251d;
+}
+.world-map {
+  position: relative;
+  width: 900px;
+  height: 550px;
+  max-width: none;
+  background-size: 100% 100%;
+  background-position: center;
+  background-repeat: no-repeat;
+  cursor: grab;
+  touch-action: pan-x pan-y;
+}
+.world-map:active {
+  cursor: grabbing;
+}
+.map-pin {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.12em;
+  padding: 0.3em 0.5em;
+  border: 2px solid #fff4c2;
+  border-radius: 0.8em;
+  color: #fff;
+  background: #172b35ef;
+  box-shadow: 0 2px 8px #000b;
+  font: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.map-pin span {
+  font-size: 1.35em;
+  line-height: 1;
+}
+.map-pin b {
+  font-size: 0.72em;
+  text-shadow: 0 1px 3px #000;
+}
+.map-pin.selected {
+  border-color: #ffd34d;
+  background: #755022f2;
+  box-shadow:
+    0 0 0 0.2em #ffd34d66,
+    0 2px 8px #000b;
+}
+.map-selected {
+  display: grid;
+  gap: 0.15em;
+  margin: 0.45em 0;
+  padding: 0.55em 0.7em;
+  border: 1px solid #ffffff33;
+  border-radius: 0.7em;
+  background: #ffffff0b;
+}
+.map-selected span {
+  color: var(--gold);
+  font-size: 0.62em;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+.map-selected b {
+  font-size: 0.95em;
+}
+.map-selected small {
+  font-size: 0.7em;
+  opacity: 0.8;
+}
+.map-selected strong,
+.arena-assignment {
+  color: #ffe18a;
+  font-size: 0.72em;
+}
+.island-tabs {
+  display: flex;
+  gap: 0.4em;
+  overflow-x: auto;
+  padding: 0.35em 0;
+  scrollbar-width: thin;
+}
+.island-tab {
+  flex: 0 0 auto;
+  border: 1px solid #ffffff44;
+  border-radius: 1em;
+  padding: 0.45em 0.7em;
+  background: #2b2050;
+  color: #fff;
+  font: inherit;
+  font-size: 0.72em;
+  font-weight: 800;
+}
+.island-tab.on {
+  border-color: var(--gold);
+  background: #65502b;
+  color: var(--gold);
+}
+.stage-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.35em;
+}
+.stage-node {
+  min-height: 3.4em;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 0.1em;
+  border: 1px solid #ffffff55;
+  border-radius: 0.65em;
+  background: #315b4b;
+  color: #fff;
+  font: inherit;
+}
+.stage-node b {
+  font-size: 1.05em;
+}
+.stage-node small {
+  font-size: 0.57em;
+}
+.stage-node.active {
+  border: 2px solid var(--gold);
+  background: #765323;
+  color: #ffe18a;
+  box-shadow: 0 0 0.6em #ffd34d66;
+}
+.stage-node.locked {
+  background: #252238;
+  color: #888;
+  opacity: 0.65;
+}
+.zone-detail {
+  margin-top: 0.7em;
+  padding: 0.75em;
+  border: 1px solid #ffffff33;
+  border-radius: 1em;
+  background: #ffffff0b;
+}
+.zone-detail h4 {
+  margin: 0 0 0.35em;
+  color: var(--gold);
+}
+.monster-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.35em;
+}
+.monster-detail {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+  padding: 0.3em;
+  border-radius: 0.65em;
+  background: #0003;
+  min-width: 0;
+}
+.monster-detail img {
+  width: 2.6em;
+  height: 2.6em;
+  object-fit: contain;
+}
+.monster-detail span,
+.boss-detail div {
+  display: grid;
+  min-width: 0;
+}
+.monster-detail b {
+  font-size: 0.7em;
+}
+.monster-detail small,
+.boss-detail small {
+  font-size: 0.6em;
+  opacity: 0.75;
+}
+.boss-detail {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  margin-top: 0.6em;
+  padding: 0.5em;
+  border: 1px solid #ffd34d88;
+  border-radius: 0.7em;
+  background: #6a321d55;
+}
+.boss-detail img {
+  width: 4em;
+  height: 4em;
+  object-fit: contain;
+}
+.boss-detail b {
+  color: var(--gold);
+  font-size: 0.78em;
+}
+.zone-play {
+  margin-top: 0.65em;
+}
+
+/* Layar pemuatan: menutup kanvas kosong saat aset diunduh setelah login */
+.loading {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1em;
+  background:
+    linear-gradient(#2b1d4a99, #150d2bcc),
+    url("../assets/backgrounds/lobby.jpg") center / cover #2b1d4a;
+}
+.loading img {
+  width: 5.5em;
+  height: 5.5em;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.lbar {
+  width: 60%;
+  height: 0.7em;
+  overflow: hidden;
+  border-radius: 1em;
+  background: #ffffff33;
+}
+.lbar i {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(#ffe27a, #f5a623);
+  transition: width 0.2s;
+}
+.loading p {
+  margin: 0;
+  font-size: 0.85em;
+}
+
+/* Bintang pet: baris bintang, tombol upgrade, dan pengali damage per evolusi */
+.starrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6em;
+  margin: 0.5em 0 0.2em;
+}
+.stars {
+  color: var(--gold);
+  font-size: 1.25em;
+  letter-spacing: 0.08em;
+}
+.sbtn {
+  padding: 0.35em 0.8em;
+  font-size: 0.85em;
+}
+.sbtn:disabled {
+  opacity: 0.5;
+}
+.smax {
+  color: var(--gold);
+}
+.sinfo {
+  margin: 0 0 0.3em;
+  font-size: 0.72em;
+  opacity: 0.8;
+}
+.evo .stm {
+  display: block;
+  color: var(--gold);
+  font-size: 0.7em;
+  font-style: normal;
+}
+
+/* Latar menu Toko: gambar warung, digelapkan sedikit agar teks tetap terbaca */
+.hub:has(#v-shop:not([hidden])) {
+  background:
+    linear-gradient(#150d2b55, #150d2b99),
+    url("../assets/backgrounds/toko.jpg") center / cover no-repeat #150d2b;
+}
+#v-shop .hint {
+  padding: 0.6em 0.8em;
+  border-radius: 0.7em;
+  background: #150d2bcc;
+}
+
+/* Penjaga toko: Dika berdiri di depan warung (webp animasi transparan) */
+.hub:has(#v-shop:not([hidden])) .hbody {
+  display: flex;
+  flex-direction: column;
+}
+#v-shop:not([hidden]) {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+#v-shop .shopkeeper {
+  position: absolute;
+  left: 20%;
+  bottom: 2%;
+  width: 36cqw;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+#v-shop .shopkeeper::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 1%;
+  width: 118%;
+  height: 7%;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(#000000aa, #0000 70%);
+}
+#v-shop .shopkeeper img {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 0.2em 0.3em #0008);
+}
+
+/* Sembunyikan tampilan scrollbar, fungsi scroll tetap aktif */
+* {
+  scrollbar-width: none !important; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge lama */
+}
+*::-webkit-scrollbar {
+  display: none !important; /* Chrome, Safari, Edge, Android WebView */
+  width: 0;
+  height: 0;
+}
+
+/* ---- Fusion pet (menu Pet) ---- */
+.fusion .frow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4em;
+  margin: 0.5em 0;
+}
+.fusion .fpick {
+  flex: 1 1 auto;
+  opacity: 0.7;
+}
+.fusion .fpick.on {
+  opacity: 1;
+  outline: 0.13em solid var(--gold);
+}
+.fusion .fres {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  margin: 0.4em 0;
+  padding: 0.5em;
+  border-radius: 0.8em;
+  background: rgba(0, 0, 0, 0.28);
+}
+.fusion .fres img {
+  width: 5em;
+  height: 5em;
+  object-fit: contain;
+}
+.fusion .btn[data-fuse] {
+  width: 100%;
+}
+
+/* ---- lobi dirapikan (tambahan terakhir) (ringkas; hanya gaya, posisi vertikal v13 tidak diubah) ----
+   Semua aturan dibatasi di dalam .lobby-ui supaya HUD pertempuran dan menu hub tidak ikut berubah. */
+.lobby-ui {
+  --panel: rgba(30, 20, 60, 0.78);
+  --rim: rgba(255, 243, 196, 0.3);
+}
+.lobby-ui button:focus-visible {
+  outline: 0.15em solid var(--gold);
+  outline-offset: 0.1em;
+}
+
+/* HUD atas: lebih kecil agar koin, gem, dan trofi muat satu baris */
+.lobby-ui .hud {
+  align-items: center;
+  gap: 0.5em;
+}
+.lobby-ui .ava {
+  flex: none;
+  width: 3.6em;
+  height: 3.6em;
+  border-width: 0.15em;
+}
+.lobby-ui .pills {
+  flex-wrap: nowrap;
+  gap: 0.3em;
+}
+.lobby-ui .pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
+  padding: 0.12em 0.5em;
+  font-size: 0.8em;
+  font-weight: 700;
+  border: 0.08em solid var(--rim);
+}
+.lobby-ui .name {
+  font-size: 0.9em;
+}
+.lobby-ui .xp {
+  height: 0.55em;
+}
+.lobby-ui .hud .icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2.1em;
+  height: 2.1em;
+  padding: 0;
+  font-size: 0.9em;
+  border: 0.08em solid var(--rim);
+}
+
+/* Menu samping: ubin kecil berukuran sama, kolom kanan (4 item) berhenti di atas judul stage */
+.lobby-ui .side {
+  gap: 0.2em;
+}
+.lobby-ui .side .ico {
+  width: 5.6em;
+  min-width: 0;
+  padding: 0.1em 0.1em 0.15em;
+  font-size: 0.66em;
+  white-space: nowrap;
+  background: rgba(30, 20, 60, 0.5);
+  border: 0.1em solid rgba(255, 243, 196, 0.18);
+  border-radius: 0.9em;
+}
+.lobby-ui .side .ico i {
+  font-size: 1.7em;
+  line-height: 1.15;
+}
+
+/* Judul stage: teks rata kiri di samping lencana, dipotong bila terlalu panjang */
+.lobby-ui .stage-info > div:last-child {
+  min-width: 0;
+  max-width: 78%;
+  text-align: left;
+}
+.lobby-ui .stage-info p {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lobby-ui .badge {
+  flex: none;
+}
+
+/* Hadiah AFK, target, tombol Mulai */
+.lobby-ui .afk {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+  background: var(--panel);
+  border: 0.08em solid rgba(255, 211, 77, 0.5);
+}
+.lobby-ui .afk:not(:disabled) {
+  border-color: var(--gold);
+  box-shadow: 0 0 0.8em rgba(255, 211, 77, 0.3);
+}
+.lobby-ui .goal {
+  border: 0.08em solid var(--rim);
+}
+.lobby-ui #goalTxt {
+  display: block;
+  font-weight: 700;
+  line-height: 1.25;
+}
+.lobby-ui .start {
+  box-shadow: 0 0.25em 0.8em rgba(0, 0, 0, 0.45);
+}
+
+/* Menu bawah: pemisah tipis antar tombol */
+.lobby-ui .bottom .ico {
+  align-content: center;
+  font-weight: 700;
+}
+.lobby-ui .bottom .ico + .ico {
+  border-left: 0.08em solid rgba(0, 0, 0, 0.28);
+}
+.lobby-ui .side .ico:active,
+.lobby-ui .bottom .ico:active {
+  transform: translateY(0.1em);
+  filter: brightness(1.15);
+}
+
+/* ---- penyesuaian lobi: keterangan bos diperkecil, panel target diberi jarak dari tombol Mulai ---- */
+.lobby-ui .stage-info {
+  top: 37.5%;
+  gap: 0.4em;
+}
+.lobby-ui .stage-info .badge {
+  width: 1.9em;
+  height: 1.9em;
+  font-size: 1em;
+}
+.lobby-ui .stage-info h2 {
+  font-size: 1.1em;
+  line-height: 1.1;
+  -webkit-text-stroke: 0.1em #3a1010;
+}
+.lobby-ui .stage-info p {
+  font-size: 0.68em;
+  line-height: 1.2;
+}
+.lobby-ui .afk {
+  top: 66.8%;
+}
+.lobby-ui .goal {
+  top: 72.2%;
+  padding: 0.2em 0.6em;
+}
+.lobby-ui .ms {
+  margin-top: 0;
+}
+
+/* ---- penyesuaian lobi: HUD sejajar, efek zoom tombol Mulai dihapus ---- */
+.lobby-ui .hud-mid {
+  display: grid;
+  gap: 0.3em;
+  align-content: center;
+}
+.lobby-ui .pills {
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  justify-content: space-between;
+  gap: 0.3em;
+}
+.lobby-ui .pill {
+  justify-content: center;
+  min-width: 0;
+  padding: 0.12em 0.45em;
+}
+.lobby-ui .name {
+  margin: 0;
+  padding: 0;
+  text-align: left;
+  line-height: 1.2;
+}
+.lobby-ui .xp {
+  width: 100%;
+}
+.lobby-ui .start {
+  animation: none;
+}
+
+/* ---- penyesuaian lobi: koin, gem, trofi, dan nama pemain dalam satu baris; tombol perbesar layar dihapus ---- */
+.lobby-ui #fsBtn {
+  display: none;
+}
+.lobby-ui .hud-mid {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 0.4em;
+  row-gap: 0.3em;
+}
+.lobby-ui .pills {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.25em;
+}
+.lobby-ui .pill {
+  padding: 0.12em 0.4em;
+}
+.lobby-ui .name {
+  min-width: 0;
+  margin: 0;
+  font-size: 0.95em;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lobby-ui .xp {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
+/* ---- penyesuaian lobi: nama di samping avatar, dialog istirahat ---- */
+.lobby-ui .name {
+  order: -1;
+  max-width: 5em;
+}
+.lobby-ui .pill {
+  font-size: 0.76em;
+}
+#rest .card h2 {
+  font-size: 1.3em;
+  margin: 0 0 0.2em;
+}
+#rest .card p {
+  margin: 0 0 0.6em;
+  opacity: 0.85;
+}
+
+/* ---- penyesuaian gameplay: bar waktu fusion tegak di kanan layar ---- */
+.fbar {
+  position: absolute;
+  right: 2.5%;
+  top: 24%;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35em;
+  pointer-events: none;
+}
+#gamePanel:not(.battle) .fbar {
+  display: none;
+}
+.fbar .fic {
+  font-size: 1.1em;
+  line-height: 1;
+  filter: drop-shadow(0 1px 2px #000);
+}
+.fbar .ftrack {
+  position: relative;
+  width: 1.1em;
+  height: 13em;
+  overflow: hidden;
+  border: 0.12em solid rgba(255, 208, 255, 0.75);
+  border-radius: 0.7em;
+  background: rgba(0, 0, 0, 0.55);
+}
+.fbar i {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 100%;
+  background: linear-gradient(#ffd0ff, #b784ff 60%, #7a4de0);
+}
+.fbar b {
+  min-width: 2em;
+  font-size: 0.9em;
+  text-align: center;
+  text-shadow: 0 1px 3px #000;
+}
+.fbar.low i {
+  background: linear-gradient(#ffc4b8, #ff5a4a);
+}
+.fbar.low b {
+  color: #ffb3a1;
+}
+
+/* ---- penyesuaian gameplay: bar fusion + bar ultimate bersebelahan di kanan layar (bar pertama = paling kanan) ---- */
+.sbars {
+  position: absolute;
+  right: 2.5%;
+  top: 24%;
+  z-index: 2;
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: flex-start;
+  gap: 0.7em;
+  pointer-events: none;
+}
+.sbars .fbar {
+  position: static;
+}
+#gamePanel:not(.battle) .sbars {
+  display: none;
+}
+.ubar .fic {
+  width: 1.5em;
+  height: 1.5em;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.5) center / 90% no-repeat;
+  filter: none;
+}
+.ubar .ftrack {
+  border-color: rgba(255, 211, 77, 0.8);
+}
+.ubar i {
+  background: linear-gradient(#fff3b0, #ffd34d 55%, #f5a623);
+}
+.ubar.low i {
+  background: linear-gradient(#ffc4b8, #ff5a4a);
+}
+
+/* ---- penyesuaian gameplay: tombol AUTO tepat di bawah info kill (kanan atas) ---- */
+#autoBtn {
+  position: absolute;
+  top: 5.6%;     /* jarak dari atas layar (info kill ada di sekitar 3.6%); naikkan = turun */
+  right: 3.1%;   /* sejajar dengan tepi kanan info kill */
+  display: grid;
+  place-items: center;
+  width: 2.4em;
+  height: 2.4em;
+  padding: 0;
+  border: 0.12em solid #fff3c4;
+  border-radius: 50%;
+  background: rgba(30, 20, 60, 0.8);
+  color: #fff;
+  font: inherit;
+  font-weight: 800;
+}
+#autoBtn span {
+  font-size: 0.6em;   /* besar huruf AUTO */
+}
+#autoBtn.on {
+  background: linear-gradient(#ffe27a, #f5a623);
+  border-color: #fff;
+  color: #3a2866;
+}
+
+/* ---- kotak hasil pertempuran (menang / kalah) ---- */
+#result {
+  background: radial-gradient(circle at 50% 38%, rgba(74, 48, 140, 0.6), rgba(12, 6, 28, 0.88));
+  animation: rfade 0.25s ease-out;
+}
+.rfx {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.rfx i {
+  position: absolute;
+  top: -1.2em;
+  width: 0.5em;
+  height: 0.85em;
+  border-radius: 0.12em;
+  opacity: 0;
+  animation: rfall 3s linear infinite;
+}
+#result .rcard {
+  position: relative;
+  width: min(90%, 21.5em);
+  margin-top: 1.6em;
+  padding: 3.3em 1.1em 1.1em;
+  border-radius: 1.6em;
+  background: linear-gradient(180deg, #4b3688 0%, #35245f 55%, #2a1b4e 100%);
+  border: 0.16em solid rgba(255, 211, 77, 0.8);
+  box-shadow: 0 0.9em 2.4em rgba(0, 0, 0, 0.55), 0 0 2.4em rgba(255, 211, 77, 0.3), inset 0 0.1em 0 rgba(255, 255, 255, 0.2);
+  animation: rpop 0.5s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+#result .rcard.lose {
+  border-color: rgba(255, 128, 128, 0.75);
+  box-shadow: 0 0.9em 2.4em rgba(0, 0, 0, 0.55), 0 0 2.4em rgba(255, 90, 90, 0.28), inset 0 0.1em 0 rgba(255, 255, 255, 0.16);
+}
+.ricon {
+  position: absolute;
+  left: 50%;
+  top: -0.62em;
+  transform: translateX(-50%);
+  font-size: 3.6em;
+  line-height: 1;
+  filter: drop-shadow(0 0.1em 0.2em rgba(0, 0, 0, 0.5));
+  animation: rbob 2.4s ease-in-out infinite;
+}
+.rcard h2 {
+  margin: 0;
+  font-size: 1.9em;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+  background: linear-gradient(180deg, #fff3b0 10%, #ffc233 90%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0.07em 0 rgba(0, 0, 0, 0.45));
+}
+.rcard.lose h2 {
+  background-image: linear-gradient(180deg, #ffd0d0 10%, #ff6b6b 90%);
+}
+.rsub {
+  margin: 0.25em 0 0;
+  font-size: 0.8em;
+  opacity: 0.75;
+}
+.rstars {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 0.2em;
+  margin: 0.35em 0 0.5em;
+}
+.rstars:empty {
+  display: none;
+}
+.rstars span {
+  font-size: 2.5em;
+  line-height: 1;
+  color: #55427f;
+  text-shadow: 0 0.06em 0 rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  transform: scale(0.4);
+  animation: starpop 0.5s ease-out forwards;
+}
+.rstars span:nth-child(2) {
+  font-size: 3.1em;
+  margin-bottom: 0.14em;
+}
+.rstars span.on {
+  color: #ffd34d;
+  text-shadow: 0 0 0.4em rgba(255, 211, 77, 0.85), 0 0.06em 0 #b8741a;
+}
+.rstats {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 0.5em;
+  margin: 0.9em 0 0.5em;
+}
+.rt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.05em;
+  padding: 0.55em 0.25em;
+  border-radius: 0.9em;
+  background: rgba(255, 255, 255, 0.08);
+  border: 0.07em solid rgba(255, 255, 255, 0.12);
+}
+.rt i {
+  font-style: normal;
+  font-size: 1.3em;
+  line-height: 1.1;
+}
+.rt b {
+  font-size: 1.15em;
+}
+.rt span {
+  font-size: 0.7em;
+  opacity: 0.7;
+}
+.rt.gem b {
+  color: #8fe8ff;
+}
+.rt.dim b {
+  font-size: 0.78em;
+  opacity: 0.75;
+  padding-top: 0.25em;
+}
+.rhp {
+  margin: 0.55em 0 0.2em;
+  text-align: left;
+}
+.rhp-h {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8em;
+  margin-bottom: 0.3em;
+}
+.rhp-h b {
+  color: #9bf0bd;
+}
+.rhp-bar {
+  position: relative;
+  height: 0.7em;
+  border-radius: 0.5em;
+  background: rgba(10, 5, 25, 0.6);
+  overflow: hidden;
+}
+.rhp-bar i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 0.5em;
+  background: linear-gradient(90deg, #3fcf7d, #8bf0a8);
+  transition: width 0.8s ease-out;
+}
+.rhp-bar u {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0.12em;
+  background: rgba(255, 255, 255, 0.55);
+}
+.rnote {
+  margin: 0.55em 0 0;
+  font-size: 0.8em;
+  line-height: 1.45;
+  opacity: 0.85;
+}
+.rnote div + div {
+  margin-top: 0.2em;
+}
+#result .rcard .row {
+  margin-top: 1em;
+}
+#result .rcard .btn {
+  padding: 0.8em 0.6em;
+  border-radius: 1em;
+  font-size: 1em;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+#result .rcard .btn.main {
+  background: linear-gradient(180deg, #ffe27a, #ffc233);
+  box-shadow: 0 0.2em 0 #b8741a, 0 0.5em 0.9em rgba(0, 0, 0, 0.35);
+}
+#result .rcard .btn.alt {
+  background: linear-gradient(180deg, #8bf0b8, #5bd994);
+  box-shadow: 0 0.2em 0 #2f8f5c, 0 0.5em 0.9em rgba(0, 0, 0, 0.35);
+}
+#result .rcard .btn:active {
+  transform: translateY(0.15em);
+  box-shadow: 0 0.05em 0 rgba(0, 0, 0, 0.4);
+}
+#result .rcard .btn[hidden] {
+  display: none;
+}
+@keyframes rfade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes rpop {
+  from { opacity: 0; transform: translateY(1.2em) scale(0.85); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes rbob {
+  50% { transform: translateX(-50%) translateY(-0.25em); }
+}
+@keyframes starpop {
+  60% { transform: scale(1.3); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes rfall {
+  0% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0); }
+  100% { opacity: 1; transform: translate3d(var(--dx, 0), 48em, 0) rotate(var(--rot, 540deg)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rfx { display: none; }
+  .ricon { animation: none; }
+}

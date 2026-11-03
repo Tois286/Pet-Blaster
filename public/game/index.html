@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#2b1d4a">
   <meta name="mobile-web-app-capable" content="yes">
   <title>Pet Blaster: Wild Guardians</title>
-  <link rel="stylesheet" href="css/game.css?v=gem8">
+  <link rel="stylesheet" href="css/game.css?v=gem11">
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
 </head>
 
@@ -41,8 +41,8 @@
           <div class="hud">
             <div class="ava"><img src="assets/characters/tois-avatar.png" alt="Tois"><i id="level">1</i></div>
             <div class="hud-mid">
-              <div class="pills"><span class="pill">🪙 <b id="coins">0</b></span><span class="pill">💎 <b id="gems">0</b></span><span class="pill">🏆 <b
-                    id="bestWave">0</b>/25</span></div>
+              <div class="pills"><span class="pill">🪙 <b id="coins">0</b></span><span class="pill">💎 <b
+                    id="gems">0</b></span><span class="pill">🏆 <b id="bestWave">0</b>/25</span></div>
               <div class="name"><b id="playerName">-</b></div>
               <div class="xp"><i id="xpBar"></i></div>
             </div>
@@ -83,8 +83,12 @@
           <button id="autoBtn" aria-label="Auto play"><span>AUTO</span></button>
         </div>
         <div id="sbars" class="sbars">
-          <div id="fbar" class="fbar" hidden aria-label="Sisa waktu fusion"><span class="fic">✨</span><div class="ftrack"><i id="fFill"></i></div><b id="fSec">45</b></div>
-          <div id="ubar" class="fbar ubar" hidden aria-label="Sisa durasi ultimate"><span class="fic" id="uIc"></span><div class="ftrack"><i id="uFill"></i></div><b id="uSec">10</b></div>
+          <div id="fbar" class="fbar" hidden aria-label="Sisa waktu fusion"><span class="fic">✨</span>
+            <div class="ftrack"><i id="fFill"></i></div><b id="fSec">45</b>
+          </div>
+          <div id="ubar" class="fbar ubar" hidden aria-label="Sisa durasi ultimate"><span class="fic" id="uIc"></span>
+            <div class="ftrack"><i id="uFill"></i></div><b id="uSec">10</b>
+          </div>
         </div>
         <div id="upgrade" class="upgrade" hidden>
           <h3>Naik Level! <span id="upLv"></span></h3>
@@ -112,7 +116,8 @@
           <div class="card">
             <h2 id="restTitle">Istirahat dulu?</h2>
             <p>Pilih istirahat untuk keluar dari akun, atau lanjut bermain.</p>
-            <div class="row"><button id="restYes" class="btn alt">Istirahat</button><button id="restNo" class="btn main">Lanjut</button></div>
+            <div class="row"><button id="restYes" class="btn alt">Istirahat</button><button id="restNo"
+                class="btn main">Lanjut</button></div>
           </div>
         </div>
         <div id="hub" class="hub" hidden>
@@ -124,8 +129,19 @@
           </header>
           <div class="hbody" id="hubBody">
             <section id="v-shop" class="hview">
-              <p class="hint">Toko segera hadir. Upgrade Tois (Damage, Kecepatan, HP markas) sekarang ada di menu Karakter.</p>
-              <div class="shopkeeper" aria-hidden="true"><img src="assets/characters/dika.webp" alt="" width="300" height="667"></div>
+              <nav class="shopmenu" id="shopMenu" aria-label="Menu penjualan">
+                <h4>Dagangan Dika</h4>
+                <button type="button" data-shop="lotre"><i>🎰</i><span><b>Lotre</b><em>Undi hadiah
+                      langka</em></span></button>
+                <button type="button" data-shop="upgrade"><i>⬆️</i><span><b>Upgrade</b><em>Kuatkan
+                      Tois</em></span></button>
+                <button type="button" data-shop="outfit"><i>👕</i><span><b>Outfit</b><em>Ganti
+                      penampilan</em></span></button>
+                <button type="button" data-shop="topup"><i>💎</i><span><b>Top Up</b><em>Beli gem</em></span></button>
+                <div class="shoppanel" id="shopPanel" aria-live="polite"></div>
+              </nav>
+              <div class="shopkeeper" aria-hidden="true"><img src="assets/characters/dika.webp" alt="" width="300"
+                  height="667"></div>
             </section>
             <section id="v-pet" class="hview" hidden></section>
             <section id="v-char" class="hview" hidden></section>
@@ -140,7 +156,7 @@
   </main>
   <script src="js/sprites-data.js"></script>
   <script src="js/sprites-extra.js?v=pet1"></script>
-  <script src="js/game.js?v=gem5"></script>
+  <script src="js/game.js?v=gem10"></script>
 </body>
 
 </html>

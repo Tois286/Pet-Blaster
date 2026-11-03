@@ -386,7 +386,8 @@ class Base extends Phaser.Scene {
     this.load.on('progress', setLoading);
     if (!this.textures.exists(HERO_KEY)) this.load.image(HERO_KEY, HERO_SRC);
     if (!this.textures.exists(BATTLE_HERO_KEY)) this.load.spritesheet(BATTLE_HERO_KEY, BATTLE_HERO_SRC, { frameWidth: BATTLE_SHEET.fw, frameHeight: BATTLE_SHEET.fh });
-    if (!this.textures.exists('lobby_bg')) this.load.image('lobby_bg', 'assets/backgrounds/lobby.jpg');
+    if (!this.textures.exists('lobby_bg')) this.load.image('lobby_bg', 'assets/backgrounds/lobby.jpg?v=2');
+    if (!this.textures.exists('lobby_door')) this.load.image('lobby_door', 'assets/backgrounds/lobby_door.png?v=1');   // potongan pintu kayu jebol (transparan) yang menutupi bos
     if (!this.textures.exists('tois_anim')) this.load.spritesheet('tois_anim', TOIS_ANIM.src, { frameWidth: TOIS_ANIM.fw, frameHeight: TOIS_ANIM.fh });
     // Monster dan pet = sprite sheet animasi (dibuat tools/make_sprites.py; ukuran frame ada di SPR, js/sprites-data.js)
     Object.keys(MON).forEach(i => { const k = 'mon' + i, s = SPR[k]; if (!this.textures.exists(k)) this.load.spritesheet(k, 'assets/' + s.file, { frameWidth: s.fw, frameHeight: s.fh }); });
@@ -1821,7 +1822,7 @@ function showResult(R, first) {
 
 function startGame() {
   showLoading();
-  Object.assign($('game-container').style, { backgroundImage: "url('assets/backgrounds/lobby.jpg')", backgroundSize: 'cover', backgroundPosition: 'center' });   // latar cadangan saat scene berganti
+  Object.assign($('game-container').style, { backgroundImage: "url('assets/backgrounds/lobby.jpg?v=2')", backgroundSize: 'cover', backgroundPosition: 'center' });   // latar cadangan saat scene berganti
   game = new Phaser.Game({
     type: Phaser.AUTO, parent: 'game-container', width: W, height: H, transparent: true,
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH }, scene: [Lobby, Battle]
@@ -1846,6 +1847,35 @@ const menu = (el, items) => items.forEach(([ic, label, act]) => {
 });
 menu('sideL', [['🎖️', 'Battle Pass'], ['🎁', 'Hadiah'], ['📜', 'Event']]);
 menu('sideR', [['📢', 'Info'], ['✉️', 'Surat'], ['👥', 'Teman'], ['📋', 'Misi']]);
+// Menu penjualan Dika di halaman Toko: klik satu menu -> menu lain tertutup, yang dipilih mengecil, panel isi (sementara putih) tampil; klik lagi untuk kembali
+function resetShopMenu() {
+  const m = $('shopMenu'); if (!m) return;
+  m.classList.remove('open'); m.querySelectorAll('[data-shop]').forEach(b => b.classList.remove('sel')); $('shopPanel').innerHTML = ''; $('shopPanel').classList.remove('outfit');
+}
+document.querySelectorAll('#shopMenu [data-shop]').forEach(b => b.onclick = () => {
+  const m = $('shopMenu');
+  if (b.classList.contains('sel')) { resetShopMenu(); return; }
+  resetShopMenu(); m.classList.add('open'); b.classList.add('sel');
+  if (b.dataset.shop === 'outfit') renderOutfitPanel();
+});
+// Daftar outfit Tois (gambar transparan di assets/outfits/). Harga masih contoh: cur 'coin' = koin, 'gem' = gem, price 0 = gratis
+const OUTFITS = [
+  { id: 'base', name: 'Base', rarity: 'Biasa', color: '#8a8a8a', cur: 'coin', price: 0 },
+  { id: 'elite', name: 'Elite', rarity: 'Langka', color: '#3f7fd8', cur: 'coin', price: 5000 },
+  { id: 'master', name: 'Master', rarity: 'Master', color: '#1fb8d6', cur: 'coin', price: 15000 },
+  { id: 'epic', name: 'Epic', rarity: 'Epik', color: '#c04bd8', cur: 'gem', price: 150 },
+  { id: 'legendary', name: 'Legendary', rarity: 'Legendaris', color: '#e8a31c', cur: 'gem', price: 500 },
+  { id: 'mythical', name: 'Mythical', rarity: 'Mitos', color: '#7a4be0', cur: 'gem', price: 1200 }
+];
+let outfitSel = 'base';
+const outfitPrice = o => o.price ? `<span class="oprice">${o.cur === 'gem' ? '💎' : '🪙'} <b>${o.price.toLocaleString('id-ID')}</b></span>` : '<span class="oprice free">Gratis</span>';
+function renderOutfitPanel() {
+  const p = $('shopPanel'), cur = OUTFITS.find(o => o.id === outfitSel) || OUTFITS[0];
+  p.classList.add('outfit');
+  p.innerHTML = `<div class="ofull" style="--rc:${cur.color}"><img src="assets/outfits/${cur.id}.webp?v=2" alt="Outfit ${cur.name}"><div class="oinfo"><b>${cur.name}</b><em>${cur.rarity}</em>${outfitPrice(cur)}</div></div>`
+    + '<div class="othumbs">' + OUTFITS.map(o => `<button type="button" class="ocard${o.id === cur.id ? ' on' : ''}" data-outfit="${o.id}" style="--rc:${o.color}" aria-label="${o.name}"><img src="assets/outfits/${o.id}.webp?v=2" alt="" loading="lazy"></button>`).join('') + '</div>';
+  p.querySelectorAll('[data-outfit]').forEach(c => c.onclick = () => { outfitSel = c.dataset.outfit; renderOutfitPanel(); });
+}
 const HUB = [['shop', '🛒', 'Toko'], ['pet', '🐾', 'Pet'], ['char', '🎸', 'Karakter'], ['zone', '🏰', 'Wilayah'], ['guild', '🛡️', 'Guild']];
 menu('botNav', HUB.map(([k, ic, n]) => [ic, n, k]));
 
@@ -1962,6 +1992,7 @@ const HUB_VIEW = {
 };
 function renderHub(key = hubKey) {
   hubKey = key; const t = HUB.find(h => h[0] === key);
+  if (key === 'shop') resetShopMenu();
   $('hubTitle').textContent = t[2];
   document.querySelectorAll('.hview').forEach(v => { v.hidden = v.id !== 'v-' + key; });
   if (HUB_VIEW[key] && profile) {
@@ -2027,7 +2058,7 @@ class Lobby extends Base {
   constructor() { super('Lobby'); }
   create() {
     this.makeTextures();
-    // Latar lobi: gerbang kastil (bos), jembatan, panggung kayu (karakter), lantai batu (tombol). Gambar 780x1280 = 2x kanvas 390x640 (asli 720x1280 dilebarkan dengan cermin, cadangan di tools/).
+    // Latar lobi: gerbang kastil (bos), jembatan, panggung kayu (karakter), lantai batu (tombol). Gambar 1570x2576 (rasio sama dengan kanvas 390x640): gerbang kastil rusak (bos), panggung kayu y~345-393 (karakter), lantai batu (tombol).
     this.add.image(W / 2, H / 2, 'lobby_bg').setDisplaySize(W, H).setDepth(-1000);
     const mkTex = (k, w, h, f) => { if (this.textures.exists(k)) return; const g = this.make.graphics({ add: false }); f(g); g.generateTexture(k, w, h); g.destroy(); };
     mkTex('leaf', 10, 6, g => { g.fillStyle(0xffffff).fillEllipse(5, 3, 10, 5); g.fillStyle(0x000000, .25).fillRect(1, 3, 8, 1); });
@@ -2042,9 +2073,9 @@ class Lobby extends Base {
       this.tweens.add({ targets: c, x: W + 90, duration: dur, delay, repeat: -1 });
     });
     // cahaya hangat di belakang karakter (berdenyut pelan)
-    const glow = this.add.image(W / 2, 372, 'glow').setScale(3.4, 1.7).setAlpha(.3).setBlendMode(Phaser.BlendModes.ADD).setDepth(-800);
+    const glow = this.add.image(W / 2, 340, 'glow').setScale(3.4, 1.7).setAlpha(.3).setBlendMode(Phaser.BlendModes.ADD).setDepth(-800);
     this.tweens.add({ targets: glow, alpha: .18, duration: 2200, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
-    const FEET = 402, PFEET = 396;                                  // garis pijak di papan panggung
+    const FEET = 390, PFEET = 386;                                  // garis pijak di papan panggung
     this.add.image(W / 2, FEET - 3, 'shadow').setScale(1.1).setAlpha(.9);
     const st = LOBBY_PET_STAGE;   // selalu pet tahap 1
     const PX = [52, 110, 250, 308].map(x => x + OX);   // tata letak lama (lebar 360) digeser ke tengah
@@ -2052,8 +2083,11 @@ class Lobby extends Base {
     this.heroAnim();
     this.add.sprite(W / 2, FEET, 'tois_anim').setOrigin(.5, 1).setScale(118 / TOIS_ANIM.fh).play('tois_idle');   // Tois animasi (GIF), berpijak di panggung
     // bos berdiri di depan gerbang
-    const bossId = getStageBoss(selectedIsland, selectedStage), bs = 118 / SPR['mon' + bossId].ih, boss = this.add.sprite(W / 2, 176, 'mon' + bossId).setScale(bs).play('mon' + bossId + '_move');   // golem lava animasi (langkah, lengan, api)
-    this.add.particles(W / 2, 120, 'spark', { x: { min: -48, max: 48 }, speedY: { min: -120, max: -45 }, speedX: { min: -22, max: 22 }, lifespan: 900, scale: { start: 1.5, end: 0 }, tint: [0xff7a2e, 0xffc233, 0xff4d2e], frequency: 38, blendMode: 'ADD' });
+    const bossId = getStageBoss(selectedIsland, selectedStage), bs = 118 / SPR['mon' + bossId].ih, boss = this.add.sprite(W / 2 + 10, 160, 'mon' + bossId).setScale(bs).play('mon' + bossId + '_move');   // golem lava animasi (langkah, lengan, api)
+    this.add.particles(W / 2 + 10, 108, 'spark', { x: { min: -40, max: 40 }, speedY: { min: -120, max: -45 }, speedX: { min: -22, max: 22 }, lifespan: 900, scale: { start: 1.5, end: 0 }, tint: [0xff7a2e, 0xffc233, 0xff4d2e], frequency: 38, blendMode: 'ADD' });
+    // pintu kayu jebol di depan bos: bos tampak berdiri di balik pintu (potongan dari lobby.jpg, posisi piksel bbox 535,590 ukuran 580x412 pada gambar 1570 lebar)
+    const K = 1570 / 390;
+    this.add.image(535 / K, 590 / K, 'lobby_door').setOrigin(0, 0).setDisplaySize(580 / K, 412 / K).setDepth(2);
     // daun yang melayang dan debu cahaya
     this.add.particles(0, 0, 'leaf', { x: { min: -20, max: W }, y: -10, speedX: { min: 12, max: 38 }, speedY: { min: 20, max: 40 }, rotate: { start: 0, end: 360 }, lifespan: 9000, scale: { start: 1, end: .7 }, alpha: { start: .95, end: .25 }, tint: [0x8fd36a, 0xc8e07a, 0xf2c14e, 0x6fbf5a], frequency: 1400 }).setDepth(900);
     this.add.particles(0, 0, 'spark', { x: { min: 0, max: W }, y: { min: 250, max: 640 }, speedY: { min: -40, max: -15 }, lifespan: 3000, scale: { start: .5, end: 0 }, alpha: { start: .7, end: 0 }, tint: 0xffe3b8, frequency: 160 });
@@ -2063,7 +2097,7 @@ class Lobby extends Base {
 
 // Selagi pemain masih di halaman login, unduh aset game di latar belakang (sedikit demi sedikit) agar masuk lobi tidak menunggu lama.
 function prefetchAssets() {
-  const urls = [FUSION_ZONE.src, FUSION_LASER.src, 'assets/backgrounds/lobby.jpg', 'assets/backgrounds/toko.jpg', 'assets/characters/dika.webp', TOIS_ANIM.src, BATTLE_HERO_SRC];
+  const urls = [FUSION_ZONE.src, FUSION_LASER.src, 'assets/backgrounds/lobby.jpg?v=2', 'assets/backgrounds/lobby_door.png?v=1', 'assets/backgrounds/toko.jpg', 'assets/characters/dika.webp', TOIS_ANIM.src, BATTLE_HERO_SRC];
   Object.keys(MON).forEach(i => { const s = SPR['mon' + i]; if (s) urls.push('assets/' + s.file); });
   ELS.forEach(el => [1, 2, 3].forEach(n => { const s = SPR['pet_' + el + n]; if (s) urls.push('assets/' + s.file); }));
   ['fire_slash.png', 'fire_orb.png', 'ice_arrow.png', 'ice_freeze.png', 'water_fx.png', 'wind_blade.png?v=w2', 'wind_tornado.png?v=w3',

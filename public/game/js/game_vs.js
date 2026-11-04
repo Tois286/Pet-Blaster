@@ -30,7 +30,8 @@ const VS_MODES = {
 const VS_RULES = {
   roleFirstRound: 'random',   // peran babak pertama diundi: sisi A atau B jadi penyerang
   swapEachRound: true,        // setiap babak berikutnya peran ditukar
-  rounds: 2                   // tiap sisi sempat jadi penyerang dan penahan satu kali
+  rounds: 2,                  // tiap sisi sempat jadi penyerang dan penahan satu kali
+  maxPets: 2                  // penahan hanya boleh memanggil 2 karakter pet per babak (berlaku di semua mode VS)
 };
 
 const vsOpposite = role => role === VS_ROLE.ATTACK ? VS_ROLE.DEFEND : VS_ROLE.ATTACK;
@@ -50,9 +51,9 @@ function vsArenaFor(mode, role) {
 // ---- Aturan wave dan kartu monster ----
 // Penahan: menembaki monster yang datang (sistem tembak yang sudah ada di Battle).
 // Penyerang: tidak menembak, tetapi mengatur monster yang dikirim tiap wave lewat kartu.
-// Satu babak = 5 wave. Penyerang punya total 50 monster per babak: 47 monster biasa + 2 elite + 1 bos.
+// Satu babak = 5 wave. Penyerang punya total 100 monster per babak: 97 monster biasa + 2 elite + 1 bos.
 const VS_WAVES = 5;                 // jumlah wave dalam satu babak
-const VS_BUDGET = { total: 50, elite: 2, boss: 1 };   // total termasuk elite dan bos; sisanya monster biasa (47)
+const VS_BUDGET = { total: 100, elite: 2, boss: 1 };   // total termasuk elite dan bos; sisanya monster biasa (97)
 const VS_HAND = 3;                  // jumlah kartu monster yang muncul tiap wave
 const VS_SPECIAL_FROM = 3;          // kartu elite dan bos baru bisa muncul mulai wave ini
 // Jenis kartu. Elite = monster besar (golem/naga mini/tank), bos = bos final pulau; sisanya monster biasa.

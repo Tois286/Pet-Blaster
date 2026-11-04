@@ -93,6 +93,14 @@ class VsBattle extends Battle {
   addEnemy(o) {   // jalur arena panjang jauh lebih panjang: monster dipercepat VS_VIEW.speed
     super.addEnemy(o); const e = this.enemies[this.enemies.length - 1]; if (e && this.arenaTop < 0) e.sp *= VS_VIEW.speed;
   }
+  // ---- Batas pet penahan: maksimal VS_RULES.maxPets karakter pet per babak (di semua mode VS) ----
+  vsPetCount() { return this.pets.filter(p => p.on || p.fused).length; }   // pet yang sedang melebur (fusion) tetap dihitung agar tidak bisa dipanggil ulang
+  petFull() { return this.vsPetCount() >= VS_RULES.maxPets; }
+  addPet(el) {   // jaga-jaga bila ada jalur lain yang memanggil pet: tolak pet baru kalau jatah penuh
+    const p = this.pets.find(o => o.el === el);
+    if (!p || p.on || p.fused || this.petFull()) return;
+    super.addPet(el);
+  }
   // ---- Pencatat penentu cadangan (dipakai vsJudge saat HP kedua benteng sama) ----
   vsScanReach() {   // hitung tiap monster satu kali begitu ia mulai memukul tembok (atau menembak dari jarak jauh)
     (this.enemies || []).forEach(e => { if (e.atk && !e._vr && !e.dead) { e._vr = 1; this.vsReach++; } });

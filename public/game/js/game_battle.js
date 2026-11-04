@@ -123,6 +123,7 @@ class Battle extends Base {
     $('evoOk').onclick = () => { $('evo').hidden = true; this.evoCur = null; this.choosing = false; if (!this.paused) { this.tweens.resumeAll(); this.anims.resumeAll(); } this.checkLevel(); };
   }
   hasPet() { return this.pets.some(p => p.on); }
+  petFull() { return false; }   // true = kartu "Panggil pet" tidak ditawarkan lagi; mode VS membatasi jumlah pet (VsBattle.petFull)
   addPet(el) {   // pet pendukung muncul di slot kosong berikutnya (kiri ke kanan)
     const p = this.pets.find(o => o.el === el), used = this.pets.filter(o => o.on || o.fused).map(o => o.x), n = Math.max(0, PET_SLOTS.findIndex(x => !used.includes(x)));   // slot kosong pertama; slot pet yang sedang melebur dicadangkan agar saat fusion berakhir ia kembali ke posisi aslinya
     p.on = true; p.cd = 1000; p.x = PET_SLOTS[n]; p.setVisible(true).setAlpha(0);
@@ -140,7 +141,7 @@ class Battle extends Base {
   }
   showCards() {
     const sh = a => Phaser.Utils.Array.Shuffle([...a]);
-    const petCards = this.pets.filter(p => !p.on && !p.fused).map(p => ({ img: 'assets/pets/' + p.el + '1.png', n: 'Panggil ' + EVO[p.el][0], d: 'Skill: ' + SK[p.el][0].n, go: b => b.addPet(p.el) }));
+    const petCards = this.petFull() ? [] : this.pets.filter(p => !p.on && !p.fused).map(p => ({ img: 'assets/pets/' + p.el + '1.png', n: 'Panggil ' + EVO[p.el][0], d: 'Skill: ' + SK[p.el][0].n, go: b => b.addPet(p.el) }));
     const upCards = this.pets.filter(p => p.on && p.stage < 3).flatMap(p => PET_CARDS.filter(c => c.ok(p)).map(c => ({
       img: 'assets/pets/' + p.el + p.stage + '.png', n: EVO[p.el][p.stage - 1] + ': ' + c.n, d: c.d(p), tag: 'Evolusi ' + (p.prog + 1) + '/' + EVO_NEED[p.stage - 1], go: b => b.petCard(p, c)
     })));

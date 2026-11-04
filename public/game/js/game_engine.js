@@ -14,7 +14,7 @@ class Base extends Phaser.Scene {
     const sk = skinOf(skinWorn());   // skin Tois yang sedang dipakai (hanya ini yang diunduh)
     if (!this.textures.exists(skinIdleKey(sk))) this.load.spritesheet(skinIdleKey(sk), sk.idle.src, { frameWidth: sk.idle.fw, frameHeight: sk.idle.fh });   // idle Tois (lobi)
     const wo = outfitWorn(); if (wo !== 'base' && !outfitHasSkin(wo) && !this.textures.exists('outfit_' + wo)) this.load.image('outfit_' + wo, outfitImg(wo));   // outfit Tois yang sedang dipakai (hanya yang sudah dibeli)
-    if (!this.textures.exists(skinBattleKey(sk))) this.load.spritesheet(skinBattleKey(sk), sk.battle, { frameWidth: BATTLE_SHEET.fw, frameHeight: BATTLE_SHEET.fh });   // sprite tembak Tois (gameplay)
+    if (!this.textures.exists(skinBattleKey(sk))) this.load.spritesheet(skinBattleKey(sk), sk.battle, { frameWidth: battleSheet(sk).fw, frameHeight: battleSheet(sk).fh });   // sprite tembak Tois (gameplay)
     if (!this.textures.exists('lobby_bg')) this.load.image('lobby_bg', 'assets/backgrounds/lobby.jpg?v=2');
     if (!this.textures.exists('lobby_door')) this.load.image('lobby_door', 'assets/backgrounds/lobby_door.png?v=1');   // potongan pintu kayu jebol (transparan) yang menutupi bos
     // Monster dan pet = sprite sheet animasi (dibuat tools/make_sprites.py; ukuran frame ada di SPR, js/sprites-data.js)
@@ -89,6 +89,12 @@ class Base extends Phaser.Scene {
     T('feather', 14, 34, g => { g.fillStyle(0xffffff).fillEllipse(7, 17, 9, 32); g.lineStyle(1, 0x9fd8ee).lineBetween(7, 2, 7, 32); });
     T('arrow', 40, 10, g => { g.fillStyle(0xffffff).fillRect(4, 4, 28, 2); g.fillTriangle(40, 5, 30, 0, 30, 10); g.fillStyle(0xffffff, .6).fillTriangle(0, 0, 9, 5, 0, 5).fillTriangle(0, 10, 9, 5, 0, 5); });   // panah (menghadap kanan)
     T('ring', 64, 64, g => { g.lineStyle(5, 0xffffff, 1).strokeCircle(32, 32, 28); g.lineStyle(2, 0xffffff, .4).strokeCircle(32, 32, 22); });
+    // peluru tiap skin Tois (menghadap ke atas; SKIN_FX di game_tois.js)
+    T('bul_elite', 12, 38, g => { g.fillStyle(0xffd34d, .25).fillEllipse(6, 22, 12, 30); g.fillStyle(0xffd34d, .4).fillTriangle(3, 30, 9, 30, 6, 38); g.fillStyle(0xffb300).fillTriangle(6, 0, 11, 31, 1, 31); g.fillStyle(0xfff3b0).fillTriangle(6, 4, 9, 27, 3, 27); g.fillStyle(0xffffff).fillCircle(6, 7, 2); });
+    T('bul_master', 28, 28, g => { g.fillStyle(0x2fd6ff, .25).fillCircle(14, 14, 14); g.fillStyle(0x4fe6ff, .75).fillCircle(14, 14, 9); g.lineStyle(2, 0xbff6ff, 1).strokeCircle(14, 14, 11); g.fillStyle(0xffffff).fillCircle(14, 14, 4); g.fillStyle(0xffffff).fillRect(13, 1, 2, 5); });
+    T('bul_epic', 24, 42, g => { const P = [{ x: 12, y: 0 }, { x: 22, y: 22 }, { x: 12, y: 42 }, { x: 2, y: 22 }]; g.fillStyle(0xd13bd8).fillPoints(P, true); g.fillStyle(0xff9df0, .95).fillTriangle(12, 0, 2, 22, 12, 42); g.fillStyle(0x8a1fb0, .8).fillTriangle(12, 0, 22, 22, 12, 42); g.lineStyle(1.5, 0xffd6fa, 1).strokePoints(P, true); g.fillStyle(0xffffff, .9).fillCircle(12, 20, 3); });
+    T('bul_legendary', 30, 50, g => { g.fillStyle(0xff4a1e, .45).fillTriangle(15, 50, 3, 18, 27, 18); g.fillStyle(0xff7a1a).fillTriangle(15, 44, 4, 17, 26, 17); g.fillStyle(0xff7a1a).fillCircle(15, 16, 12); g.fillStyle(0xffc928).fillTriangle(15, 36, 8, 17, 22, 17); g.fillStyle(0xffc928).fillCircle(15, 16, 8); g.fillStyle(0xffffff).fillCircle(15, 15, 4.5); });
+    T('bul_mythical', 34, 34, g => { g.fillStyle(0x7a4be0, .3).fillCircle(17, 17, 17); g.fillStyle(0x9b6bff, .85).fillCircle(17, 17, 10); g.lineStyle(2, 0xffd34d, 1).strokeCircle(17, 17, 11); g.fillStyle(0xffd34d); g.fillTriangle(17, 0, 20, 17, 14, 17); g.fillTriangle(17, 34, 20, 17, 14, 17); g.fillTriangle(0, 17, 17, 14, 17, 20); g.fillTriangle(34, 17, 17, 14, 17, 20); g.fillStyle(0xffffff).fillCircle(17, 17, 3.5); });
     T('cloud', 120, 50, g => { g.fillStyle(0xffffff, .85).fillEllipse(40, 30, 60, 30).fillEllipse(72, 24, 56, 34).fillEllipse(92, 32, 50, 24); });
   }
 

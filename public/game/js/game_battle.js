@@ -222,8 +222,37 @@ class Battle extends Base {
   }
   shoot(mx, my, t, d) {
     const dx = t.s.x - mx, dy = t.s.y - my, len = Math.hypot(dx, dy) || 1;
-    this.bullets.push({ s: this.add.image(mx, my, 'bullet').setDepth(600), vx: dx / len * .75, vy: dy / len * .75, d });
-    this.flash.emitParticleAt(mx, my, 4);
+    const f = skinFx(), sp = f.speed || .75, s = this.add.image(mx, my, f.tex).setDepth(600);
+    if (f.align) s.setRotation(Math.atan2(dy, dx) + Math.PI / 2);
+    let crit = false; if (f.crit && Math.random() < f.crit.p) { crit = true; d = Math.ceil(d * f.crit.m); s.setScale(1.35); }   // peluru kritis (Epic): lebih besar dan lebih sakit
+    this.bullets.push({ s, vx: dx / len * sp, vy: dy / len * sp, d, fx: f, tr: 0, pl: f.pierce ? f.pierce.n : 0, crit });
+    this.flash.emitParticleAt(mx, my, 4); this.muzzleFx(mx, my, f);
+  }
+  muzzleFx(x, y, f) {   // kilatan warna skin di moncong
+    if (!f.muz) return;
+    const o = this.add.image(x, y, 'orb').setTint(f.muz).setScale(.55).setDepth(610).setBlendMode(Phaser.BlendModes.ADD);
+    this.tweens.add({ targets: o, scale: .08, alpha: 0, duration: 140, onComplete: () => o.destroy() });
+  }
+  bulletFx(b, dt) {   // putaran + jejak peluru tiap skin
+    const f = b.fx; if (!f || !b.s.active) return;
+    if (f.spin) b.s.rotation += f.spin * dt / 1000;
+    const T = f.trail; if (!T) return;
+    b.tr += dt; if (b.tr < T.every) return; b.tr = 0;
+    const col = Array.isArray(T.color) ? T.color[Math.floor(Math.random() * T.color.length)] : T.color, j = T.jit || 0;
+    const p = this.add.image(b.s.x + (j ? Phaser.Math.Between(-j, j) : 0), b.s.y + 8, T.tex || 'spark').setTint(col).setScale(T.s).setAlpha(T.a || .85).setDepth(590).setBlendMode(Phaser.BlendModes.ADD);
+    this.tweens.add({ targets: p, alpha: 0, scale: 0, y: p.y + (T.drift || 0), duration: T.life, onComplete: () => p.destroy() });
+  }
+  impactFx(x, y, f) {   // efek benturan peluru: cincin, cahaya, dan percikan sesuai skin
+    const I = f && f.imp; if (!I) return;
+    const col = c => Array.isArray(c) ? c[Math.floor(Math.random() * c.length)] : c, add = (k, c, sc) => this.add.image(x, y, k).setTint(c).setScale(sc).setDepth(610).setBlendMode(Phaser.BlendModes.ADD);
+    if (I.ring) { const r = add('ring', I.ring, .15); this.tweens.add({ targets: r, scale: I.rs || .6, alpha: 0, duration: 260, onComplete: () => r.destroy() }); }
+    if (I.glow) { const o = add('orb', I.glow, .25); this.tweens.add({ targets: o, scale: .9, alpha: 0, duration: 200, onComplete: () => o.destroy() }); }
+    const n = I.n || 0, tex = I.tex || 'spark';
+    for (let i = 0; i < n; i++) {
+      const a = i / n * Math.PI * 2 + Math.random() * .4, dist = (I.r || 26) * (.6 + Math.random() * .6), p = add(tex, col(I.color), I.s || .5);
+      if (tex === 'shard') p.setRotation(a + Math.PI / 2); else if (tex === 'arrow') p.setRotation(a);
+      this.tweens.add({ targets: p, x: x + Math.cos(a) * dist, y: y + Math.sin(a) * dist - (I.rise || 0), alpha: 0, scale: (I.s || .5) * .3, duration: I.life || 260, ease: 'Quad.Out', onComplete: () => p.destroy() });
+    }
   }
   fire() {
     if (this.reloading || this.ammo <= 0) return;
@@ -1053,7 +1082,7 @@ class Battle extends Base {
       }
     }
   }
-  get heroDmg() { return this.buffT > 0 ? Math.ceil(this.dmg * SKILL_BUFF - 1e-9) : this.dmg; }   // damage peluru Tois (pet tidak ikut terpengaruh)
+  get heroDmg() { const base = this.buffT > 0 ? Math.ceil(this.dmg * SKILL_BUFF - 1e-9) : this.dmg; return Math.ceil(base * skinFx().dmgMul - 1e-9); }   // damage peluru Tois (pet tidak ikut terpengaruh)
   skill() {     // Badai Peluru: Tois +10% damage & +10% kecepatan tembak selama 10 detik, cooldown 25 detik (tanpa damage ke musuh)
     if (this.over || this.paused || this.choosing || this.skillCd > 0) return;
     this.skillCd = this.skillMax; this.buffT = SKILL_BUFF_MS;
@@ -1113,7 +1142,14 @@ class Battle extends Base {
     navigator.vibrate && navigator.vibrate(e.big ? 30 : 15);
   }
   hit(e, b) {
-    b.dead = true; b.s.destroy(); this.dmgTo(e, b.d || this.dmg, true);
+    const f = b.fx, d = b.d || this.dmg, x = b.s.x, y = b.s.y;
+    if (f && f.pierce && b.pl > 0) { b.pl--; (b.hitSet = b.hitSet || new Set()).add(e); b.d = Math.ceil(d * f.pierce.m); }   // menembus: lanjut ke musuh berikutnya dengan damage berkurang
+    else { b.dead = true; b.s.destroy(); }
+    this.dmgTo(e, d, true);
+    if (!f) return;
+    this.impactFx(x, y, f);
+    if (b.crit) this.pop(e.s.x, e.s.y - e.h * .8, 'CRIT!', f.crit.color, 13);
+    if (f.burn && !e.dead) this.ignite(e, d, f.burn);   // Legendary: target terbakar
   }
   dmgTo(e, d, fromHero) {   // fromHero = peluru Tois: terpental hanya saat ultimate (Badai Peluru) aktif
     if (e.dead) return; const gain = Math.max(0, Math.min(d, e.hp)); e.hp -= d;   // EXP = damage nyata (kelebihan damage tidak dihitung)
@@ -1147,7 +1183,7 @@ class Battle extends Base {
     const sb = $('skillBtn'), st = this.skillCd > 0 ? Math.ceil(this.skillCd / 1000) + 's' : '';   // siap = tampil gambar ikon dari CSS (.skill), cooldown = hitungan detik
     if (sb.textContent !== st) { sb.textContent = st; sb.disabled = this.skillCd > 0; }
     if (!this.reloading && this.shotT >= Math.max(120, 700 / this.rate) / (this.buffT > 0 ? SKILL_BUFF : 1) / (this.manual ? 2 : 1)) { this.shotT = 0; this.fire(); }
-    for (const b of this.bullets) { b.s.x += b.vx * dt; b.s.y += b.vy * dt; }
+    for (const b of this.bullets) { b.s.x += b.vx * dt; b.s.y += b.vy * dt; this.bulletFx(b, dt); }
     for (const e of this.enemies) {
       if (e.dead) continue;
       e.stun = Math.max(0, (e.stun || 0) - dt); e.frz = Math.max(0, (e.frz || 0) - dt); e.slow = Math.max(0, (e.slow || 0) - dt); e.hitT = Math.max(0, e.hitT - dt);
@@ -1195,7 +1231,7 @@ class Battle extends Base {
     }
     for (const b of this.bullets) {
       for (const e of this.enemies) {
-        if (b.dead || e.dead) continue;
+        if (b.dead || e.dead || (b.hitSet && b.hitSet.has(e))) continue;
         if (Phaser.Math.Distance.Between(b.s.x, b.s.y, e.s.x, e.s.y) < e.r + 8) { this.hit(e, b); break; }
       }
       if (!b.dead && (b.s.y < -20 || b.s.x < -20 || b.s.x > W + 20)) { b.dead = true; b.s.destroy(); }

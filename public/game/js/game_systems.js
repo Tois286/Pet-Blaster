@@ -54,7 +54,7 @@ function refreshLobbyScene() {   // bangun ulang lobi (bos & tampilan) setelah p
 }
 function showProfile(d) {
   profile = d; const p = d.progress;
-  if (OUTFIT_LOCAL) { const sp = outfitStore().spent; p.coins = Math.max(0, (+p.coins || 0) - sp.coin); p.gems = Math.max(0, (+p.gems || 0) - sp.gem); }   // pembelian outfit (lokal) dikurangkan dari saldo server
+  if (OUTFIT_LOCAL) { const sp = outfitStore().spent; p.coins = Math.max(0, (+p.coins || 0) - sp.coin - goodbyeStore().spent - noodleStore().spent + lotreCoinDelta()); p.gems = Math.max(0, (+p.gems || 0) - sp.gem + lotreGemDelta()); }   // pembelian outfit (lokal) dikurangkan dari saldo server
   $('playerName').textContent = d.username; $('coins').textContent = p.coins; $('gems').textContent = +p.gems || 0;
   $('level').textContent = p.level; $('bestWave').textContent = p.best_wave;
   const bw = +p.best_wave;

@@ -10,6 +10,7 @@
 - `game_systems.js` : API, profil, autentikasi, penyimpanan battle, serta state global.
 - `game_engine.js` : Base Phaser, preload aset, animasi, tekstur, dan loading.
 - `game_battle.js` : kelas Battle dan logika runtime pertempuran.
+- `game_lotre.js` : menu Lotre Tarik (pull-tab) di Toko: tabel hadiah, papan segitiga, harga tiket (LOTRE.price = 250 koin; hadiah: koin, gem, Goodbye, Mie Kari, skin Epic), penyimpanan, dan tampilannya. Dimuat sebelum `game_ui.js`.
 - `game_ui.js` : lobi, hasil pertempuran, toko, menu, dan inisialisasi scene Lobby.
 
 ## Cara pemasangan

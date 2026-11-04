@@ -14,6 +14,7 @@
     'game_systems.js',
     'game_engine.js',
     'game_battle.js',
+    'game_lotre.js',
     'game_ui.js'
   ];
 

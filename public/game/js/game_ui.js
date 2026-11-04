@@ -62,13 +62,122 @@ menu('sideR', [['📢', 'Info'], ['✉️', 'Surat'], ['👥', 'Teman'], ['📋'
 // Menu penjualan Dika di halaman Toko: klik satu menu -> menu lain tertutup, yang dipilih mengecil, panel isi (sementara putih) tampil; klik lagi untuk kembali
 function resetShopMenu() {
   const m = $('shopMenu'); if (!m) return;
-  m.classList.remove('open'); m.querySelectorAll('[data-shop]').forEach(b => b.classList.remove('sel')); $('shopPanel').innerHTML = ''; $('shopPanel').classList.remove('outfit');
+  m.classList.remove('open'); m.querySelectorAll('[data-shop]').forEach(b => b.classList.remove('sel')); $('shopPanel').innerHTML = ''; $('shopPanel').classList.remove('outfit', 'goodbye', 'lotre', 'ltlock');
 }
+// ---- Menu Upgrade Toko (Dika): Goodbye + Mie Kari. Goodbye: Harga per gelas = GOODBYE.price koin; 3 kotak paket: 1, 6, 10 gelas. Jumlah gelas + koin terpakai disimpan di perangkat (sementara, sama seperti outfit). ----
+const GOODBYE = {
+  name: 'Goodbye', price: 500, icon: 'assets/shop/goodbye-icon.webp?v=1',
+  packs: [
+    { qty: 1, img: 'assets/shop/goodbye-1.webp?v=1', color: '#c98a4b' },
+    { qty: 6, img: 'assets/shop/goodbye-6.webp?v=1', color: '#4b9be0' },
+    { qty: 10, img: 'assets/shop/goodbye-10.webp?v=1', color: '#e0a82e' }
+  ]
+};
+const goodbyeKey = () => 'petblaster-goodbye-' + (profile?.username || 'guest');
+function goodbyeStore() {
+  try { const o = JSON.parse(localStorage.getItem(goodbyeKey()) || '{}'); return { qty: +o.qty || 0, spent: +o.spent || 0 }; }
+  catch (_) { return { qty: 0, spent: 0 }; }
+}
+function saveGoodbyeStore(o) { try { localStorage.setItem(goodbyeKey(), JSON.stringify(o)); } catch (_) { } }
+let goodbyeBusy = false;
+// ---- Mie Kari: produk kedua di menu Upgrade, ditaruh di bawah Goodbye. Harga per mangkuk = NOODLE.price koin. Jumlah per varian + koin terpakai disimpan di perangkat. ----
+const NOODLE = {
+  name: 'Mie Kari', price: 1000, icon: 'assets/shop/noodle-biasa.webp?v=1',
+  items: [
+    { id: 'biasa', name: 'Mie Kari Biasa', img: 'assets/shop/noodle-biasa.webp?v=1', color: '#e0a82e' },
+    { id: 'double', name: 'Mie Kari Double', img: 'assets/shop/noodle-double.webp?v=1', color: '#ee7a2e' },
+    { id: 'telur', name: 'Mie Kari Double Extra Telur', img: 'assets/shop/noodle-telur.webp?v=1', color: '#e0483a' }
+  ]
+};
+const noodleKey = () => 'petblaster-noodle-' + (profile?.username || 'guest');
+function noodleStore() {
+  try { const o = JSON.parse(localStorage.getItem(noodleKey()) || '{}'), q = o.q || {}; return { q: { biasa: +q.biasa || 0, double: +q.double || 0, telur: +q.telur || 0 }, spent: +o.spent || 0 }; }
+  catch (_) { return { q: { biasa: 0, double: 0, telur: 0 }, spent: 0 }; }
+}
+function saveNoodleStore(o) { try { localStorage.setItem(noodleKey(), JSON.stringify(o)); } catch (_) { } }
+const noodleTotal = () => Object.values(noodleStore().q).reduce((a, b) => a + b, 0);
+(() => { const st = document.createElement('style'); st.textContent =
+  // Panel Upgrade: dua menu (Goodbye, Mie Kari) disusun padat; ukuran gambar & jarak mengikuti tinggi layar (vh) supaya keduanya terlihat tanpa scroll
+  '#shopPanel.goodbye{display:flex;flex-direction:column;justify-content:space-evenly;gap:clamp(6px,1.4vh,12px);background:linear-gradient(180deg,#2b1d4a,#1d1330);color:#fff;border-radius:16px;padding:clamp(6px,1.4vh,12px) 10px;overflow:auto;box-sizing:border-box}'
+  + '.upsec{display:flex;flex-direction:column;gap:clamp(3px,.8vh,8px);padding-bottom:clamp(4px,1vh,10px);border-bottom:1px dashed rgba(255,255,255,.18)}.upsec:last-of-type{border-bottom:0;padding-bottom:0}'
+  + '.uphead{display:flex;align-items:center;gap:8px}.uphead>img{width:clamp(28px,4.6vh,40px);height:clamp(28px,4.6vh,40px);object-fit:contain;filter:drop-shadow(0 2px 3px rgba(0,0,0,.45))}'
+  + '.uphead h4{margin:0;font-size:15px;line-height:1.1}.uphead p{margin:1px 0 0;font-size:11px;opacity:.85}'
+  + '.upown{margin-left:auto;text-align:center;padding:2px 10px;border-radius:10px;background:rgba(255,255,255,.1);font-size:10px;line-height:1.15}.upown b{display:block;font-size:16px;color:#ffd34d}'
+  + '.upown.pop b{animation:uppop .4s ease-out}@keyframes uppop{0%{transform:scale(1)}40%{transform:scale(1.35)}100%{transform:scale(1)}}'
+  + '.upgrid{display:flex;gap:10px;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;scrollbar-width:none;touch-action:pan-x pan-y;padding:12px 6px 6px;margin:0 -4px;cursor:grab}'
+  + '.upgrid::-webkit-scrollbar{display:none}.upgrid.drag{cursor:grabbing;scroll-snap-type:none}'
+  + '.upcard{position:relative;flex:0 0 clamp(120px,40%,152px);scroll-snap-align:start;display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 4px 6px;min-width:0;box-sizing:border-box;border-radius:12px;border:2px solid var(--rc);background:radial-gradient(circle at 50% 40%,rgba(255,255,255,.15),rgba(0,0,0,.25));box-shadow:0 3px 0 rgba(0,0,0,.35)}'
+  + '.upqty{position:absolute;top:-10px;left:50%;transform:translateX(-50%);padding:0 10px;border-radius:9px;background:var(--rc);color:#1d1330;font-style:normal;font-weight:800;font-size:12px;line-height:17px;white-space:nowrap}'
+  + '.upbadge{position:absolute;top:-9px;right:-5px;min-width:19px;height:19px;padding:0 5px;box-sizing:border-box;border-radius:10px;background:#2fa84f;color:#fff;font:800 11px/19px system-ui,sans-serif;text-align:center}'
+  + '.upart{width:100%;height:clamp(52px,11.5vh,100px);display:flex;align-items:center;justify-content:center}.upart img{max-width:100%;max-height:100%;object-fit:contain;filter:drop-shadow(0 3px 3px rgba(0,0,0,.45));transition:transform .15s}'
+  + '.upcard:active .upart img{transform:scale(.93)}'
+  + '.upname{display:flex;align-items:center;justify-content:center;min-height:2.3em;font-size:11px;line-height:1.15;text-align:center}'
+  + '.upbuy{width:100%;min-width:0;padding:5px 2px;font-size:12px;white-space:nowrap}.upbuy:disabled{opacity:.5}'
+  + '.upcoin{margin:0;text-align:center;font-size:11px;opacity:.9}.upcoin b{color:#ffd34d}';
+  document.head.appendChild(st); })();
+const isShopUpgrade = b => /upgrade/i.test([b.dataset.shop || '', b.getAttribute('aria-label') || '', b.textContent, ...[...b.querySelectorAll('img')].map(i => i.alt)].join(' '));
+(() => {   // Goodbye tampil di menu "Upgrade" Toko. Bila menu Upgrade belum ada di index.html, tombolnya dibuat dengan meniru tombol menu yang sudah ada.
+  const m = $('shopMenu'); if (!m) return;
+  const btns = [...m.querySelectorAll('[data-shop]')]; if (!btns.length || btns.some(isShopUpgrade)) return;
+  const nb = btns[0].cloneNode(true); nb.dataset.shop = 'upgrade'; nb.classList.remove('sel');
+  const img = nb.querySelector('img'); if (img) { img.src = GOODBYE.icon; img.srcset = ''; img.alt = 'Upgrade'; }
+  const leaf = [...nb.querySelectorAll('*')].find(e => !e.children.length && e.tagName !== 'IMG' && e.textContent.trim());
+  if (leaf) leaf.textContent = 'Upgrade';
+  else { const t = [...nb.childNodes].find(n => n.nodeType === 3 && n.textContent.trim()); if (t) t.textContent = 'Upgrade'; else if (!img) nb.textContent = '⬆️ Upgrade'; }
+  btns[0].parentNode.appendChild(nb);
+})();
+const fmtID = n => n.toLocaleString('id-ID');
+function buyGoodbye(qty) {
+  const pk = GOODBYE.packs.find(x => x.qty === qty); if (goodbyeBusy || !pk) return;
+  const cost = qty * GOODBYE.price;
+  if ((+profile.progress.coins || 0) < cost) { say('Koin tidak cukup untuk ' + qty + ' gelas Goodbye.'); return; }
+  goodbyeBusy = true;
+  const s = goodbyeStore(); s.qty += qty; s.spent += cost; saveGoodbyeStore(s);
+  profile.progress.coins = (+profile.progress.coins || 0) - cost;
+  syncCoinsUI(); say('Berhasil membeli ' + qty + ' gelas Goodbye!');
+  goodbyeBusy = false; renderUpgradePanel('goodbye');
+}
+function buyNoodle(id) {
+  const it = NOODLE.items.find(x => x.id === id); if (goodbyeBusy || !it) return;
+  if ((+profile.progress.coins || 0) < NOODLE.price) { say('Koin tidak cukup untuk ' + it.name + '.'); return; }
+  goodbyeBusy = true;
+  const s = noodleStore(); s.q[id] += 1; s.spent += NOODLE.price; saveNoodleStore(s);
+  profile.progress.coins = (+profile.progress.coins || 0) - NOODLE.price;
+  syncCoinsUI(); say('Berhasil membeli ' + it.name + '!');
+  goodbyeBusy = false; renderUpgradePanel('noodle');
+}
+function renderUpgradePanel(pop) {   // menu Upgrade Toko: Goodbye di atas, Mie Kari di bawah; keduanya terlihat tanpa scroll
+  const p = $('shopPanel'), coins = +profile?.progress?.coins || 0, nq = noodleStore().q;
+  p.classList.remove('outfit'); p.classList.add('goodbye');
+  const keepX = [...p.querySelectorAll('.upgrid')].map(g => g.scrollLeft);   // posisi geser tiap baris dipertahankan setelah membeli
+  const head = (icon, title, sub, total, key) => `<div class="uphead"><img src="${icon}" alt=""><div><h4>${title}</h4><p>${sub}</p></div><div class="upown${pop === key ? ' pop' : ''}">Dimiliki<b>${fmtID(total)}</b></div></div>`;
+  p.innerHTML = `<section class="upsec">${head(GOODBYE.icon, GOODBYE.name, '🪙 ' + fmtID(GOODBYE.price) + ' / gelas', goodbyeStore().qty, 'goodbye')}<div class="upgrid">`
+    + GOODBYE.packs.map(k => { const cost = k.qty * GOODBYE.price;
+      return `<article class="upcard" style="--rc:${k.color}"><em class="upqty">×${k.qty}</em><div class="upart"><img src="${k.img}" alt="${k.qty} gelas ${GOODBYE.name}"></div><b class="upname">${k.qty} Gelas</b><button type="button" class="btn main upbuy" data-gbuy="${k.qty}" ${coins < cost ? 'disabled' : ''}>🪙 ${fmtID(cost)}</button></article>`; }).join('')
+    + `</div></section><section class="upsec">${head(NOODLE.icon, NOODLE.name, '🪙 ' + fmtID(NOODLE.price) + ' / mangkuk', noodleTotal(), 'noodle')}<div class="upgrid">`
+    + NOODLE.items.map(k =>
+      `<article class="upcard" style="--rc:${k.color}">${nq[k.id] ? `<i class="upbadge">${fmtID(nq[k.id])}</i>` : ''}<div class="upart"><img src="${k.img}" alt="${k.name}"></div><b class="upname">${k.name}</b><button type="button" class="btn main upbuy" data-nbuy="${k.id}" ${coins < NOODLE.price ? 'disabled' : ''}>🪙 ${fmtID(NOODLE.price)}</button></article>`).join('')
+    + `</div></section><p class="upcoin">Koinmu: 🪙 <b>${fmtID(coins)}</b></p>`;
+  p.querySelectorAll('.upgrid').forEach((g, i) => {
+    g.scrollLeft = keepX[i] || 0;
+    let down = false, moved = false, x0 = 0, s0 = 0;   // geser dengan mouse (di layar sentuh sudah otomatis)
+    g.onpointerdown = e => { if (e.pointerType !== 'mouse') return; down = true; moved = false; x0 = e.clientX; s0 = g.scrollLeft; };
+    g.onpointermove = e => { if (!down) return; const dx = e.clientX - x0; if (Math.abs(dx) > 5) { moved = true; g.classList.add('drag'); } if (moved) g.scrollLeft = s0 - dx; };
+    const end = () => { down = false; g.classList.remove('drag'); };
+    g.onpointerup = end; g.onpointerleave = end; g.onpointercancel = end;
+    g.onclickcapture = e => { if (moved) { e.stopPropagation(); e.preventDefault(); moved = false; } };   // seret tidak dihitung sebagai klik beli
+  });
+  p.querySelectorAll('[data-gbuy]').forEach(b => b.onclick = () => buyGoodbye(+b.dataset.gbuy));
+  p.querySelectorAll('[data-nbuy]').forEach(b => b.onclick = () => buyNoodle(b.dataset.nbuy));
+}
+ensureLotreButton();   // tombol menu Lotre (game_lotre.js) dibuat dulu supaya ikut diberi onclick di bawah
 document.querySelectorAll('#shopMenu [data-shop]').forEach(b => b.onclick = () => {
   const m = $('shopMenu');
   if (b.classList.contains('sel')) { resetShopMenu(); return; }
   resetShopMenu(); m.classList.add('open'); b.classList.add('sel');
   if (b.dataset.shop === 'outfit') renderOutfitPanel();
+  else if (isShopUpgrade(b)) renderUpgradePanel();   // menu Upgrade Toko = produk Goodbye
+  else if (isShopLotre(b)) openLotrePanel();   // menu Lotre Toko = Lotre Tarik (game_lotre.js)
 });
 // ---- Outfit Tois: dibeli di Toko (Dika), setelah dibeli baru bisa dipakai dan tampil di lobi/menu Karakter ----
 // cur 'coin' = koin, 'gem' = gem, price 0 = gratis. soon:true = belum dijual (gambar ada, tombol beli dikunci). Untuk membuka outfit lain cukup hapus soon:true.
@@ -89,6 +198,8 @@ function outfitStore() {
 function saveOutfitStore(o) { try { localStorage.setItem(outfitKey(), JSON.stringify(o)); } catch (_) { } }
 const outfitOwned = id => id === 'base' || outfitStore().owned.includes(id) || !!(profile && Array.isArray(profile.outfits) && profile.outfits.includes(id));
 const outfitWorn = () => { const w = outfitStore().worn; return OUTFITS.some(o => o.id === w) && outfitOwned(w) ? w : 'base'; };   // outfit hanya tampil bila sudah dibeli
+// GIF idle transparan per outfit untuk pratinjau Toko. Outfit tanpa entri di sini memakai canvas spritesheet / gambar diam seperti sebelumnya.
+const OUTFIT_GIF = Object.fromEntries(SKINS.filter(k => k.gif).map(k => [k.outfit, k.gif]));   // diambil dari SKINS (game_tois.js, field gif)
 const outfitImg = id => 'assets/outfits/' + id + '.webp?v=2';
 let outfitSel = 'base', outfitLobbyDirty = false, outfitBusy = false;
 (() => { const st = document.createElement('style'); st.textContent = '.oact{display:flex;gap:8px;align-items:center;justify-content:center;margin:8px 0}.oact .btn{min-width:150px}.othumbs .ocard{position:relative}.obdg{position:absolute;top:3px;right:3px;font-style:normal;font-size:11px;line-height:1;padding:2px 4px;border-radius:8px;background:rgba(0,0,0,.7);color:#fff}.obdg.worn{background:#2fa84f}.oinfo .ostat{display:block;margin-top:2px;font-size:12px;font-weight:700}'; document.head.appendChild(st); })();
@@ -141,18 +252,25 @@ function renderOutfitPanel() {
   const have = +profile?.progress?.[cur.cur === 'gem' ? 'gems' : 'coins'] || 0;
   const act = cur.id === worn ? '<button type="button" class="btn alt" disabled>✔ Dipakai</button>'
     : own ? `<button type="button" class="btn main" data-wear="${cur.id}">👕 Pakai</button>`
-    : cur.soon ? '<button type="button" class="btn alt" disabled>🔒 Segera hadir</button>'
-    : `<button type="button" class="btn main" data-buy="${cur.id}" ${have < cur.price ? 'disabled' : ''}>${cur.cur === 'gem' ? '💎' : '🪙'} Beli · ${cur.price.toLocaleString('id-ID')}</button>`;
+      : cur.soon ? '<button type="button" class="btn alt" disabled>🔒 Segera hadir</button>'
+        : `<button type="button" class="btn main" data-buy="${cur.id}" ${have < cur.price ? 'disabled' : ''}>${cur.cur === 'gem' ? '💎' : '🪙'} Beli · ${cur.price.toLocaleString('id-ID')}</button>`;
   p.classList.add('outfit');
-  p.innerHTML = `<div class="ofull" style="--rc:${cur.color}">${outfitHasSkin(cur.id) ? `<canvas class="oanim" width="${skinOfOutfit(cur.id).idle.fw}" height="${skinOfOutfit(cur.id).idle.fh}" style="height:100%;max-height:260px;width:auto;max-width:100%;object-fit:contain"></canvas>` : `<img src="${outfitImg(cur.id)}" alt="Outfit ${cur.name}">`}<div class="oinfo"><b>${cur.name}</b><em>${cur.rarity}</em>${own ? '' : outfitPrice(cur)}${status ? `<span class="ostat">${status}</span>` : ''}</div></div>`
+  p.innerHTML = `<div class="ofull" style="--rc:${cur.color}">${OUTFIT_GIF[cur.id] ? `<img class="oanim" src="${OUTFIT_GIF[cur.id]}" alt="Outfit ${cur.name}" style="height:100%;max-height:260px;width:auto;max-width:100%;object-fit:contain">` : outfitHasSkin(cur.id) ? `<canvas class="oanim" width="${skinOfOutfit(cur.id).idle.fw}" height="${skinOfOutfit(cur.id).idle.fh}" style="height:100%;max-height:260px;width:auto;max-width:100%;object-fit:contain"></canvas>` : `<img src="${outfitImg(cur.id)}" alt="Outfit ${cur.name}">`}<div class="oinfo"><b>${cur.name}</b><em>${cur.rarity}</em>${own ? '' : outfitPrice(cur)}${status ? `<span class="ostat">${status}</span>` : ''}</div></div>`
     + `<div class="oact">${act}</div>`
-    + '<div class="othumbs">' + OUTFITS.map(o => `<button type="button" class="ocard${o.id === cur.id ? ' on' : ''}" data-outfit="${o.id}" style="--rc:${o.color}" aria-label="${o.name}"><img src="${outfitImg(o.id)}" alt="" loading="lazy">${o.id === worn ? '<i class="obdg worn">✔</i>' : outfitOwned(o.id) ? '<i class="obdg">Milik</i>' : o.soon ? '<i class="obdg">🔒</i>' : ''}</button>`).join('') + '</div>';
+    + '<div class="othumbs">' + OUTFITS.map(o => `<button type="button" class="ocard${o.id === cur.id ? ' on' : ''}" data-outfit="${o.id}" style="--rc:${o.color}" aria-label="${o.name}"><img src="${OUTFIT_GIF[o.id] ? OUTFIT_GIF[o.id].replace('.gif', '-thumb.gif') : outfitImg(o.id)}" alt="" loading="lazy">${o.id === worn ? '<i class="obdg worn">✔</i>' : outfitOwned(o.id) ? '<i class="obdg">Milik</i>' : o.soon ? '<i class="obdg">🔒</i>' : ''}</button>`).join('') + '</div>';
   startOutfitAnim(p.querySelector('canvas.oanim'), skinOfOutfit(cur.id));
   p.querySelectorAll('[data-outfit]').forEach(c => c.onclick = () => { outfitSel = c.dataset.outfit; renderOutfitPanel(); });
   p.querySelectorAll('[data-buy]').forEach(b => b.onclick = () => buyOutfit(b.dataset.buy));
   p.querySelectorAll('[data-wear]').forEach(b => b.onclick = () => wearOutfit(b.dataset.wear));
 }
-const HUB = [['shop', '🛒', 'Toko'], ['pet', '🐾', 'Pet'], ['char', '🎸', 'Karakter'], ['zone', '🏰', 'Wilayah'], ['guild', '🛡️', 'Guild']];
+// Ikon Rank: tameng dengan dua pedang bersilang di belakangnya (SVG inline, ikut ukuran font tombol).
+const RANK_ICON = '<svg viewBox="0 0 32 32" width="1.15em" height="1.15em" style="vertical-align:-.2em" aria-hidden="true">'
+  + '<g stroke-linecap="round"><path d="M4 4L28 28M28 4L4 28" stroke="#2b1d4a" stroke-width="4.6" fill="none"/><path d="M4 4L28 28M28 4L4 28" stroke="#e6edf5" stroke-width="2.6" fill="none"/>'
+  + '<path d="M5.2 10.8L10.8 5.2M21.2 5.2L26.8 10.8" stroke="#2b1d4a" stroke-width="4.2" fill="none"/><path d="M5.2 10.8L10.8 5.2M21.2 5.2L26.8 10.8" stroke="#ffd34d" stroke-width="2.2" fill="none"/></g>'
+  + '<path d="M16 7L25 10V17C25 23 20.5 26.5 16 28.5C11.5 26.5 7 23 7 17V10Z" fill="#3b6fd8" stroke="#2b1d4a" stroke-width="3.4" stroke-linejoin="round"/>'
+  + '<path d="M16 7L25 10V17C25 23 20.5 26.5 16 28.5C11.5 26.5 7 23 7 17V10Z" fill="#3b6fd8" stroke="#ffd34d" stroke-width="1.6" stroke-linejoin="round"/>'
+  + '<path d="M16 9V26C12.8 24.2 9 21.2 9 17V11.2Z" fill="#6f9bff"/><path d="M16 12.2l1.5 3 3.3.4-2.4 2.3.6 3.3-3-1.6-3 1.6.6-3.3-2.4-2.3 3.3-.4z" fill="#ffd34d"/></svg>';
+const HUB = [['shop', '🛒', 'Toko'], ['pet', '🐾', 'Pet'], ['char', '👤', 'Karakter'], ['zone', '🗺️', 'Wilayah'], ['guild', RANK_ICON, 'Rank']];
 menu('botNav', HUB.map(([k, ic, n]) => [ic, n, k]));
 
 // ---- Panel menu bawah: Toko, Pet, Karakter, Wilayah, Guild (hanya tampilan; data dari profil dan konstanta game) ----
@@ -189,6 +307,7 @@ function fusionHTML() {
   return `<article class="pcard fusion" style="--c:#b784ff"><h4>✨ Fusion Pet</h4><p>Fusion terbuka! Pilih dua pet yang sudah ★MAX lalu gabungkan.</p>
     <div class="frow">${maxed.map(el => `<button class="btn alt fpick${fusionPick.includes(el) ? ' on' : ''}" data-fpick="${el}">${ELNAME[el]}</button>`).join('')}</div>${res}<h5>Koleksi fusion</h5>${grid}</article>`;
 }
+let charShown = false;   // kartu Karakter + pilihan skin disembunyikan sampai tombol ditekan
 const HUB_VIEW = {
   pet() {
     const st = LOBBY_PET_STAGE, coins = +profile.progress.coins || 0;
@@ -205,11 +324,13 @@ const HUB_VIEW = {
   },
   char() {
     const p = profile.progress, bar = (ic, n, v, max) => `<div class="stat"><i>${ic}</i><span>${n}</span><div class="sbar"><i style="width:${Math.min(100, v / max * 100)}%"></i></div><b>${v}</b></div>`;
-    return `<article class="ccard"><img src="${outfitWorn() === 'base' || outfitHasSkin(outfitWorn()) ? skinOf(skinWorn()).avatar : outfitImg(outfitWorn())}" alt="Tois" style="object-fit:contain"><div><h4>Tois</h4><span class="tag">Level ${p.level}</span>${outfitWorn() === 'base' || outfitHasSkin(outfitWorn()) ? ` <span class="tag">Skin ${skinOf(skinWorn()).name}</span>` : ` <span class="tag">Outfit ${OUTFITS.find(o => o.id === outfitWorn()).name}</span>`}<p>Penjaga markas yang menembak otomatis dengan gatling.</p></div></article>
-      <h5>Skin / Outfit</h5>
-      <p class="hint">Pilih tampilan Tois. Berlaku di lobi dan saat bertempur.</p>
-      <div class="sknrow">${SKINS.map(k => { const on = k.outfit === outfitWorn(), own = outfitOwned(k.outfit); return `<button type="button" class="skn${on ? ' on' : ''}" data-skin="${k.id}" style="--rc:${k.color}" aria-label="Skin ${k.name}"><img src="${k.avatar}" alt=""><b>${k.name}</b><em>${k.rarity}</em><i>${on ? '✔ Dipakai' : own ? 'Pakai' : '🔒 Beli di Toko'}</i></button>`; }).join('')}</div>
-      <h5>Statistik</h5><div class="stats">${bar('💥', 'Damage', +p.damage, 1000)}${bar('⚡', 'Kecepatan', +p.fire_rate, 10)}${bar('🛡️', 'HP markas', +p.max_hp, 10000)}</div>
+    return `<h5>Statistik</h5><div class="stats">${bar('💥', 'Damage', +p.damage, 1000)}${bar('⚡', 'Kecepatan', +p.fire_rate, 10)}${bar('🛡️', 'HP markas', +p.max_hp, 10000)}</div>
+      <h5>Senjata & skill</h5>
+      <ul class="shoplist">
+        <li><i>🔫</i><span><b>Gatling</b>Magasin ${MAG_SIZE} peluru, reload ${RELOAD_MS / 1000} detik. Tahan layar untuk menembak 2x lebih cepat.</span></li>
+        <li><i>💥</i><span><b>Badai Peluru</b>Tois +10% damage dan kecepatan tembak selama 10 detik. Cooldown 25 detik.</span></li>
+        <li><i>⭐</i><span><b>Level</b>Naik setiap kelipatan 3 gelombang yang dicapai.</span></li>
+      </ul>
       <h5>Upgrade Tois</h5>
       <p class="hint">Upgrade berlaku di pertempuran berikutnya.</p>
       <nav class="dock">${UPG.map(([t, ic, n]) => { const full = +p[t] >= UPG_MAX[t], cost = upgCost(t, +p[t]); return `<button data-upgrade="${t}" ${full || +p.coins < cost ? 'disabled' : ''}><i>${ic}</i><span>${n}</span><b class="val">${p[t]}</b><em class="cost">${full ? 'MAX' : '🪙 ' + cost}</em></button>`; }).join('')}</nav>
@@ -218,12 +339,11 @@ const HUB_VIEW = {
         <li><i>⚡</i><span><b>Kecepatan +1</b>Tois menembak lebih sering. Maksimal 10.</span></li>
         <li><i>🛡️</i><span><b>HP markas +10</b>Markas lebih tahan serangan monster. Maksimal 10000.</span></li>
       </ul>
-      <h5>Senjata & skill</h5>
-      <ul class="shoplist">
-        <li><i>🔫</i><span><b>Gatling</b>Magasin ${MAG_SIZE} peluru, reload ${RELOAD_MS / 1000} detik. Tahan layar untuk menembak 2x lebih cepat.</span></li>
-        <li><i>💥</i><span><b>Badai Peluru</b>Tois +10% damage dan kecepatan tembak selama 10 detik. Cooldown 25 detik.</span></li>
-        <li><i>⭐</i><span><b>Level</b>Naik setiap kelipatan 3 gelombang yang dicapai.</span></li>
-      </ul>`;
+      <button type=\"button\" class=\"btn main\" data-togglechar style=\"width:100%;margin:12px 0\">${charShown ? '🙈 Sembunyikan Karakter' : '👤 Tampilkan Karakter'}</button>
+      ${charShown ? `<article class="ccard"><img src="${outfitWorn() === 'base' || outfitHasSkin(outfitWorn()) ? (skinOf(skinWorn()).png || skinOf(skinWorn()).avatar) : outfitImg(outfitWorn())}" alt="Tois" style="object-fit:contain"><div><h4>Tois</h4><span class="tag">Level ${p.level}</span>${outfitWorn() === 'base' || outfitHasSkin(outfitWorn()) ? ` <span class="tag">Skin ${skinOf(skinWorn()).name}</span>` : ` <span class="tag">Outfit ${OUTFITS.find(o => o.id === outfitWorn()).name}</span>`}<p>Penjaga markas yang menembak otomatis dengan gatling.</p></div></article>
+      <h5>Skin / Outfit</h5>
+      <p class="hint">Pilih tampilan Tois. Berlaku di lobi dan saat bertempur.</p>
+      <div class="sknrow">${SKINS.map(k => { const on = k.outfit === outfitWorn(), own = outfitOwned(k.outfit); return `<button type="button" class="skn${on ? ' on' : ''}" data-skin="${k.id}" style="--rc:${k.color}" aria-label="Skin ${k.name}"><img src="${k.png || k.avatar}" alt=""><b>${k.name}</b><em>${k.rarity}</em><small>💥 ${Math.round((skinFx(k.id).dmgMul - 1) * 100) ? '+' + Math.round((skinFx(k.id).dmgMul - 1) * 100) + '% damage' : 'Damage dasar'}</small><i>${on ? '✔ Dipakai' : own ? 'Pakai' : '🔒 Beli di Toko'}</i></button>`; }).join('')}</div>` : ''}`;
   },
   zone() {
     const island = ISLANDS[selectedIsland], unlocked = stageUnlocked(selectedIsland, selectedStage);
@@ -283,6 +403,7 @@ function renderHub(key = hubKey) {
   if (HUB_VIEW[key] && profile) {
     $('v-' + key).innerHTML = HUB_VIEW[key]();
     if (key === 'char') {
+      $('v-char').querySelectorAll('[data-togglechar]').forEach(b => b.onclick = () => { charShown = !charShown; renderHub('char'); });
       $('v-char').querySelectorAll('[data-skin]').forEach(b => b.onclick = () => wearSkin(b.dataset.skin));
       $('v-char').querySelectorAll('[data-upgrade]').forEach(b => b.onclick = async () => {
         b.disabled = true;
@@ -329,16 +450,41 @@ function renderHub(key = hubKey) {
   document.querySelectorAll('#hubTabs button').forEach(b => b.classList.toggle('on', b.dataset.k === key));
 }
 let hubOpenSnap = '';   // pulau/stage saat hub dibuka; dipakai untuk menentukan perlu tidaknya lobi dibangun ulang
-function openHub(key) { hubOpenSnap = selectedIsland + '-' + selectedStage; $('hub').hidden = false; $('hubBody').scrollTop = 0; renderHub(key); }
+function openHub(key) { charShown = false; setLobbyGifHidden(true); hubOpenSnap = selectedIsland + '-' + selectedStage; $('hub').hidden = false; $('hubBody').scrollTop = 0; renderHub(key); }
 $('hubTabs').innerHTML = HUB.map(([k, ic, n]) => `<button data-k="${k}"><i>${ic}</i><span>${n}</span></button>`).join('');
 $('hubTabs').onclick = e => { const b = e.target.closest('button'); if (b) { $('hubBody').scrollTop = 0; renderHub(b.dataset.k); } };
 $('hubClose').onclick = () => {
-  $('hub').hidden = true;
+  $('hub').hidden = true; setLobbyGifHidden(false);
   if (hubOpenSnap !== selectedIsland + '-' + selectedStage || outfitLobbyDirty) { outfitLobbyDirty = false; refreshLobbyScene(); }   // restart hanya bila pulau/stage berubah (hindari kedip biru)
   else updateLobbyInfo();
 };
 $('startBtn').onclick = startBattle;
 $('quitBtn').onclick = toLobby; $('lobbyBtn').onclick = toLobby;
+
+// ---- Tois di lobi: GIF transparan sebagai elemen <img> di atas canvas Phaser (Phaser tidak bisa memutar GIF). Posisi & ukuran mengikuti skala canvas (mode FIT). ----
+// Hanya dipakai bila skin punya field gif; bila GIF gagal dimuat otomatis kembali ke spritesheet. Letak: tengah x = W/2, telapak kaki y = LOBBY_FEET, tinggi 118 (sama seperti sprite lama).
+const LOBBY_FEET = 390;
+let lobbyGifEl = null, lobbyGifSk = null;
+function placeLobbyGif() {
+  if (!lobbyGifEl || !lobbyGifSk || !game || !game.canvas) return;
+  const cv = game.canvas, s = cv.clientWidth / W, I = lobbyGifSk.idle, h = 118 * s, w = h * I.fw / I.fh;
+  Object.assign(lobbyGifEl.style, { left: (cv.offsetLeft + W / 2 * s - lobbyGifSk.idleOX * w) + 'px', top: (cv.offsetTop + LOBBY_FEET * s - h) + 'px', width: w + 'px', height: h + 'px' });
+}
+function hideLobbyGif() {
+  if (lobbyGifEl) { lobbyGifEl.remove(); lobbyGifEl = null; }
+  if (game && game.scale) game.scale.off('resize', placeLobbyGif);
+}
+function showLobbyGif(sk, fallback) {
+  hideLobbyGif(); lobbyGifSk = sk;
+  const box = $('game-container'); if (getComputedStyle(box).position === 'static') box.style.position = 'relative';
+  const im = document.createElement('img'); im.src = sk.gif; im.alt = ''; im.draggable = false;
+  im.style.cssText = 'position:absolute;pointer-events:none;user-select:none;z-index:1';
+  im.onerror = () => { console.error('[LOBI] GIF gagal dimuat, pakai spritesheet:', sk.gif); hideLobbyGif(); fallback(); };
+  box.appendChild(im); lobbyGifEl = im;
+  game.scale.on('resize', placeLobbyGif); placeLobbyGif(); requestAnimationFrame(placeLobbyGif);
+}
+window.addEventListener('resize', placeLobbyGif);
+const setLobbyGifHidden = hide => { if (lobbyGifEl) lobbyGifEl.style.display = hide ? 'none' : ''; };   // disembunyikan saat menu hub terbuka
 
 class Lobby extends Base {
   constructor() { super('Lobby'); }
@@ -374,15 +520,18 @@ class Lobby extends Base {
       this.tweens.add({ targets: im, scaleY: sc * 1.035, scaleX: sc * .985, duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
       this.tweens.add({ targets: im, y: im.y - 4, duration: 1700, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
       this.tweens.add({ targets: im, angle: { from: -1.2, to: 1.2 }, duration: 2300, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
-    } else {   // Tois idle (spritesheet webp) sesuai skin yang dipakai
-      try {
-        const ik = skinIdleKey(sk), ak = 'tois_idle_loop_' + sk.id;
-        if (!this.textures.exists(ik)) throw new Error('tekstur idle belum termuat: ' + sk.idle.src);
-        const total = this.textures.get(ik).frameTotal - 1;   // frameTotal ikut menghitung frame __BASE
-        if (total < 2) throw new Error('sheet idle hanya terbaca ' + total + ' frame, cek ukuran frame ' + sk.idle.fw + 'x' + sk.idle.fh + ' vs ukuran file: ' + sk.idle.src);
-        if (!this.anims.exists(ak)) this.anims.create({ key: ak, frames: this.anims.generateFrameNumbers(ik, { start: 0, end: Math.min(sk.idle.frames, total) - 1 }), frameRate: sk.idle.fps, repeat: -1 });
-        this.add.sprite(W / 2, FEET, ik).setOrigin(sk.idleOX, 1).setScale(118 / sk.idle.fh).play(ak);
-      } catch (err) { console.error('[LOBI] idle Tois gagal:', err.message); }   // jangan sampai lobi macet di layar pemuatan
+    } else {   // Tois idle sesuai skin yang dipakai: GIF transparan bila ada (sk.gif), jika tidak spritesheet webp
+      const makeSheet = () => {
+        try {
+          const ik = skinIdleKey(sk), ak = 'tois_idle_loop_' + sk.id;
+          if (!this.textures.exists(ik)) throw new Error('tekstur idle belum termuat: ' + sk.idle.src);
+          const total = this.textures.get(ik).frameTotal - 1;   // frameTotal ikut menghitung frame __BASE
+          if (total < 2) throw new Error('sheet idle hanya terbaca ' + total + ' frame, cek ukuran frame ' + sk.idle.fw + 'x' + sk.idle.fh + ' vs ukuran file: ' + sk.idle.src);
+          if (!this.anims.exists(ak)) this.anims.create({ key: ak, frames: this.anims.generateFrameNumbers(ik, { start: 0, end: Math.min(sk.idle.frames, total) - 1 }), frameRate: sk.idle.fps, repeat: -1 });
+          this.add.sprite(W / 2, FEET, ik).setOrigin(sk.idleOX, 1).setScale(118 / sk.idle.fh).play(ak);
+        } catch (err) { console.error('[LOBI] idle Tois gagal:', err.message); }
+      };   // jangan sampai lobi macet di layar pemuatan
+      if (sk.gif) { showLobbyGif(sk, makeSheet); this.events.once('shutdown', hideLobbyGif); } else makeSheet();
     }
     // bos berdiri di depan gerbang
     const bossId = getStageBoss(selectedIsland, selectedStage), bs = 118 / SPR['mon' + bossId].ih, boss = this.add.sprite(W / 2 + 10, 160, 'mon' + bossId).setScale(bs).play('mon' + bossId + '_move');   // golem lava animasi (langkah, lengan, api)

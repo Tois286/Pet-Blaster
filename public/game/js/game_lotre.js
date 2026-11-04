@@ -1,7 +1,8 @@
 // Lotre Tarik (pull-tab) di menu Toko (Dika). Dimuat SEBELUM game_ui.js (lihat daftar modul di game.js).
 // Cara main: papan berisi LOTRE.cols kolom segitiga. Tiap segitiga menyembunyikan satu nomor (1-32), nomor itu = hadiah di kotak nomor bagian atas papan.
 // Pemain memilih satu segitiga, menekan Tarik, bayar LOTRE.price koin. Segitiga terbuka menjadi kertas bernomor. Jika semua segitiga sudah dibuka, papan baru dikocok otomatis.
-// Papan, koin terpakai, dan koin kemenangan disimpan di perangkat (sementara, sama seperti Goodbye / Mie Kari / outfit). Hadiah Goodbye & Mie Kari langsung masuk ke goodbyeStore / noodleStore.
+// Papan, hadiah, dan koin/gem disimpan di DATABASE (tabel game_lotre_boards; server: ShopApi::lotrePull + Libraries/Shop.php). Papan tidak lagi diacak ulang tiap dibuka / ganti perangkat: sisa tiket terus berkurang dari 80 sampai 0, baru dikocok papan baru.
+// Tabel hadiah di bawah hanya untuk TAMPILAN; hadiah & harga asli ada di Shop.php (harus sama). Susunan papan rahasia di server; game hanya tahu nomor segitiga yang sudah dibuka.
 // Fungsi dari game_ui.js (say, fmtID, syncCoinsUI, goodbyeStore, noodleStore, GOODBYE, NOODLE) hanya dipakai saat dipanggil, jadi urutan muat tidak masalah.
 
 // ---- Tabel hadiah: n = nomor kotak, stock = berapa segitiga di papan yang menyimpan nomor ini, t = jenis hadiah:
@@ -40,61 +41,29 @@ const lotreEmoji = z => ({ coin: '🪙', gem: '💎', skin: '👑', goodbye: '�
 const lotreText = z => lotreEmoji(z) + ' ' + lotreName(z);
 const lotreCap = z => z.t === 'coin' ? '🪙' + (z.amt >= 1000 ? z.amt / 1000 + 'K' : z.amt) : z.t === 'gem' ? '💎' + z.amt : z.t === 'skin' ? '👑' + lotreSkinName(z) : lotreEmoji(z) + '×' + z.amt;
 const lotreImg = z => { if (z.t === 'goodbye') return GOODBYE.icon; if (z.t === 'noodle') return NOODLE.items.find(x => x.id === z.id).img; if (z.t === 'skin') { const k = lotreSkin(z); return k ? (k.png || k.avatar) : outfitImg(z.id); } return ''; };
-const lotreSig = (() => { let h = 5381; const s = JSON.stringify(LOTRE.prizes) + LOTRE.cols; for (let i = 0; i < s.length; i++) h = (h * 33 + s.charCodeAt(i)) >>> 0; return h; })();   // berubah bila tabel hadiah diubah
 // Peluang kembali ke pemain (RTP) = total nilai hadiah / total harga semua segitiga. Cek di console; sesuaikan hadiah atau gemValue bila perlu.
 console.log('[LOTRE] ' + LOTRE_TOTAL + ' segitiga, harga ' + LOTRE.price + ' koin, RTP ≈ ' + (LOTRE.prizes.reduce((a, z) => a + z.stock * (z.t === 'coin' ? z.amt : z.t === 'gem' ? z.amt * LOTRE.gemValue : z.t === 'skin' ? z.gems * LOTRE.gemValue : z.t === 'goodbye' ? z.amt * 500 : z.amt * 1000), 0) / (LOTRE_TOTAL * LOTRE.price) * 100).toFixed(1) + '% (1 gem = ' + LOTRE.gemValue + ' koin, Goodbye 500, Mie Kari 1000)');
 
-// ---- Penyimpanan ----
-const lotreKey = () => 'petblaster-lotre-' + (profile?.username || 'guest');
+// ---- Status papan (dari server, profile.lotre) ----
+// torn = indeks segitiga yang sudah dibuka; board[i] = nomor di segitiga itu (hanya yang sudah dibuka yang diketahui game); renewed = papan baru baru saja dikocok.
 function lotreStore() {
-  try {
-    const o = JSON.parse(localStorage.getItem(lotreKey()) || '{}');
-    return { spent: +o.spent || 0, won: +o.won || 0, gemWon: +o.gemWon || 0, rounds: +o.rounds || 0, sig: +o.sig || 0, board: Array.isArray(o.board) ? o.board : [], torn: Array.isArray(o.torn) ? o.torn : [], last: o.last || null };
-  } catch (_) { return { spent: 0, won: 0, gemWon: 0, rounds: 0, sig: 0, board: [], torn: [], last: null }; }
+  const o = profile?.lotre || {}, board = [], torn = [];
+  (Array.isArray(o.torn) ? o.torn : []).forEach(([i, n]) => { if (Number.isInteger(i) && LOTRE_BY_N[n]) { board[i] = n; torn.push(i); } });
+  return { board, torn, rounds: +o.rounds || 0, last: o.last || null, renewed: !!o.renewed };
 }
-function saveLotreStore(o) { try { localStorage.setItem(lotreKey(), JSON.stringify(o)); } catch (_) { } }
-const lotreRnd = n => { try { const a = new Uint32Array(1); crypto.getRandomValues(a); return a[0] % n; } catch (_) { return Math.floor(Math.random() * n); } };
-function lotreShuffle() {   // kocok papan baru: tiap nomor muncul sebanyak stock-nya, posisinya acak
-  const b = []; LOTRE.prizes.forEach(z => { for (let k = 0; k < z.stock; k++) b.push(z.n); });
-  for (let i = b.length - 1; i > 0; i--) { const j = lotreRnd(i + 1); [b[i], b[j]] = [b[j], b[i]]; }
-  return b;
-}
-// Pastikan papan valid. Balas true bila papan baru dibuka karena semua segitiga sudah habis.
-function lotreEnsure(s) {
-  const ok = s.sig === lotreSig && s.board.length === LOTRE_TOTAL && s.board.every(n => LOTRE_BY_N[n]) && s.torn.every(i => Number.isInteger(i) && i >= 0 && i < LOTRE_TOTAL);
-  const full = ok && s.torn.length >= LOTRE_TOTAL;
-  if (ok && !full) return false;
-  s.board = lotreShuffle(); s.torn = []; s.sig = lotreSig; if (full) s.rounds++;
-  saveLotreStore(s); return full;
-}
-// Dipakai showProfile (game_systems.js): koin terpakai & kemenangan koin lotre yang belum ada di saldo server.
-const lotreCoinDelta = () => { const s = lotreStore(); return s.won - s.spent; };
-const lotreGemDelta = () => lotreStore().gemWon;   // gem kemenangan lotre (dipakai showProfile)
 
 // ---- Tarik tiket ----
 let lotreSel = -1, lotreBusy = false, lotreList = false;   // lotreList = daftar hadiah sedang dibuka
-function lotrePull(i) {   // bayar + buka segitiga ke-i + beri hadiah. Balas { n, z } atau null bila gagal
-  const s = lotreStore(); lotreEnsure(s);
+async function lotrePull(i) {   // minta server: bayar + buka segitiga ke-i + beri hadiah. Balas { n, z, dup, gemGain } atau null bila gagal
   const coins = +profile?.progress?.coins || 0;
-  if (!(i >= 0 && i < LOTRE_TOTAL) || s.torn.includes(i)) return null;
+  if (!(i >= 0 && i < LOTRE_TOTAL) || lotreStore().torn.includes(i)) return null;
   if (coins < LOTRE.price) { say('Koin tidak cukup untuk menarik tiket (🪙 ' + fmtID(LOTRE.price) + ').'); return null; }
-  const n = s.board[i], z = LOTRE_BY_N[n];
-  s.torn.push(i); s.spent += LOTRE.price; s.last = n;
-  let gain = 0, gemGain = 0, dup = false;
-  if (z.t === 'coin') { s.won += z.amt; gain = z.amt; }
-  else if (z.t === 'gem') { gemGain = z.amt; }
-  else if (z.t === 'skin') {
-    if (outfitOwned(z.id)) { dup = true; gemGain = z.dup || 0; }   // skin sudah dimiliki: diganti gem
-    else { const o = outfitStore(); o.owned.push(z.id); saveOutfitStore(o); }   // skin masuk koleksi (dipakai lewat menu Karakter)
-  }
-  else if (z.t === 'goodbye') { const g = goodbyeStore(); g.qty += z.amt; saveGoodbyeStore(g); }
-  else { const q = noodleStore(); q.q[z.id] += z.amt; saveNoodleStore(q); }
-  s.gemWon += gemGain;
-  saveLotreStore(s);
-  profile.progress.coins = coins - LOTRE.price + gain;
-  if (gemGain) profile.progress.gems = (+profile.progress.gems || 0) + gemGain;
-  syncCoinsUI();
-  return { n, z, dup, gemGain };
+  try {
+    const d = await api('/lotre/pull', 'POST', { i });
+    applyShop(d);   // koin, gem, barang, skin, dan papan terbaru dari server
+    if (d.renewed) profile.lotre.renewed = true;
+    return { n: d.n, z: LOTRE_BY_N[d.n], dup: !!d.dup, gemGain: +d.gemGain || 0 };
+  } catch (err) { say(err.message); return null; }
 }
 
 // ---- Tampilan ----
@@ -187,7 +156,8 @@ function lotreUpdateBar(p) {   // perbarui tombol Tarik + info tanpa membangun u
 function renderLotrePanel(res) {   // res = { n, i } bila baru saja menarik tiket (menyorot nomor & kertas yang terbuka, lalu menampilkan hasil)
   const p = $('shopPanel'); if (!p || !profile) return;
   p.classList.remove('outfit', 'goodbye'); p.classList.add('lotre');
-  const s = lotreStore(), renewed = lotreEnsure(s), coins = +profile.progress.coins || 0, keepY = p.scrollTop;
+  const s = lotreStore(), renewed = s.renewed, coins = +profile.progress.coins || 0, keepY = p.scrollTop;
+  if (renewed) profile.lotre.renewed = false;   // pesan 'Papan baru' hanya tampil sekali
   const tornSet = new Set(s.torn), drawn = {}; s.torn.forEach(i => { const n = s.board[i]; drawn[n] = (drawn[n] || 0) + 1; });
   const tile = z => { const left = z.stock - (drawn[z.n] || 0);
     return `<button type="button" class="lttile${lotreVal(z) >= 1000 ? ' big' : ''}${left < 1 ? ' out' : ''}${res && res.n === z.n ? ' hit' : ''}" data-n="${z.n}" aria-label="Nomor ${z.n}: ${lotreName(z)}"><b>${z.n}</b></button>`; };
@@ -206,7 +176,7 @@ function renderLotrePanel(res) {   // res = { n, i } bila baru saja menarik tike
   const listHTML = lotreList ? '<div class="ltlist">' + LOTRE.prizes.map(z => { const left = z.stock - (drawn[z.n] || 0); return `<div class="ltrw${lotreVal(z) >= 1000 ? ' big' : ''}${left < 1 ? ' out' : ''}"><b>${z.n}</b><span>${lotreCap(z)}</span><em>${left}/${z.stock}</em></div>`; }).join('') + '</div>' : '';
   p.innerHTML = `<div class="lthead"><div><h4>${LOTRE.name}</h4><p>🪙 ${fmtID(LOTRE.price)} / tiket</p></div><div class="ltleft">Sisa tiket<b>${LOTRE_TOTAL - s.torn.length}/${LOTRE_TOTAL}</b></div></div>`
     + `<div class="ltboard">${rows}<div class="ltcols">${cols}</div></div>`
-    + `<p class="ltinfo">${renewed ? '<b>Papan baru!</b> Semua tiket sudah dibuka, tiket baru sudah dikocok.' : lastZ ? `Tiket terakhir: <b>No. ${s.last}</b> → ${lotreText(lastZ)}` : 'Pilih satu segitiga di bawah, lalu tekan Tarik. Ketuk kotak nomor untuk melihat hadiahnya.'}</p>`
+    + `<p class="ltinfo">${renewed ? '<b>Papan baru!</b> Semua tiket sudah dibuka, ' + LOTRE_TOTAL + ' tiket baru sudah dikocok.' : lastZ ? `Tiket terakhir: <b>No. ${s.last}</b> → ${lotreText(lastZ)}` : 'Pilih satu segitiga di bawah, lalu tekan Tarik. Ketuk kotak nomor untuk melihat hadiahnya.'}</p>`
     + `<button type="button" class="ltlisttoggle" data-ltlist>📋 ${lotreList ? 'Tutup' : 'Lihat'} daftar hadiah</button>${listHTML}<div class="ltbar"><button type="button" class="btn main ltgo"></button></div>`;
   p.scrollTop = keepY;
   const info = p.querySelector('.ltinfo');
@@ -226,14 +196,15 @@ function renderLotrePanel(res) {   // res = { n, i } bila baru saja menarik tike
   lotreUpdateBar(p);
   if (res) lotrePop(p, res);
 }
-function lotreGo() {
+async function lotreGo() {
   const p = $('shopPanel'); if (lotreBusy || lotreSel < 0 || !profile) return;
-  const i = lotreSel, r = lotrePull(i); if (!r) { renderLotrePanel(); return; }
-  lotreBusy = true; lotreSel = -1;
+  const i = lotreSel; lotreBusy = true; p.querySelector('.ltgo').disabled = true;
+  const r = await lotrePull(i);   // hadiah sudah masuk ke akun (database) begitu server menjawab; sisanya animasi
+  if (!r) { lotreBusy = false; lotreSel = -1; if ($('shopPanel').classList.contains('lotre')) renderLotrePanel(); return; }
+  lotreSel = -1;
   const el = p.querySelector(`.lttab[data-i="${i}"]`); if (el) { el.classList.remove('sel'); el.classList.add('tear'); }
-  p.querySelector('.ltgo').disabled = true;
   say('Tiket terbuka: nomor ' + r.n + ' → ' + (r.dup ? lotreName(r.z) + ' (sudah dimiliki, diganti ' + r.gemGain + ' gem)' : lotreName(r.z)) + '!');
-  setTimeout(() => {   // hadiah sudah masuk saat Tarik ditekan; ini hanya animasi hasil
+  setTimeout(() => {
     lotreBusy = false;
     if ($('shopPanel').classList.contains('lotre')) renderLotrePanel({ n: r.n, i, dup: r.dup, gemGain: r.gemGain });
   }, 460);

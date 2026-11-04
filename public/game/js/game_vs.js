@@ -146,14 +146,33 @@ function vsSendPlan(st, plan) {
 
 // ---- Alur pertandingan: 2 babak, peran ditukar ----
 // Penyerang menang total bila benteng penahan hancur dalam satu babak. Bila bertahan, lanjut babak 2 dengan peran tertukar.
-// Setelah 2 babak tanpa benteng hancur, pemenang = pemain dengan sisa HP benteng (saat menahan) paling banyak; sama = seri.
+// Setelah 2 babak tanpa benteng hancur, pemenang diputuskan berurutan (lihat vsJudge); semua sama = seri.
 let vsMatch = null;   // pertandingan yang sedang berjalan (null = tidak ada)
 function vsNewMatch(mode) {
   return { mode, round: 0, first: Math.random() < .5 ? VS_ROLE.ATTACK : VS_ROLE.DEFEND, results: [], active: true };
 }
 const vsRoleOf = m => m.round % 2 ? vsOpposite(m.first) : m.first;   // peran pemain pada babak saat ini
-// Keputusan akhir setelah 2 babak; res = [{ defender: 'human'|'bot', hp, max }]
-function vsFinalWinner(res) {
-  const hp = who => (res.find(r => r.defender === who) || { hp: 0 }).hp, h = hp('human'), b = hp('bot');
-  return h > b ? 'human' : b > h ? 'bot' : 'draw';
+
+// Keputusan akhir setelah 2 babak. res = [{ defender: 'human'|'bot', hp, max, reach, depth }]; tiap babak dicatat dari sisi PENAHAN.
+// Kalau kedua benteng sama-sama utuh (kasus paling umum), pemenang ditentukan berurutan:
+//   1) sisa HP benteng: lebih banyak lebih baik.
+//   2) monster yang sampai ke tembok (reach): lebih sedikit lebih baik. Mencerminkan juga kekuatan serangan lawan (penyerang yang bagus meloloskan lebih banyak).
+//   3) jarak maju rata-rata monster sebelum mati (depth, persen jalur dari titik muncul ke tembok): lebih kecil = penahan menembak lebih jauh / serangan lawan lebih lemah.
+// Jumlah monster yang terbunuh sengaja tidak dipakai: bila benteng bertahan, semua monster yang dikirim pasti terbunuh, jadi angkanya hanya mengikuti jumlah kiriman penyerang.
+// Mengembalikan { winner: 'human'|'bot'|'draw', by: kunci penentu | null, label, mine, theirs } (mine/theirs = nilai kamu vs bot untuk penentu itu).
+const VS_TIEBREAKS = [
+  { key: 'hp', label: 'sisa HP benteng', higher: true, fmt: v => String(v) },
+  { key: 'reach', label: 'monster yang sampai ke tembok', higher: false, fmt: v => String(v) },
+  { key: 'depth', label: 'jarak monster maju sebelum mati', higher: false, fmt: v => v + '%' }
+];
+function vsJudge(res) {
+  const get = who => res.find(r => r.defender === who) || { hp: 0, reach: 0, depth: 0 }, h = get('human'), b = get('bot');
+  for (const t of VS_TIEBREAKS) {
+    const a = +h[t.key] || 0, c = +b[t.key] || 0;
+    if (a === c) continue;
+    const humanWins = t.higher ? a > c : a < c;
+    return { winner: humanWins ? 'human' : 'bot', by: t.key, label: t.label, mine: t.fmt(a), theirs: t.fmt(c) };
+  }
+  return { winner: 'draw', by: null, label: '', mine: '', theirs: '' };
 }
+const vsFinalWinner = res => vsJudge(res).winner;

@@ -93,6 +93,22 @@ class VsBattle extends Battle {
   addEnemy(o) {   // jalur arena panjang jauh lebih panjang: monster dipercepat VS_VIEW.speed
     super.addEnemy(o); const e = this.enemies[this.enemies.length - 1]; if (e && this.arenaTop < 0) e.sp *= VS_VIEW.speed;
   }
+  // ---- Pencatat penentu cadangan (dipakai vsJudge saat HP kedua benteng sama) ----
+  vsScanReach() {   // hitung tiap monster satu kali begitu ia mulai memukul tembok (atau menembak dari jarak jauh)
+    (this.enemies || []).forEach(e => { if (e.atk && !e._vr && !e.dead) { e._vr = 1; this.vsReach++; } });
+  }
+  update(time, dt) {
+    super.update(time, dt);
+    if (!this.over) this.vsScanReach();
+  }
+  kill(e) {   // semua kematian monster lewat sini: catat seberapa jauh ia sempat maju
+    if (!e.dead) {
+      if (e.atk && !e._vr) { e._vr = 1; this.vsReach++; }
+      const span = (e.stopY - this.topY) || 1;
+      this.vsDepthSum += Phaser.Math.Clamp((e.py - this.topY) / span, 0, 1); this.vsDepthN++;
+    }
+    super.kill(e);
+  }
   fire() {   // penahan hanya menembak monster yang sudah masuk jangkauan (area layar bawah); monster yang masih jauh di atas arena belum ditembak
     if (!this.enemies.some(e => !e.dead && e.s.y > 10)) return;
     super.fire();
@@ -125,6 +141,7 @@ class VsBattle extends Battle {
 
   begin() {
     this.vsSt = vsNewAttackState(); this.queue = []; this._done = false;
+    this.vsReach = 0; this.vsDepthSum = 0; this.vsDepthN = 0;   // penentu cadangan: monster yang sampai ke tembok, dan jarak maju monster saat mati (0 = titik muncul, 1 = tembok)
     this.vsTier = vsDefenderTier(worldProgress());   // HP monster mengikuti pulau terakhir penahan (bot menahan = meniru profil pemain)
     super.begin();
     this.islandIndex = 0; this.stageNo = 1;   // kecepatan monster dan damage tembok memakai nilai dasar; hanya HP yang mengikuti pulau penahan
@@ -231,12 +248,13 @@ class VsBattle extends Battle {
   // ---- Akhir babak ----
   end() { this.finishRound(true); }   // dipanggil Battle.update saat HP benteng habis
   finishRound(destroyed) {
-    if (this._done) return; this._done = true; this.over = true; this.vsTeardown();
+    if (this._done) return; this._done = true; this.vsScanReach(); this.over = true; this.vsTeardown();
     const M = vsMatch, hp = Math.max(0, Math.round(this.baseHp)), max = this.baseMax, defender = this.role === VS_ROLE.DEFEND ? 'human' : 'bot';
-    M.results.push({ round: M.round, defender, hp, max, destroyed });
+    const reach = this.vsReach, depth = this.vsDepthN ? Math.round(this.vsDepthSum / this.vsDepthN * 100) : 0;   // depth dalam persen jalur menuju tembok
+    M.results.push({ round: M.round, defender, hp, max, destroyed, reach, depth });
     this.banner.setText(destroyed ? 'BENTENG HANCUR!' : 'BENTENG BERTAHAN!').setFontSize(24).setAlpha(1).setScale(1);
     const pct = v => Math.round(Math.max(0, v.hp) / v.max * 100), meIsAtk = this.role === VS_ROLE.ATTACK;
-    const tiles = [['💀', 'Monster', this.kills], ['❤', 'Sisa HP benteng', hp + '/' + max]];
+    const tiles = [['💀', 'Monster', this.kills], ['❤', 'Sisa HP benteng', hp + '/' + max], ['🧱', 'Sampai tembok', reach], ['📏', 'Jarak maju', depth + '%']];
     let o;
     if (destroyed) {   // penyerang menang total
       const humanWins = meIsAtk; M.active = false;
@@ -253,11 +271,14 @@ class VsBattle extends Battle {
       };
     } else {   // dua babak selesai tanpa benteng hancur: bandingkan sisa HP
       M.active = false;
-      const hum = M.results.find(r => r.defender === 'human'), bot = M.results.find(r => r.defender === 'bot'), w = vsFinalWinner(M.results);
+      const hum = M.results.find(r => r.defender === 'human'), bot = M.results.find(r => r.defender === 'bot'), j = vsJudge(M.results), w = j.winner;
+      const why = w === 'draw' ? 'Seri: sisa HP, monster yang sampai ke tembok, dan jarak maju monster sama persis.'
+        : j.by === 'hp' ? 'Pemenang = sisa HP benteng paling banyak (' + j.mine + ' vs ' + j.theirs + ').'
+          : 'HP benteng sama. Penentu: ' + j.label + ' (kamu ' + j.mine + ' vs bot ' + j.theirs + '), ' + (w === 'human' ? 'lebih baik di pihakmu.' : 'lebih baik di pihak bot.');
       o = {
-        win: w === 'human', icon: w === 'human' ? '🏆' : w === 'bot' ? '💥' : '🤝', title: w === 'human' ? 'Kamu menang!' : w === 'bot' ? 'Bot menang' : 'Seri', sub: 'Dua babak selesai · sisa HP benteng dibandingkan',
+        win: w === 'human', icon: w === 'human' ? '🏆' : w === 'bot' ? '💥' : '🤝', title: w === 'human' ? 'Kamu menang!' : w === 'bot' ? 'Bot menang' : 'Seri', sub: 'Dua babak selesai · HP benteng, lalu penentu cadangan',
         tiles, bars: [['Benteng kamu', pct(hum), hum.hp + '/' + hum.max], ['Benteng bot', pct(bot), bot.hp + '/' + bot.max]],
-        notes: [w === 'draw' ? 'Sisa HP sama persis.' : 'Pemenang = sisa HP benteng paling banyak.'], next: null
+        notes: [why], next: null
       };
     }
     showVsResult(o);

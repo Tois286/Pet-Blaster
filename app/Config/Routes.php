@@ -15,4 +15,9 @@ $routes->group('api', ['namespace' => 'App\Controllers\Api'], static function ($
     $routes->post('battle/start', 'GameApi::battleStart');
     $routes->post('battle/finish', 'GameApi::battleFinish');
     $routes->post('afk/claim', 'GameApi::afkClaim');
+    $routes->post('shop/goodbye', 'ShopApi::goodbye');
+    $routes->post('shop/noodle', 'ShopApi::noodle');
+    $routes->post('outfit/buy', 'ShopApi::outfitBuy');
+    $routes->post('outfit/wear', 'ShopApi::outfitWear');
+    $routes->post('lotre/pull', 'ShopApi::lotrePull');
 });

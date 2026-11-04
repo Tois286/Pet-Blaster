@@ -64,7 +64,7 @@ function resetShopMenu() {
   const m = $('shopMenu'); if (!m) return;
   m.classList.remove('open'); m.querySelectorAll('[data-shop]').forEach(b => b.classList.remove('sel')); $('shopPanel').innerHTML = ''; $('shopPanel').classList.remove('outfit', 'goodbye', 'lotre', 'ltlock');
 }
-// ---- Menu Upgrade Toko (Dika): Goodbye + Mie Kari. Goodbye: Harga per gelas = GOODBYE.price koin; 3 kotak paket: 1, 6, 10 gelas. Jumlah gelas + koin terpakai disimpan di perangkat (sementara, sama seperti outfit). ----
+// ---- Menu Upgrade Toko (Dika): Goodbye + Mie Kari. Goodbye: Harga per gelas = GOODBYE.price koin; 3 kotak paket: 1, 6, 10 gelas. Jumlah gelas disimpan di database (POST /shop/goodbye); harga dicek ulang di server (Shop.php). ----
 const GOODBYE = {
   name: 'Goodbye', price: 500, icon: 'assets/shop/goodbye-icon.webp?v=1',
   packs: [
@@ -73,14 +73,14 @@ const GOODBYE = {
     { qty: 10, img: 'assets/shop/goodbye-10.webp?v=1', color: '#e0a82e' }
   ]
 };
-const goodbyeKey = () => 'petblaster-goodbye-' + (profile?.username || 'guest');
-function goodbyeStore() {
-  try { const o = JSON.parse(localStorage.getItem(goodbyeKey()) || '{}'); return { qty: +o.qty || 0, spent: +o.spent || 0 }; }
-  catch (_) { return { qty: 0, spent: 0 }; }
-}
-function saveGoodbyeStore(o) { try { localStorage.setItem(goodbyeKey(), JSON.stringify(o)); } catch (_) { } }
+const applyShop = d => {   // balasan server setelah beli / tarik / pakai: timpa koin, gem, dan status Toko (barang, outfit, papan lotre)
+  profile.progress.coins = d.coins; profile.progress.gems = d.gems;
+  for (const k of ['goodbye', 'noodle', 'outfits', 'worn', 'lotre']) if (d[k] !== undefined) profile[k] = d[k];
+  syncCoinsUI();
+};
+const goodbyeStore = () => ({ qty: +profile?.goodbye || 0 });   // jumlah gelas dari database (profile.goodbye)
 let goodbyeBusy = false;
-// ---- Mie Kari: produk kedua di menu Upgrade, ditaruh di bawah Goodbye. Harga per mangkuk = NOODLE.price koin. Jumlah per varian + koin terpakai disimpan di perangkat. ----
+// ---- Mie Kari: produk kedua di menu Upgrade, ditaruh di bawah Goodbye. Harga per mangkuk = NOODLE.price koin. Jumlah per varian disimpan di database (POST /shop/noodle). ----
 const NOODLE = {
   name: 'Mie Kari', price: 1000, icon: 'assets/shop/noodle-biasa.webp?v=1',
   items: [
@@ -89,12 +89,7 @@ const NOODLE = {
     { id: 'telur', name: 'Mie Kari Double Extra Telur', img: 'assets/shop/noodle-telur.webp?v=1', color: '#e0483a' }
   ]
 };
-const noodleKey = () => 'petblaster-noodle-' + (profile?.username || 'guest');
-function noodleStore() {
-  try { const o = JSON.parse(localStorage.getItem(noodleKey()) || '{}'), q = o.q || {}; return { q: { biasa: +q.biasa || 0, double: +q.double || 0, telur: +q.telur || 0 }, spent: +o.spent || 0 }; }
-  catch (_) { return { q: { biasa: 0, double: 0, telur: 0 }, spent: 0 }; }
-}
-function saveNoodleStore(o) { try { localStorage.setItem(noodleKey(), JSON.stringify(o)); } catch (_) { } }
+const noodleStore = () => { const q = profile?.noodle || {}; return { q: { biasa: +q.biasa || 0, double: +q.double || 0, telur: +q.telur || 0 } }; };   // jumlah per varian dari database (profile.noodle)
 const noodleTotal = () => Object.values(noodleStore().q).reduce((a, b) => a + b, 0);
 (() => { const st = document.createElement('style'); st.textContent =
   // Panel Upgrade: dua menu (Goodbye, Mie Kari) disusun padat; ukuran gambar & jarak mengikuti tinggi layar (vh) supaya keduanya terlihat tanpa scroll
@@ -127,23 +122,21 @@ const isShopUpgrade = b => /upgrade/i.test([b.dataset.shop || '', b.getAttribute
   btns[0].parentNode.appendChild(nb);
 })();
 const fmtID = n => n.toLocaleString('id-ID');
-function buyGoodbye(qty) {
+async function buyGoodbye(qty) {
   const pk = GOODBYE.packs.find(x => x.qty === qty); if (goodbyeBusy || !pk) return;
   const cost = qty * GOODBYE.price;
   if ((+profile.progress.coins || 0) < cost) { say('Koin tidak cukup untuk ' + qty + ' gelas Goodbye.'); return; }
   goodbyeBusy = true;
-  const s = goodbyeStore(); s.qty += qty; s.spent += cost; saveGoodbyeStore(s);
-  profile.progress.coins = (+profile.progress.coins || 0) - cost;
-  syncCoinsUI(); say('Berhasil membeli ' + qty + ' gelas Goodbye!');
+  try { applyShop(await api('/shop/goodbye', 'POST', { qty })); say('Berhasil membeli ' + qty + ' gelas Goodbye!'); }   // harga dicek ulang di server
+  catch (err) { say(err.message); }
   goodbyeBusy = false; renderUpgradePanel('goodbye');
 }
-function buyNoodle(id) {
+async function buyNoodle(id) {
   const it = NOODLE.items.find(x => x.id === id); if (goodbyeBusy || !it) return;
   if ((+profile.progress.coins || 0) < NOODLE.price) { say('Koin tidak cukup untuk ' + it.name + '.'); return; }
   goodbyeBusy = true;
-  const s = noodleStore(); s.q[id] += 1; s.spent += NOODLE.price; saveNoodleStore(s);
-  profile.progress.coins = (+profile.progress.coins || 0) - NOODLE.price;
-  syncCoinsUI(); say('Berhasil membeli ' + it.name + '!');
+  try { applyShop(await api('/shop/noodle', 'POST', { id })); say('Berhasil membeli ' + it.name + '!'); }
+  catch (err) { say(err.message); }
   goodbyeBusy = false; renderUpgradePanel('noodle');
 }
 function renderUpgradePanel(pop) {   // menu Upgrade Toko: Goodbye di atas, Mie Kari di bawah; keduanya terlihat tanpa scroll
@@ -189,15 +182,10 @@ const OUTFITS = [
   { id: 'legendary', name: 'Legendary', rarity: 'Legendaris', color: '#e8a31c', cur: 'gem', price: 500, soon: true },
   { id: 'mythical', name: 'Mythical', rarity: 'Mitos', color: '#7a4be0', cur: 'gem', price: 1200, soon: true }
 ];
-const OUTFIT_LOCAL = true;   // true = kepemilikan outfit + potongan koin/gem disimpan di perangkat (sementara, seperti fusion). Ubah ke false bila server sudah punya POST /outfit/buy {id} (balas profil dengan daftar profile.outfits)
-const outfitKey = () => 'petblaster-outfit-' + (profile?.username || 'guest');
-function outfitStore() {
-  try { const o = JSON.parse(localStorage.getItem(outfitKey()) || '{}'), sp = o.spent || {}; return { owned: Array.isArray(o.owned) ? o.owned : [], worn: o.worn || 'base', spent: { coin: +sp.coin || 0, gem: +sp.gem || 0 } }; }
-  catch (_) { return { owned: [], worn: 'base', spent: { coin: 0, gem: 0 } }; }
-}
-function saveOutfitStore(o) { try { localStorage.setItem(outfitKey(), JSON.stringify(o)); } catch (_) { } }
-const outfitOwned = id => id === 'base' || outfitStore().owned.includes(id) || !!(profile && Array.isArray(profile.outfits) && profile.outfits.includes(id));
-const outfitWorn = () => { const w = outfitStore().worn; return OUTFITS.some(o => o.id === w) && outfitOwned(w) ? w : 'base'; };   // outfit hanya tampil bila sudah dibeli
+// Kepemilikan outfit/skin + outfit yang dipakai tersimpan di database (tabel game_outfits, game_progress.worn_outfit) dan datang lewat profile.outfits / profile.worn.
+
+const outfitOwned = id => id === 'base' || !!(profile && Array.isArray(profile.outfits) && profile.outfits.includes(id));
+const outfitWorn = () => { const w = profile?.worn || 'base'; return OUTFITS.some(o => o.id === w) && outfitOwned(w) ? w : 'base'; };   // outfit hanya tampil bila sudah dibeli
 // GIF idle transparan per outfit untuk pratinjau Toko. Outfit tanpa entri di sini memakai canvas spritesheet / gambar diam seperti sebelumnya.
 const OUTFIT_GIF = Object.fromEntries(SKINS.filter(k => k.gif).map(k => [k.outfit, k.gif]));   // diambil dari SKINS (game_tois.js, field gif)
 const outfitImg = id => 'assets/outfits/' + id + '.webp?v=2';
@@ -213,23 +201,18 @@ async function buyOutfit(id) {
   if ((+profile.progress[key] || 0) < o.price) { say((o.cur === 'gem' ? 'Gem' : 'Koin') + ' tidak cukup untuk outfit ' + o.name + '.'); return; }
   outfitBusy = true;
   try {
-    if (OUTFIT_LOCAL) {
-      const s = outfitStore(); s.owned.push(id); s.worn = id; s.spent[o.cur] += o.price; saveOutfitStore(s);
-      profile.progress[key] = (+profile.progress[key] || 0) - o.price;
-    } else {
-      await api('/outfit/buy', 'POST', { id });
-      const d = await api('/profile'); profile.progress = d.progress; profile.outfits = d.outfits;
-      const s = outfitStore(); s.worn = id; saveOutfitStore(s);
-    }
-    outfitLobbyDirty = true; syncCoinsUI();
+    applyShop(await api('/outfit/buy', 'POST', { id }));   // server memotong koin/gem, menyimpan outfit, dan langsung memakainya
+    outfitLobbyDirty = true;
     say('Outfit ' + o.name + ' berhasil dibeli dan sedang dipakai!');
   } catch (err) { say(err.message); }
   outfitBusy = false; renderOutfitPanel();
 }
-function wearOutfit(id) {
-  if (!outfitOwned(id)) return;
-  const s = outfitStore(); s.worn = id; saveOutfitStore(s); outfitLobbyDirty = true;
-  say('Outfit ' + OUTFITS.find(o => o.id === id).name + ' dipakai.'); renderOutfitPanel();
+async function wearOutfit(id) {
+  if (outfitBusy || !outfitOwned(id)) return;
+  outfitBusy = true;
+  try { applyShop(await api('/outfit/wear', 'POST', { id })); outfitLobbyDirty = true; say('Outfit ' + OUTFITS.find(o => o.id === id).name + ' dipakai.'); }
+  catch (err) { say(err.message); }
+  outfitBusy = false; renderOutfitPanel();
 }
 const outfitPrice = o => o.price ? `<span class="oprice">${o.cur === 'gem' ? '💎' : '🪙'} <b>${o.price.toLocaleString('id-ID')}</b></span>` : '<span class="oprice free">Gratis</span>';
 let outfitAnimTimer = 0;
@@ -389,11 +372,12 @@ const HUB_VIEW = {
       </ul>`;
   }
 };
-function wearSkin(id) {   // pakai skin Tois; skin = outfit Toko, jadi hanya yang sudah dibeli. Lobi dibangun ulang saat menu ditutup
+async function wearSkin(id) {   // pakai skin Tois; skin = outfit Toko, jadi hanya yang sudah dimiliki. Lobi dibangun ulang saat menu ditutup
   const k = skinOf(id);
   if (!outfitOwned(k.outfit)) { say('Skin ' + k.name + ' belum dimiliki. Beli dulu di Toko (Dika).'); return; }
-  const o = outfitStore(); o.worn = k.outfit; saveOutfitStore(o);
-  outfitLobbyDirty = true; say('Skin ' + k.name + ' dipakai.'); renderHub('char');
+  try { applyShop(await api('/outfit/wear', 'POST', { id: k.outfit })); outfitLobbyDirty = true; say('Skin ' + k.name + ' dipakai.'); }
+  catch (err) { say(err.message); }
+  renderHub('char');
 }
 function renderHub(key = hubKey) {
   hubKey = key; const t = HUB.find(h => h[0] === key);

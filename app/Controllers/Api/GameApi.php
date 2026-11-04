@@ -3,6 +3,7 @@
 namespace App\Controllers\Api;
 
 use App\Libraries\PublicId;
+use App\Libraries\Shop;
 
 class GameApi extends ApiController
 {
@@ -137,7 +138,12 @@ class GameApi extends ApiController
                 log_message('error', 'Daftar bos gagal dibaca: {m}', ['m' => $e->getMessage()]);
             }
         }
-        return $this->respond(['success' => true, 'username' => $user['username'], 'progress' => $progress, 'afk' => $this->afkPending($progress), 'gemClears' => $gemClears, 'publicId' => $pub]);
+        // Barang Toko, outfit/skin, dan papan Lotre tersimpan di database (Shop::state). Bila skema belum siap, game tetap jalan tanpa data Toko.
+        $shop = Shop::ensureSchema($db) ? Shop::state($db, $uid) : [];
+        return $this->respond(array_merge(
+            ['success' => true, 'username' => $user['username'], 'progress' => $progress, 'afk' => $this->afkPending($progress), 'gemClears' => $gemClears, 'publicId' => $pub],
+            $shop
+        ));
     }
 
     // Koin AFK = menit berlalu (maks 8 jam) x (1 + rekor gelombang). Dihitung penuh di server.

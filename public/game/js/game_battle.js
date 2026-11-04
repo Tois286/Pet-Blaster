@@ -124,6 +124,7 @@ class Battle extends Base {
   }
   hasPet() { return this.pets.some(p => p.on); }
   petFull() { return false; }   // true = kartu "Panggil pet" tidak ditawarkan lagi; mode VS membatasi jumlah pet (VsBattle.petFull)
+  petResist(e, p) { return 0; }   // pengurang damage pet terhadap monster e (0 = normal; .15 = -15% dan efek pasif tidak berlaku); mode VS mengisinya (VsBattle.petResist)
   addPet(el) {   // pet pendukung muncul di slot kosong berikutnya (kiri ke kanan)
     const p = this.pets.find(o => o.el === el), used = this.pets.filter(o => o.on || o.fused).map(o => o.x), n = Math.max(0, PET_SLOTS.findIndex(x => !used.includes(x)));   // slot kosong pertama; slot pet yang sedang melebur dicadangkan agar saat fusion berakhir ia kembali ke posisi aslinya
     p.on = true; p.cd = 1000; p.x = PET_SLOTS[n]; p.setVisible(true).setAlpha(0);
@@ -777,8 +778,9 @@ class Battle extends Base {
     const targets = (front || hit).map(e => ({ x: e.s.x, y: e.s.y }));   // posisi saat dilepas (musuh bisa mati/bergeser)
     this.skillFx(p, sk, targets, cx, cy, lx, hit);
     hit.forEach(e => {
-      this.dmgTo(e, d);
-      if (e.dead) return;
+      const cut = this.petResist(e, p);   // > 0 bila monster tahan terhadap pet ini: damage berkurang dan efek pasif di bawah dilewati
+      this.dmgTo(e, cut ? Math.max(1, Math.ceil(d * (1 - cut))) : d);
+      if (e.dead || cut) return;
       if (sk.burn) this.ignite(e, d, sk.burn);   // api: target terbakar
       if (sk.stun && p.el === 'air') e.frz = sk.stun;   // air: terkunci dalam es (balok es mengikuti musuh sampai pecah)
       if (sk.stun) { e.stun = sk.stun; this.tintFor(e, p.el === 'air' ? 0x9fdcff : 0xc9a06a, sk.stun); }   // beku (es) atau terjebak tanah

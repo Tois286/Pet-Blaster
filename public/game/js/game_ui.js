@@ -397,6 +397,7 @@ const HUB_VIEW = {
         <li><i>❤️</i><span><b>HP monster</b>Setara HP monster di pulau terakhir yang dikunjungi penahan.</span></li>
         <li><i>👹</i><span><b>${VS_BUDGET.total} monster per babak</b>Termasuk ${VS_BUDGET.elite} elite dan ${VS_BUDGET.boss} bos. Kartu elite dan bos muncul mulai wave ${VS_SPECIAL_FROM}.</span></li>
         <li><i>🐾</i><span><b>Maksimal ${VS_RULES.maxPets} pet</b>Penahan hanya boleh memanggil ${VS_RULES.maxPets} karakter pet per babak. Setelah itu kartu "Panggil" tidak muncul lagi.</span></li>
+        <li><i>🛡️</i><span><b>Elemen sama</b>Monster yang elemennya sama dengan pet yang menyerangnya menerima damage ${Math.round(VS_RULES.sameElementCut * 100)}% lebih kecil dan kebal efek pasif pet (bakar, beku, jebak, lambat).</span></li>
         <li><i>🏆</i><span><b>Cara menang</b>Benteng penahan hancur dalam satu babak = penyerang menang total. Bila bertahan, lanjut babak 2. Setelah 2 babak, sisa HP benteng terbanyak menang; bila sama, dilihat monster yang sampai ke tembok lalu seberapa jauh monster sempat maju.</span></li>
       </ul>`;
   }

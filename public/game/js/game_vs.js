@@ -31,7 +31,8 @@ const VS_RULES = {
   roleFirstRound: 'random',   // peran babak pertama diundi: sisi A atau B jadi penyerang
   swapEachRound: true,        // setiap babak berikutnya peran ditukar
   rounds: 2,                  // tiap sisi sempat jadi penyerang dan penahan satu kali
-  maxPets: 2                  // penahan hanya boleh memanggil 2 karakter pet per babak (berlaku di semua mode VS)
+  maxPets: 2,                 // penahan hanya boleh memanggil 2 karakter pet per babak (berlaku di semua mode VS)
+  sameElementCut: .15         // monster berelemen sama dengan pet penyerangnya: damage pet -15% dan efek pasif (bakar/beku/jebak/lambat) tidak berlaku
 };
 
 const vsOpposite = role => role === VS_ROLE.ATTACK ? VS_ROLE.DEFEND : VS_ROLE.ATTACK;

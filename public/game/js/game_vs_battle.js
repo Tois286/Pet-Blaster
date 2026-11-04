@@ -101,6 +101,8 @@ class VsBattle extends Battle {
     if (!p || p.on || p.fused || this.petFull()) return;
     super.addPet(el);
   }
+  // ---- Ketahanan elemen: monster yang elemennya sama dengan pet yang menyerangnya menerima damage -15% dan kebal efek pasif pet ----
+  petResist(e, p) { return ELS[e.k] === p.el ? VS_RULES.sameElementCut : 0; }   // e.k = indeks elemen monster (urutan ELS: api, air, tanah, angin)
   // ---- Pencatat penentu cadangan (dipakai vsJudge saat HP kedua benteng sama) ----
   vsScanReach() {   // hitung tiap monster satu kali begitu ia mulai memukul tembok (atau menembak dari jarak jauh)
     (this.enemies || []).forEach(e => { if (e.atk && !e._vr && !e.dead) { e._vr = 1; this.vsReach++; } });

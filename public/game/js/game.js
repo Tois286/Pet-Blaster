@@ -11,9 +11,11 @@
     'game_tois.js',
     'game_pet.js',
     'game_world.js',
+    'game_vs.js',
     'game_systems.js',
     'game_engine.js',
     'game_battle.js',
+    'game_vs_battle.js',
     'game_lotre.js',
     'game_ui.js'
   ];

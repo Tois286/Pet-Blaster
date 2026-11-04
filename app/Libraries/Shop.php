@@ -21,9 +21,9 @@ class Shop
     public const OUTFITS = [
         'elite'     => ['cur' => 'coin', 'price' => 5000],
         'master'    => ['cur' => 'coin', 'price' => 15000],
-        'epic'      => ['cur' => 'gem', 'price' => 150, 'soon' => true],
-        'legendary' => ['cur' => 'gem', 'price' => 500, 'soon' => true],
-        'mythical'  => ['cur' => 'gem', 'price' => 1200, 'soon' => true],
+        'epic'      => ['cur' => 'gem', 'price' => 150],
+        'legendary' => ['cur' => 'gem', 'price' => 500],
+        'mythical'  => ['cur' => 'gem', 'price' => 1200],
     ];
 
     public const LOTRE_PRICE = 250;
@@ -45,14 +45,36 @@ class Shop
             ['n' => 6, 't' => 'coin', 'amt' => 750, 'stock' => 1],
         ];
         // [nomor, jenis, jumlah, stock]
-        foreach ([
-            [7, 'coin', 50, 3], [8, 'coin', 50, 3], [9, 'coin', 75, 3], [10, 'coin', 75, 3], [11, 'coin', 100, 3],
-            [12, 'coin', 100, 3], [13, 'gem', 3, 3], [14, 'gem', 5, 3], [15, 'coin', 125, 3], [16, 'coin', 150, 3],
-            [17, 'coin', 50, 3], [18, 'coin', 50, 3], [19, 'coin', 75, 3], [20, 'coin', 75, 3],
-            [21, 'coin', 100, 3], [22, 'gem', 3, 3], [23, 'gem', 5, 3], [24, 'coin', 150, 3],
-            [25, 'coin', 50, 3], [26, 'coin', 75, 3], [27, 'coin', 100, 3], [28, 'coin', 100, 3],
-            [29, 'gem', 4, 3], [30, 'coin', 200, 3], [31, 'coin', 300, 1], [32, 'goodbye', 1, 1],
-        ] as [$n, $t, $amt, $stock]) {
+        foreach (
+            [
+                [7, 'coin', 50, 3],
+                [8, 'coin', 50, 3],
+                [9, 'coin', 75, 3],
+                [10, 'coin', 75, 3],
+                [11, 'coin', 100, 3],
+                [12, 'coin', 100, 3],
+                [13, 'gem', 3, 3],
+                [14, 'gem', 5, 3],
+                [15, 'coin', 125, 3],
+                [16, 'coin', 150, 3],
+                [17, 'coin', 50, 3],
+                [18, 'coin', 50, 3],
+                [19, 'coin', 75, 3],
+                [20, 'coin', 75, 3],
+                [21, 'coin', 100, 3],
+                [22, 'gem', 3, 3],
+                [23, 'gem', 5, 3],
+                [24, 'coin', 150, 3],
+                [25, 'coin', 50, 3],
+                [26, 'coin', 75, 3],
+                [27, 'coin', 100, 3],
+                [28, 'coin', 100, 3],
+                [29, 'gem', 4, 3],
+                [30, 'coin', 200, 3],
+                [31, 'coin', 300, 1],
+                [32, 'goodbye', 1, 1],
+            ] as [$n, $t, $amt, $stock]
+        ) {
             $p[] = ['n' => $n, 't' => $t, 'amt' => $amt, 'stock' => $stock];
         }
         return $p;
@@ -82,11 +104,16 @@ class Shop
     public static function lotrePrizeName(array $z): string
     {
         switch ($z['t']) {
-            case 'coin':    return $z['amt'] . ' koin';
-            case 'gem':     return $z['amt'] . ' gem';
-            case 'skin':    return 'Skin ' . $z['id'];
-            case 'goodbye': return 'Goodbye x' . $z['amt'];
-            default:        return 'Mie Kari ' . $z['id'] . ' x' . $z['amt'];
+            case 'coin':
+                return $z['amt'] . ' koin';
+            case 'gem':
+                return $z['amt'] . ' gem';
+            case 'skin':
+                return 'Skin ' . $z['id'];
+            case 'goodbye':
+                return 'Goodbye x' . $z['amt'];
+            default:
+                return 'Mie Kari ' . $z['id'] . ' x' . $z['amt'];
         }
     }
 

@@ -1,6 +1,6 @@
 // Kelas Battle: alur pertempuran dan runtime monster, pet, proyektil, fusion, damage, HUD.
 class Battle extends Base {
-  constructor() { super('Battle'); }
+  constructor(key) { super(key || 'Battle'); }   // key kustom dipakai VsBattle (game_vs_battle.js)
 
   makeWorld() { this.arena = -1; this.bg = null; this.fusionBg = null; this.setArena(selectedIsland); }
   setArena(i) {   // arena dikunci berdasarkan pulau; semua stage memakai arena pulau tersebut
@@ -47,6 +47,9 @@ class Battle extends Base {
     this.manual = false;
     this.input.on('pointerdown', () => { this.manual = true; });
     this.input.on('pointerup', () => { this.manual = false; });
+    this.boot();
+  }
+  boot() {   // sambungkan sesi battle ke server lalu mulai; VsBattle mengganti ini tanpa server
     const req = battleReq || api('/battle/start', 'POST', { island: selectedIsland, stage: selectedStage }); battleReq = null;   // permintaan sudah dikirim saat tombol ditekan (startBattle); bila tidak ada (mis. mulai ulang) kirim sekarang
     const snap = resumeSnap; resumeSnap = null;   // ada snapshot = pertempuran terakhir dipulihkan, bukan mulai dari awal
     req.then(r => { this.token = r.session; snap ? this.resume(snap) : this.begin(); })
@@ -1023,7 +1026,7 @@ class Battle extends Base {
                   impact(t.x, t.y, 0x8fd8ff, 1.2); shootSide(t, 1); shootSide(t, -1);
                   if (i === 0) this.cameras.main.shake(90, .004);
                   // 3) Knockback: monster terpental ke belakang (atas layar) dan bergeser ke samping
-                  if (e && !e.dead && e.s && e.s.active) this.tweens.add({ targets: e, py: Math.max(-20, e.py - KB_Y), x0: Phaser.Math.Clamp(e.x0 + dir * KB_X, OX + 16, OX + 344), duration: 260, ease: 'Quad.Out' });
+                  if (e && !e.dead && e.s && e.s.active) this.tweens.add({ targets: e, py: Math.max(this.topY ?? -20, e.py - KB_Y), x0: Phaser.Math.Clamp(e.x0 + dir * KB_X, OX + 16, OX + 344), duration: 260, ease: 'Quad.Out' });
                 }
               });
             });
@@ -1155,7 +1158,7 @@ class Battle extends Base {
     if (e.dead) return; const gain = Math.max(0, Math.min(d, e.hp)); e.hp -= d;   // EXP = damage nyata (kelebihan damage tidak dihitung)
     this.pop(e.s.x + Phaser.Math.Between(-12, 12), e.s.y - e.h * .5, d, '#ffffff', 11);
     e.s.setTintFill(0xffffff); this.time.delayedCall(60, () => e.s.active && e.s.clearTint());
-    e.fg.width = e.bw * Math.max(0, e.hp / e.mhp); e.hitT = 140; if (!e.atk && (!fromHero || this.buffT > 0)) e.py = Math.max(-20, e.py - (e.big ? 1 : 3));   // terpental sedikit (tidak bila sedang memukul tembok)
+    e.fg.width = e.bw * Math.max(0, e.hp / e.mhp); e.hitT = 140; if (!e.atk && (!fromHero || this.buffT > 0)) e.py = Math.max(this.topY ?? -20, e.py - (e.big ? 1 : 3));   // terpental sedikit (tidak bila sedang memukul tembok)
     if (e.hp > 0 && this.anims.exists('mon' + e.id + '_hit') && !(e.s.anims.currentAnim && (e.s.anims.currentAnim.key.endsWith('_hit') || e.s.anims.currentAnim.key.endsWith('_atk')))) e.s.play('mon' + e.id + '_hit').chain('mon' + e.id + '_move');   // sentakan saat kena tembak, lalu lanjut jalan
     if (e.hp <= 0) {
       this.kills++; this.burst[e.k].emitParticleAt(e.s.x, e.s.y, e.big ? 26 : 12);

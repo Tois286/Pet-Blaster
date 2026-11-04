@@ -37,7 +37,7 @@ function startGame() {
   Object.assign($('game-container').style, { backgroundImage: "url('assets/backgrounds/lobby.jpg?v=2')", backgroundSize: 'cover', backgroundPosition: 'center' });   // latar cadangan saat scene berganti
   game = new Phaser.Game({
     type: Phaser.AUTO, parent: 'game-container', width: W, height: H, transparent: true,
-    scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH }, scene: [Lobby, Battle]
+    scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH }, scene: [Lobby, Battle, VsBattle]
   });
 }
 
@@ -47,12 +47,23 @@ function say(t) { const m = $('gameMessage'); m.textContent = t; clearTimeout(sa
 // Mulai pertempuran. Permintaan /battle/start dikirim bersamaan dengan pergantian scene (sebelumnya baru dikirim setelah scene Battle selesai dibuat, jadi dua jeda berurutan). Klik ganda diabaikan selama permintaan belum dipakai Battle.create.
 let battleReq = null;
 function startBattle() {
+  if (vsMatch && vsMatch.active) return startVsRound();   // pertandingan VS sedang berjalan: tombol lanjut memulai babak berikutnya
   if (!game || battleReq) return;
   battleReq = api('/battle/start', 'POST', { island: selectedIsland, stage: selectedStage });   // pulau + stage dikirim agar server bisa menghitung gem bos
   battleReq.catch(() => { });   // galat ditampilkan oleh Battle.create lewat say(); ini hanya mencegah peringatan "unhandled rejection"
   $('gamePanel').classList.add('battle'); game.scene.stop('Lobby'); game.scene.start('Battle');
 }
-function toLobby() { clearBattleSnap(); $('result').hidden = true; $('gamePanel').classList.remove('battle'); game.scene.stop('Battle'); game.scene.start('Lobby'); }
+// ---- Mode VS: mulai pertandingan (hanya mode yang punya bot yang sudah bisa dimainkan) dan mulai tiap babak ----
+function startVsMatch(mode) {
+  if (!game) return;
+  vsMatch = vsNewMatch(mode); $('hub').hidden = true; startVsRound();
+}
+function startVsRound() {
+  if (!game || !vsMatch) return;
+  $('result').hidden = true; $('gamePanel').classList.add('battle'); game.scene.stop('Lobby'); game.scene.start('VsBattle');
+  say('Mode VS (uji): hadiah tidak disimpan.');
+}
+function toLobby() { clearBattleSnap(); vsCleanup(); $('result').hidden = true; $('gamePanel').classList.remove('battle'); game.scene.stop('Battle'); game.scene.stop('VsBattle'); game.scene.start('Lobby'); }
 const menu = (el, items) => items.forEach(([ic, label, act]) => {
   const b = document.createElement('button'); b.className = 'ico'; b.innerHTML = `<i>${ic}</i><span>${label}</span>`;
   b.onclick = () => act ? openHub(act) : say('Fitur ' + label + ' segera hadir.'); $(el).appendChild(b);
@@ -91,25 +102,27 @@ const NOODLE = {
 };
 const noodleStore = () => { const q = profile?.noodle || {}; return { q: { biasa: +q.biasa || 0, double: +q.double || 0, telur: +q.telur || 0 } }; };   // jumlah per varian dari database (profile.noodle)
 const noodleTotal = () => Object.values(noodleStore().q).reduce((a, b) => a + b, 0);
-(() => { const st = document.createElement('style'); st.textContent =
-  // Panel Upgrade: dua menu (Goodbye, Mie Kari) disusun padat; ukuran gambar & jarak mengikuti tinggi layar (vh) supaya keduanya terlihat tanpa scroll
-  '#shopPanel.goodbye{display:flex;flex-direction:column;justify-content:space-evenly;gap:clamp(6px,1.4vh,12px);background:linear-gradient(180deg,#2b1d4a,#1d1330);color:#fff;border-radius:16px;padding:clamp(6px,1.4vh,12px) 10px;overflow:auto;box-sizing:border-box}'
-  + '.upsec{display:flex;flex-direction:column;gap:clamp(3px,.8vh,8px);padding-bottom:clamp(4px,1vh,10px);border-bottom:1px dashed rgba(255,255,255,.18)}.upsec:last-of-type{border-bottom:0;padding-bottom:0}'
-  + '.uphead{display:flex;align-items:center;gap:8px}.uphead>img{width:clamp(28px,4.6vh,40px);height:clamp(28px,4.6vh,40px);object-fit:contain;filter:drop-shadow(0 2px 3px rgba(0,0,0,.45))}'
-  + '.uphead h4{margin:0;font-size:15px;line-height:1.1}.uphead p{margin:1px 0 0;font-size:11px;opacity:.85}'
-  + '.upown{margin-left:auto;text-align:center;padding:2px 10px;border-radius:10px;background:rgba(255,255,255,.1);font-size:10px;line-height:1.15}.upown b{display:block;font-size:16px;color:#ffd34d}'
-  + '.upown.pop b{animation:uppop .4s ease-out}@keyframes uppop{0%{transform:scale(1)}40%{transform:scale(1.35)}100%{transform:scale(1)}}'
-  + '.upgrid{display:flex;gap:10px;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;scrollbar-width:none;touch-action:pan-x pan-y;padding:12px 6px 6px;margin:0 -4px;cursor:grab}'
-  + '.upgrid::-webkit-scrollbar{display:none}.upgrid.drag{cursor:grabbing;scroll-snap-type:none}'
-  + '.upcard{position:relative;flex:0 0 clamp(120px,40%,152px);scroll-snap-align:start;display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 4px 6px;min-width:0;box-sizing:border-box;border-radius:12px;border:2px solid var(--rc);background:radial-gradient(circle at 50% 40%,rgba(255,255,255,.15),rgba(0,0,0,.25));box-shadow:0 3px 0 rgba(0,0,0,.35)}'
-  + '.upqty{position:absolute;top:-10px;left:50%;transform:translateX(-50%);padding:0 10px;border-radius:9px;background:var(--rc);color:#1d1330;font-style:normal;font-weight:800;font-size:12px;line-height:17px;white-space:nowrap}'
-  + '.upbadge{position:absolute;top:-9px;right:-5px;min-width:19px;height:19px;padding:0 5px;box-sizing:border-box;border-radius:10px;background:#2fa84f;color:#fff;font:800 11px/19px system-ui,sans-serif;text-align:center}'
-  + '.upart{width:100%;height:clamp(52px,11.5vh,100px);display:flex;align-items:center;justify-content:center}.upart img{max-width:100%;max-height:100%;object-fit:contain;filter:drop-shadow(0 3px 3px rgba(0,0,0,.45));transition:transform .15s}'
-  + '.upcard:active .upart img{transform:scale(.93)}'
-  + '.upname{display:flex;align-items:center;justify-content:center;min-height:2.3em;font-size:11px;line-height:1.15;text-align:center}'
-  + '.upbuy{width:100%;min-width:0;padding:5px 2px;font-size:12px;white-space:nowrap}.upbuy:disabled{opacity:.5}'
-  + '.upcoin{margin:0;text-align:center;font-size:11px;opacity:.9}.upcoin b{color:#ffd34d}';
-  document.head.appendChild(st); })();
+(() => {
+  const st = document.createElement('style'); st.textContent =
+    // Panel Upgrade: dua menu (Goodbye, Mie Kari) disusun padat; ukuran gambar & jarak mengikuti tinggi layar (vh) supaya keduanya terlihat tanpa scroll
+    '#shopPanel.goodbye{display:flex;flex-direction:column;justify-content:space-evenly;gap:clamp(6px,1.4vh,12px);background:linear-gradient(180deg,#2b1d4a,#1d1330);color:#fff;border-radius:16px;padding:clamp(6px,1.4vh,12px) 10px;overflow:auto;box-sizing:border-box}'
+    + '.upsec{display:flex;flex-direction:column;gap:clamp(3px,.8vh,8px);padding-bottom:clamp(4px,1vh,10px);border-bottom:1px dashed rgba(255,255,255,.18)}.upsec:last-of-type{border-bottom:0;padding-bottom:0}'
+    + '.uphead{display:flex;align-items:center;gap:8px}.uphead>img{width:clamp(28px,4.6vh,40px);height:clamp(28px,4.6vh,40px);object-fit:contain;filter:drop-shadow(0 2px 3px rgba(0,0,0,.45))}'
+    + '.uphead h4{margin:0;font-size:15px;line-height:1.1}.uphead p{margin:1px 0 0;font-size:11px;opacity:.85}'
+    + '.upown{margin-left:auto;text-align:center;padding:2px 10px;border-radius:10px;background:rgba(255,255,255,.1);font-size:10px;line-height:1.15}.upown b{display:block;font-size:16px;color:#ffd34d}'
+    + '.upown.pop b{animation:uppop .4s ease-out}@keyframes uppop{0%{transform:scale(1)}40%{transform:scale(1.35)}100%{transform:scale(1)}}'
+    + '.upgrid{display:flex;gap:10px;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;scrollbar-width:none;touch-action:pan-x pan-y;padding:12px 6px 6px;margin:0 -4px;cursor:grab}'
+    + '.upgrid::-webkit-scrollbar{display:none}.upgrid.drag{cursor:grabbing;scroll-snap-type:none}'
+    + '.upcard{position:relative;flex:0 0 clamp(120px,40%,152px);scroll-snap-align:start;display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 4px 6px;min-width:0;box-sizing:border-box;border-radius:12px;border:2px solid var(--rc);background:radial-gradient(circle at 50% 40%,rgba(255,255,255,.15),rgba(0,0,0,.25));box-shadow:0 3px 0 rgba(0,0,0,.35)}'
+    + '.upqty{position:absolute;top:-10px;left:50%;transform:translateX(-50%);padding:0 10px;border-radius:9px;background:var(--rc);color:#1d1330;font-style:normal;font-weight:800;font-size:12px;line-height:17px;white-space:nowrap}'
+    + '.upbadge{position:absolute;top:-9px;right:-5px;min-width:19px;height:19px;padding:0 5px;box-sizing:border-box;border-radius:10px;background:#2fa84f;color:#fff;font:800 11px/19px system-ui,sans-serif;text-align:center}'
+    + '.upart{width:100%;height:clamp(52px,11.5vh,100px);display:flex;align-items:center;justify-content:center}.upart img{max-width:100%;max-height:100%;object-fit:contain;filter:drop-shadow(0 3px 3px rgba(0,0,0,.45));transition:transform .15s}'
+    + '.upcard:active .upart img{transform:scale(.93)}'
+    + '.upname{display:flex;align-items:center;justify-content:center;min-height:2.3em;font-size:11px;line-height:1.15;text-align:center}'
+    + '.upbuy{width:100%;min-width:0;padding:5px 2px;font-size:12px;white-space:nowrap}.upbuy:disabled{opacity:.5}'
+    + '.upcoin{margin:0;text-align:center;font-size:11px;opacity:.9}.upcoin b{color:#ffd34d}';
+  document.head.appendChild(st);
+})();
 const isShopUpgrade = b => /upgrade/i.test([b.dataset.shop || '', b.getAttribute('aria-label') || '', b.textContent, ...[...b.querySelectorAll('img')].map(i => i.alt)].join(' '));
 (() => {   // Goodbye tampil di menu "Upgrade" Toko. Bila menu Upgrade belum ada di index.html, tombolnya dibuat dengan meniru tombol menu yang sudah ada.
   const m = $('shopMenu'); if (!m) return;
@@ -145,8 +158,10 @@ function renderUpgradePanel(pop) {   // menu Upgrade Toko: Goodbye di atas, Mie 
   const keepX = [...p.querySelectorAll('.upgrid')].map(g => g.scrollLeft);   // posisi geser tiap baris dipertahankan setelah membeli
   const head = (icon, title, sub, total, key) => `<div class="uphead"><img src="${icon}" alt=""><div><h4>${title}</h4><p>${sub}</p></div><div class="upown${pop === key ? ' pop' : ''}">Dimiliki<b>${fmtID(total)}</b></div></div>`;
   p.innerHTML = `<section class="upsec">${head(GOODBYE.icon, GOODBYE.name, '🪙 ' + fmtID(GOODBYE.price) + ' / gelas', goodbyeStore().qty, 'goodbye')}<div class="upgrid">`
-    + GOODBYE.packs.map(k => { const cost = k.qty * GOODBYE.price;
-      return `<article class="upcard" style="--rc:${k.color}"><em class="upqty">×${k.qty}</em><div class="upart"><img src="${k.img}" alt="${k.qty} gelas ${GOODBYE.name}"></div><b class="upname">${k.qty} Gelas</b><button type="button" class="btn main upbuy" data-gbuy="${k.qty}" ${coins < cost ? 'disabled' : ''}>🪙 ${fmtID(cost)}</button></article>`; }).join('')
+    + GOODBYE.packs.map(k => {
+      const cost = k.qty * GOODBYE.price;
+      return `<article class="upcard" style="--rc:${k.color}"><em class="upqty">×${k.qty}</em><div class="upart"><img src="${k.img}" alt="${k.qty} gelas ${GOODBYE.name}"></div><b class="upname">${k.qty} Gelas</b><button type="button" class="btn main upbuy" data-gbuy="${k.qty}" ${coins < cost ? 'disabled' : ''}>🪙 ${fmtID(cost)}</button></article>`;
+    }).join('')
     + `</div></section><section class="upsec">${head(NOODLE.icon, NOODLE.name, '🪙 ' + fmtID(NOODLE.price) + ' / mangkuk', noodleTotal(), 'noodle')}<div class="upgrid">`
     + NOODLE.items.map(k =>
       `<article class="upcard" style="--rc:${k.color}">${nq[k.id] ? `<i class="upbadge">${fmtID(nq[k.id])}</i>` : ''}<div class="upart"><img src="${k.img}" alt="${k.name}"></div><b class="upname">${k.name}</b><button type="button" class="btn main upbuy" data-nbuy="${k.id}" ${coins < NOODLE.price ? 'disabled' : ''}>🪙 ${fmtID(NOODLE.price)}</button></article>`).join('')
@@ -178,9 +193,9 @@ const OUTFITS = [
   { id: 'base', name: 'Base', rarity: 'Biasa', color: '#8a8a8a', cur: 'coin', price: 0 },
   { id: 'elite', name: 'Elite', rarity: 'Langka', color: '#3f7fd8', cur: 'coin', price: 5000 },
   { id: 'master', name: 'Master', rarity: 'Master', color: '#1fb8d6', cur: 'coin', price: 15000 },
-  { id: 'epic', name: 'Epic', rarity: 'Epik', color: '#c04bd8', cur: 'gem', price: 150, soon: true },
-  { id: 'legendary', name: 'Legendary', rarity: 'Legendaris', color: '#e8a31c', cur: 'gem', price: 500, soon: true },
-  { id: 'mythical', name: 'Mythical', rarity: 'Mitos', color: '#7a4be0', cur: 'gem', price: 1200, soon: true }
+  { id: 'epic', name: 'Epic', rarity: 'Epik', color: '#c04bd8', cur: 'gem', price: 150 },
+  { id: 'legendary', name: 'Legendary', rarity: 'Legendaris', color: '#e8a31c', cur: 'gem', price: 500 },
+  { id: 'mythical', name: 'Mythical', rarity: 'Mitos', color: '#7a4be0', cur: 'gem', price: 1200 }
 ];
 // Kepemilikan outfit/skin + outfit yang dipakai tersimpan di database (tabel game_outfits, game_progress.worn_outfit) dan datang lewat profile.outfits / profile.worn.
 
@@ -253,10 +268,10 @@ const RANK_ICON = '<svg viewBox="0 0 32 32" width="1.15em" height="1.15em" style
   + '<path d="M16 7L25 10V17C25 23 20.5 26.5 16 28.5C11.5 26.5 7 23 7 17V10Z" fill="#3b6fd8" stroke="#2b1d4a" stroke-width="3.4" stroke-linejoin="round"/>'
   + '<path d="M16 7L25 10V17C25 23 20.5 26.5 16 28.5C11.5 26.5 7 23 7 17V10Z" fill="#3b6fd8" stroke="#ffd34d" stroke-width="1.6" stroke-linejoin="round"/>'
   + '<path d="M16 9V26C12.8 24.2 9 21.2 9 17V11.2Z" fill="#6f9bff"/><path d="M16 12.2l1.5 3 3.3.4-2.4 2.3.6 3.3-3-1.6-3 1.6.6-3.3-2.4-2.3 3.3-.4z" fill="#ffd34d"/></svg>';
-const HUB = [['shop', '🛒', 'Toko'], ['pet', '🐾', 'Pet'], ['char', '👤', 'Karakter'], ['zone', '🗺️', 'Wilayah'], ['guild', RANK_ICON, 'Rank']];
+const HUB = [['shop', '🛒', 'Toko'], ['pet', '🐾', 'Pet'], ['char', '👤', 'Karakter'], ['zone', '🗺️', 'Wilayah'], ['guild', RANK_ICON, 'VS']];
 menu('botNav', HUB.map(([k, ic, n]) => [ic, n, k]));
 
-// ---- Panel menu bawah: Toko, Pet, Karakter, Wilayah, Guild (hanya tampilan; data dari profil dan konstanta game) ----
+// ---- Panel menu bawah: Toko, Pet, Karakter, Wilayah, VS (hanya tampilan; data dari profil dan konstanta game) ----
 let hubKey = 'shop';
 const hex = n => '#' + n.toString(16).padStart(6, '0');
 const LOBBY_PET_STAGE = 1;   // pet teman Tois di lobi selalu tampil sebagai tahap 1 (vol 1); tahap 2-3 didapat saat bertempur lewat kartu upgrade
@@ -360,15 +375,28 @@ const HUB_VIEW = {
         </article>
       </div>`;
   },
-  guild() {
-    return `<article class="gcard"><i>🛡️</i><h4>Belum bergabung guild</h4><p>Berkumpul dengan pemain lain, selesaikan misi bersama, dan raih hadiah guild.</p>
-      <div class="row"><button class="btn main" disabled>Buat Guild</button><button class="btn alt" disabled>Cari Guild</button></div><small>Fitur guild segera hadir.</small></article>
-      <h5>Yang akan hadir</h5>
+  guild() {   // key 'guild' dipertahankan agar cocok dengan <div id="v-guild"> di HTML; isinya sekarang menu VS
+    const ico = { '1v1': '⚔️', '2vbot': '🤖', '2v2': '🛡️', '1vbot': '🧪' };
+    const desc = {
+      '1v1': 'Duel satu lawan satu. Satu pemain menyerang, satu lagi menahan.',
+      '2vbot': 'Berdua melawan tim bot. Peran diundi: tim kamu menyerang atau menahan.',
+      '2v2': 'Dua pemain melawan dua pemain. Satu tim menyerang, tim lain menahan.',
+      '1vbot': 'Uji gameplay: kamu melawan bot. Peran diundi, lalu bertukar di babak kedua.'
+    };
+    const roleRow = (mode, role) => `<li><i>${role === VS_ROLE.ATTACK ? '🗡️' : '🏰'}</i><span><b>${VS_ROLE_NAME[role]}</b>${vsArenaFor(mode, role).name}</span></li>`;
+    return Object.keys(VS_MODES).map(k => `<article class="gcard"><i>${ico[k]}</i><h4>${VS_MODES[k].name}</h4><p>${desc[k]}</p>
+      <ul class="shoplist">${roleRow(k, VS_ROLE.ATTACK)}${roleRow(k, VS_ROLE.DEFEND)}</ul>
+      <div class="row"><button type="button" class="btn main" data-vs="${k}" data-vsname="${VS_MODES[k].name}">${VS_MODES[k].test ? '🧪 ' : ''}Mulai ${VS_MODES[k].name}</button></div><small>${VS_MODES[k].test ? 'Mode uji gameplay: hadiah tidak disimpan.' : 'Mode ' + VS_MODES[k].name + ' segera hadir.'}</small></article>`).join('')
+      + `<h5>Aturan main</h5>
       <ul class="shoplist">
-        <li><i>📋</i><span><b>Misi guild</b>Selesaikan target mingguan bersama anggota.</span></li>
-        <li><i>🪙</i><span><b>Bonus koin</b>Hadiah koin tambahan dari kontribusi guild.</span></li>
-        <li><i>💬</i><span><b>Obrolan guild</b>Ngobrol dan saling bantu strategi.</span></li>
-        <li><i>🏆</i><span><b>Peringkat</b>Bandingkan guild kamu dengan guild lain.</span></li>
+        <li><i>🎲</i><span><b>Peran diundi</b>Satu sisi penyerang, satu sisi penahan. Babak 2 peran ditukar.</span></li>
+        <li><i>🏰</i><span><b>Penahan</b>Menembaki monster yang datang. Arena penahan, atau arena penahan tim bila berdua.</span></li>
+        <li><i>🗡️</i><span><b>Penyerang</b>Tidak menembak; mengatur monster yang dikirim. Selalu memakai arena penyerang.</span></li>
+        <li><i>🃏</i><span><b>Kartu monster</b>Satu babak = ${VS_WAVES} wave. Tiap wave muncul ${VS_HAND} kartu berbeda; kamu punya ${VS_PICKS} kesempatan memilih kartu dan mengatur jumlah tiap kartu.</span></li>
+        <li><i>⏱️</i><span><b>Waktu ${VS_PLAN_SEC} detik</b>Waktu mengatur serangan tiap wave. Habis waktu, monster terkirim otomatis.</span></li>
+        <li><i>❤️</i><span><b>HP monster</b>Setara HP monster di pulau terakhir yang dikunjungi penahan.</span></li>
+        <li><i>👹</i><span><b>${VS_BUDGET.total} monster per babak</b>Termasuk ${VS_BUDGET.elite} elite dan ${VS_BUDGET.boss} bos. Kartu elite dan bos muncul mulai wave ${VS_SPECIAL_FROM}.</span></li>
+        <li><i>🏆</i><span><b>Cara menang</b>Benteng penahan hancur dalam satu babak = penyerang menang total. Bila bertahan, lanjut babak 2. Setelah 2 babak, sisa HP benteng terbanyak menang.</span></li>
       </ul>`;
   }
 };
@@ -386,6 +414,9 @@ function renderHub(key = hubKey) {
   document.querySelectorAll('.hview').forEach(v => { v.hidden = v.id !== 'v-' + key; });
   if (HUB_VIEW[key] && profile) {
     $('v-' + key).innerHTML = HUB_VIEW[key]();
+    if (key === 'guild') {   // menu VS: hanya mode uji (1 vs Bot) yang sudah bisa dimainkan; sisanya memberi info
+      $('v-guild').querySelectorAll('[data-vs]').forEach(b => b.onclick = () => VS_MODES[b.dataset.vs].test ? startVsMatch(b.dataset.vs) : say('Mode ' + b.dataset.vsname + ' segera hadir.'));
+    }
     if (key === 'char') {
       $('v-char').querySelectorAll('[data-togglechar]').forEach(b => b.onclick = () => { charShown = !charShown; renderHub('char'); });
       $('v-char').querySelectorAll('[data-skin]').forEach(b => b.onclick = () => wearSkin(b.dataset.skin));

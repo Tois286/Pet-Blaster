@@ -45,7 +45,8 @@ class Base extends Phaser.Scene {
     if (!this.textures.exists('fire_lava_claw')) this.load.spritesheet('fire_lava_claw', 'assets/pet-actions/fire_lava_claw.png', { frameWidth: 256, frameHeight: 256 });
     // Gambar arena (latar biasa + arena fusion, total beberapa MB) dimuat di sini, bukan saat tombol Mulai Game ditekan: ikut layar pemuatan setelah login, jadi klik Mulai tidak perlu mengunduh apa pun lagi.
     ARENAS.forEach((n, i) => { if (!this.textures.exists('arena' + i)) this.load.image('arena' + i, 'assets/backgrounds/arena' + (i + 1) + '.jpg'); });
-    Object.values(FUSIONS).forEach(f => { if (!this.textures.exists(f.zone.key)) this.load.image(f.zone.key, f.zone.src); });   // arena fusion (es + lava / batu + lava)
+    Object.values(FUSIONS).forEach(f => { if (!this.textures.exists(f.zone.key)) this.load.image(f.zone.key, f.zone.src); });
+    Object.values(VS_ARENA).forEach(a => { if (!this.textures.exists(a.key)) this.load.image(a.key, a.src); });   // arena mode VS (penyerang, penahan, penahan tim)   // arena fusion (es + lava / batu + lava)
   }
   // Pasang karakter Tois dengan tinggi tampilan h (piksel game), berpijak di (x, y).
   makeAnims() {   // animasi monster: move (loop), hit (sekali), die (sekali); pet: idle (loop), cast (sekali)

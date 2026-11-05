@@ -127,3 +127,8 @@ _modules/*
 
 __pycache__/
 *.pyc
+
+# Dump database / cadangan (berisi data pemain, jangan di-commit)
+backup*.sql
+*.sql.gz
+*.sql.zip

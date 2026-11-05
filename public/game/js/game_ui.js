@@ -390,12 +390,12 @@ const HUB_VIEW = {
       + `<h5>Aturan main</h5>
       <ul class="shoplist">
         <li><i>🎲</i><span><b>Peran diundi</b>Satu sisi penyerang, satu sisi penahan. Babak 2 peran ditukar.</span></li>
-        <li><i>🏰</i><span><b>Penahan</b>Menembaki monster yang datang. Arena penahan, atau arena penahan tim bila berdua.</span></li>
+        <li><i>🏰</i><span><b>Penahan</b>Menembaki monster yang datang. Sebelum babak mulai wajib memilih ${VS_PET_MAX} pet dari 4; hanya pet itu yang bisa dipanggil lewat kartu level-up.</span></li>
         <li><i>🗡️</i><span><b>Penyerang</b>Tidak menembak; mengatur monster yang dikirim. Selalu memakai arena penyerang.</span></li>
         <li><i>🃏</i><span><b>Kartu monster</b>Satu babak = ${VS_WAVES} wave. Tiap wave muncul ${VS_HAND} kartu berbeda; kamu punya ${VS_PICKS} kesempatan memilih kartu dan mengatur jumlah tiap kartu.</span></li>
         <li><i>⏱️</i><span><b>Waktu ${VS_PLAN_SEC} detik</b>Waktu mengatur serangan tiap wave. Habis waktu, monster terkirim otomatis.</span></li>
         <li><i>❤️</i><span><b>HP monster</b>Setara HP monster di pulau terakhir yang dikunjungi penahan.</span></li>
-        <li><i>👹</i><span><b>${VS_BUDGET.total} monster per babak</b>Termasuk ${VS_BUDGET.elite} elite dan ${VS_BUDGET.boss} bos. Kartu elite dan bos muncul mulai wave ${VS_SPECIAL_FROM}.</span></li>
+        <li><i>👹</i><span><b>${VS_BUDGET.total} monster per babak</b>Termasuk ${VS_BUDGET.elite} elite dan ${VS_BUDGET.boss} bos final. Di awal kamu hanya boleh memilih ${VS_SPECIAL_PICK} jenis elite / bos final (bebas campuran); kartunya ada di sudut kiri layar atur serangan, bisa dikirim ${VS_SPECIAL_FROM > 1 ? 'mulai wave ' + VS_SPECIAL_FROM : 'kapan saja'}. Satu wave maksimal ${VS_WAVE_MAX.elite} elite dan ${VS_WAVE_MAX.boss} bos final.</span></li>
         <li><i>🏆</i><span><b>Cara menang</b>Benteng penahan hancur dalam satu babak = penyerang menang total. Bila bertahan, lanjut babak 2. Setelah 2 babak, sisa HP benteng terbanyak menang.</span></li>
       </ul>`;
   }

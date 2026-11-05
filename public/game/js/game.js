@@ -26,7 +26,7 @@
     for (const file of modules) {
       await new Promise((resolve, reject) => {
         const script = document.createElement('script');
-        script.src = new URL(file, baseUrl).href;
+        const u = new URL(file, baseUrl); u.searchParams.set('v', 'vs4'); script.src = u.href;   // ganti 'vs4' tiap kali file diperbarui agar browser/HP tidak memakai cache lama
         script.async = false;
         script.onload = resolve;
         script.onerror = () => reject(new Error('Gagal memuat modul: ' + file));

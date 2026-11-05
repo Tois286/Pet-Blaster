@@ -4,7 +4,8 @@ console.log('[GAME] game.js build meteor-v1 dimuat');   // jika baris ini TIDAK 
 const API = '/api';
 const $ = id => document.getElementById(id);
 // Kanvas 390x640 (rasio latar arena baru 1270x2090). Tata letak lobi lama dirancang untuk lebar 360, jadi digeser OX = 15 px ke kanan.
-const W = 390, H = 640, OX = (W - 360) / 2, HX = (W - 220) / 2, BASE_Y = 490, WAVES = 10;
+const W = 390, H = 640, OX = (W - 360) / 2, HX = (W - 220) / 2, WAVES = 10;
+let BASE_Y = 490;   // garis tembok untuk efek pukulan/skill. 'let' karena mode VS memindahkannya ke tembok arena panjang (lihat VS_LAYOUT di game_vs.js) dan mengembalikannya saat pertandingan selesai
 // Monster yang sampai di tembok benteng berhenti dan memukul tembok berulang kali (tidak lenyap). Selama masih hidup ia terus memukul.
 // dmg = HP markas yang hilang per pukulan, every = jeda antar pukulan (ms). Monster bos memukul lebih keras tetapi lebih lambat.
 const WALL_HIT = { dmg: 5, bossDmg: 15, every: 1200, bossEvery: 1800 };

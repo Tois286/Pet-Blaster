@@ -7,7 +7,7 @@ const TOIS_IDLE = { src: 'assets/characters/tois-anim.webp', fw: 172, fh: 320, f
 // this.anims.create({ key: 'tois_idle_loop', frames: this.anims.generateFrameNumbers('tois_idle', { start: 0, end: 237 }), frameRate: 12, repeat: -1 });
 // pakai
 // this.add.sprite(x, FEET, 'tois_idle').setOrigin(.42, 1).setScale(118 / TOIS_IDLE.fh).play('tois_idle_loop');
-const BATTLE_HERO_SRC = 'assets/characters/tois-gatling.webp?v=3';   // outfit baru (SWAT biru gelap): 10 kolom x 6 baris = 60 frame
+const BATTLE_HERO_KEY = 'tois_battle_gatling', BATTLE_HERO_SRC = 'assets/characters/tois-gatling.webp?v=3';   // outfit baru (SWAT biru gelap): 10 kolom x 6 baris = 60 frame
 const BATTLE_SHEET = { fw: 182, fh: 415, burst: 8, reload: 51, ready: 59, charH: 288, anchorX: .5275, anchorY: .9928, tipUp: 300 };   // frame 0-7 tembak (kilatan), 8-58 reload, 59 siaga
 // ---- Skin Tois (menu Karakter): tiap skin = spritesheet idle (lobi) + spritesheet tembak (gameplay) + avatar. Tambah skin baru cukup menambah satu baris di SKINS. ----
 // idleOX = titik tengah badan di frame idle (0-1); battle = spritesheet gameplay (10 kolom x 6 baris, ukuran frame sama dengan BATTLE_SHEET).

@@ -17,6 +17,14 @@ const VS_ARENA = {
 //   margin : jarak titik muncul monster dari tepi atas gambar.
 //   speed  : pengali kecepatan monster di arena panjang (jalurnya jauh lebih panjang dari arena biasa). 1 = sama seperti arena biasa.
 const VS_VIEW = { shift: 60, margin: 12, speed: 2 };
+// Tata letak di arena panjang, HANYA untuk mode VS (battle pulau memakai arena lama dan tidak berubah).
+//   Semua angka = jarak ke atas dari TEPI BAWAH gambar arena (px pada lebar layar 390), jadi ikut bergeser otomatis bila VS_VIEW.shift diubah.
+//   wall  : garis tembok. Kaki monster berhenti di puncak gerigi tembok atas lalu memukul dari situ (monster tidak lagi masuk ke jalan kayu).
+//   hero  : pijakan kaki Tois di jalan kayu benteng (di antara tembok atas dan tembok bawah).
+//   pet   : pijakan kaki pet, sedikit di belakang Tois.
+//   petX  : slot pet (yang dipanggil pertama = kiri, kedua = kanan); Tois di tengah (x 195). Jalan kayu membentang x 62-328.
+const VS_LAYOUT = { wall: 262, hero: 154, pet: 162, petX: [104, 286, 104, 286] };   // hanya 2 pet yang dibawa: satu di kiri dan satu di kanan Tois (dua angka terakhir cadangan, tidak terpakai)
+const vsLayout = bot => ({ wallY: bot - VS_LAYOUT.wall, heroY: bot - VS_LAYOUT.hero, petY: bot - VS_LAYOUT.pet, petX: VS_LAYOUT.petX });
 
 // side = jumlah pemain per sisi. Di 2 vs Bot, sisi pemain berisi 2 orang dan sisi lawan dikendalikan bot.
 const VS_MODES = {
@@ -35,6 +43,12 @@ const VS_RULES = {
 
 const vsOpposite = role => role === VS_ROLE.ATTACK ? VS_ROLE.DEFEND : VS_ROLE.ATTACK;
 
+// Peran sisi A pada babak ke-round (mulai 0). firstA = peran sisi A di babak 0 (bila kosong, diundi).
+function vsRoleOfSideA(round, firstA) {
+  const f = firstA || (Math.random() < .5 ? VS_ROLE.ATTACK : VS_ROLE.DEFEND);
+  return VS_RULES.swapEachRound && round % 2 ? vsOpposite(f) : f;
+}
+
 // Arena untuk satu pemain: semua peran memakai arena panjang yang sama; yang berbeda hanya posisi awal kamera (lihat VsBattle).
 function vsArenaFor(mode, role) {
   if (!VS_MODES[mode]) throw new Error('Mode VS tidak dikenal: ' + mode);
@@ -44,11 +58,15 @@ function vsArenaFor(mode, role) {
 // ---- Aturan wave dan kartu monster ----
 // Penahan: menembaki monster yang datang (sistem tembak yang sudah ada di Battle).
 // Penyerang: tidak menembak, tetapi mengatur monster yang dikirim tiap wave lewat kartu.
-// Satu babak = 5 wave. Penyerang punya total 50 monster per babak: 47 monster biasa + 2 elite + 1 bos.
+// Satu babak = 5 wave. Penyerang punya total 100 monster per babak: 85 monster biasa + 10 elite + 5 bos final.
 const VS_WAVES = 5;                 // jumlah wave dalam satu babak
-const VS_BUDGET = { total: 50, elite: 2, boss: 1 };   // total termasuk elite dan bos; sisanya monster biasa (47)
-const VS_HAND = 3;                  // jumlah kartu monster yang muncul tiap wave
-const VS_SPECIAL_FROM = 3;          // kartu elite dan bos baru bisa muncul mulai wave ini
+const VS_BUDGET = { total: 100, elite: 10, boss: 5 };   // total termasuk elite dan bos; sisanya monster biasa (85)
+const VS_PET_MAX = 2;               // penahan hanya boleh membawa 2 pet; dipilih sebelum babak dimulai (pilih 2 dari 4 pet)
+const VS_PET_SEC = 10;              // waktu penahan memilih pet (detik); habis = sisa pilihan diundi otomatis. Penyerang menunggu selama itu juga (layar "Menunggu musuh") tanpa melihat pilihan penahan
+const VS_HAND = 3;                  // jumlah kartu monster BIASA yang muncul tiap wave (elite dan bos final tidak diundi: penyerang memilihnya sendiri di awal, lihat VS_SPECIAL_PICK)
+const VS_SPECIAL_PICK = 2;          // di awal babak penyerang hanya boleh memilih 2 JENIS dari gabungan 4 elite + 4 bos final (bebas campuran: 2 elite, 2 bos, atau 1 elite + 1 bos); kartunya tersimpan dan bisa dipakai kapan saja mulai VS_SPECIAL_FROM
+const VS_WAVE_MAX = { elite: 5, boss: 2 };   // batas kiriman dalam SATU wave: maksimal 5 elite dan 2 bos final (semua jenis dihitung bersama)
+const VS_SPECIAL_FROM = 1;          // kartu elite/bos final pilihan penyerang bisa dikirim mulai wave ini (1 = sejak awal; naikkan bila ingin dikunci, mis. 3)
 // Jenis kartu. Elite = monster besar (golem/naga mini/tank), bos = bos final pulau; sisanya monster biasa.
 const VS_ELITE_IDS = [5, 10, 12, 14];
 const VS_BOSS_IDS = [23, 24, 25, 26];
@@ -57,23 +75,17 @@ const vsKind = id => VS_BOSS_IDS.includes(id) ? 'boss' : VS_ELITE_IDS.includes(i
 
 // State penyerang untuk satu babak. sent = daftar kiriman per wave: [{ wave, id, qty }].
 function vsNewAttackState() {
-  return { wave: 1, left: VS_BUDGET.total, eliteLeft: VS_BUDGET.elite, bossLeft: VS_BUDGET.boss, sent: [], hand: [] };
+  return { wave: 1, left: VS_BUDGET.total, eliteLeft: VS_BUDGET.elite, bossLeft: VS_BUDGET.boss, sent: [], hand: [], deck: [] };   // deck = id elite + bos final yang dipilih penyerang
+}
+// Deck acak (dipakai bot penyerang): VS_SPECIAL_PICK jenis dari gabungan elite + bos final.
+function vsRandomDeck() {
+  return [...VS_ELITE_IDS, ...VS_BOSS_IDS].sort(() => Math.random() - .5).slice(0, VS_SPECIAL_PICK);
 }
 
-// Tarik 3 kartu berbeda untuk wave saat ini. Kartu elite/bos hanya bila jatahnya masih ada dan wave >= VS_SPECIAL_FROM.
-// Di wave terakhir, bos yang belum terpakai dijamin muncul agar jatah monster terpakai penuh.
+// Tarik 3 kartu monster biasa yang berbeda untuk wave saat ini. Elite dan bos final tidak ikut diundi: kartunya ada di st.deck (dipilih di awal, hanya VS_SPECIAL_PICK jenis).
 function vsDrawHand(st, rnd = Math.random) {
-  const pool = VS_NORMAL_IDS.slice();
-  if (st.wave >= VS_SPECIAL_FROM) {
-    if (st.eliteLeft > 0) pool.push(...VS_ELITE_IDS);
-    if (st.bossLeft > 0) pool.push(...VS_BOSS_IDS);
-  }
-  const hand = [];
-  if (st.wave === VS_WAVES && st.bossLeft > 0) hand.push(VS_BOSS_IDS[Math.floor(rnd() * VS_BOSS_IDS.length)]);
-  while (hand.length < VS_HAND && pool.length) {
-    const id = pool.splice(Math.floor(rnd() * pool.length), 1)[0];
-    if (!hand.includes(id)) hand.push(id);
-  }
+  const pool = VS_NORMAL_IDS.slice(), hand = [];
+  while (hand.length < VS_HAND && pool.length) hand.push(pool.splice(Math.floor(rnd() * pool.length), 1)[0]);
   st.hand = hand;
   return hand;
 }
@@ -94,19 +106,22 @@ const vsWaveCap = st => Math.max(1, st.left - (VS_WAVES - st.wave));
 const vsSum = (plan, f = () => true) => plan.filter(f).reduce((a, p) => a + p.qty, 0);
 
 // Rentang jumlah yang boleh diisi untuk kartu id, dengan memperhitungkan kartu lain yang sudah diatur di plan.
+// Elite/bos hanya bisa dikirim dari st.deck, mulai wave VS_SPECIAL_FROM, dan per wave dibatasi VS_WAVE_MAX (5 elite, 2 bos final).
 function vsQtyRange(st, id, plan = []) {
   const others = plan.filter(p => p.id !== id), k = vsKind(id);
   let max = vsWaveCap(st) - vsSum(others);
-  if (k === 'elite') max = Math.min(max, st.eliteLeft - vsSum(others, p => vsKind(p.id) === 'elite'));
-  if (k === 'boss') max = Math.min(max, st.bossLeft - vsSum(others, p => vsKind(p.id) === 'boss'));
+  if (k !== 'normal' && (st.wave < VS_SPECIAL_FROM || !st.deck.includes(id))) return { min: 0, max: 0 };
+  if (k === 'elite') { const o = vsSum(others, p => vsKind(p.id) === 'elite'); max = Math.min(max, st.eliteLeft - o, VS_WAVE_MAX.elite - o); }
+  if (k === 'boss') { const o = vsSum(others, p => vsKind(p.id) === 'boss'); max = Math.min(max, st.bossLeft - o, VS_WAVE_MAX.boss - o); }
   return { min: 0, max: Math.max(0, max) };
 }
 
 function vsCheckPlan(st, plan) {
-  if (!plan.length || plan.length > VS_PICKS) throw new Error('Pilih 1 sampai ' + VS_PICKS + ' kartu.');
+  const normals = plan.filter(p => vsKind(p.id) === 'normal');
+  if (!plan.length || normals.length > VS_PICKS) throw new Error('Pilih 1 sampai ' + VS_PICKS + ' kartu monster biasa.');
   if (new Set(plan.map(p => p.id)).size !== plan.length) throw new Error('Kartu tidak boleh dobel.');
   plan.forEach(p => {
-    if (!st.hand.includes(p.id)) throw new Error('Kartu tidak ada di tangan wave ini.');
+    if (vsKind(p.id) === 'normal' ? !st.hand.includes(p.id) : !st.deck.includes(p.id)) throw new Error('Kartu tidak tersedia pada wave ini.');
     const r = vsQtyRange(st, p.id, plan);
     if (!(Number.isInteger(p.qty) && p.qty >= 1 && p.qty <= r.max)) throw new Error('Jumlah ' + MON[p.id].n + ' harus 1 sampai ' + r.max + '.');
   });
@@ -119,23 +134,32 @@ function vsAutoPlan(st) {
   return [{ id, qty: Math.max(1, Math.min(avg, vsQtyRange(st, id).max)) }];
 }
 
-// Rencana bot penyerang: elite/bos yang muncul dikirim 1 dulu, sisanya dibagi ke 1-2 kartu monster biasa.
+// Rencana bot penyerang: mulai wave VS_SPECIAL_FROM mengirim elite/bos dari deck-nya (sisa jatah dibagi rata ke wave yang tersisa, tetap dalam batas per wave), sisanya 1-2 kartu monster biasa.
 function vsBotPlan(st, rnd = Math.random) {
   const cap = vsWaveCap(st), target = st.wave === VS_WAVES ? st.left : Math.max(1, Math.min(cap, Math.round(st.left / (VS_WAVES - st.wave + 1)) + Math.floor(rnd() * 5) - 2));
   const plan = [];
-  st.hand.filter(i => vsKind(i) !== 'normal').forEach(id => { if (vsSum(plan) < target && vsQtyRange(st, id, plan).max > 0) plan.push({ id, qty: 1 }); });
-  const normals = st.hand.filter(i => vsKind(i) === 'normal').sort(() => rnd() - .5).slice(0, Math.max(1, Math.min(2, VS_PICKS - plan.length)));
-  let rest = Math.max(1, target - vsSum(plan));
-  normals.forEach((id, i) => { const q = i === normals.length - 1 ? rest : Math.max(1, Math.floor(rest / 2)); plan.push({ id, qty: q }); rest -= q; });
+  if (st.wave >= VS_SPECIAL_FROM) {
+    const wl = VS_WAVES - st.wave + 1;
+    ['elite', 'boss'].forEach(k => {
+      let want = Math.min(Math.ceil((k === 'elite' ? st.eliteLeft : st.bossLeft) / wl), VS_WAVE_MAX[k]);
+      const ids = st.deck.filter(i => vsKind(i) === k).sort(() => rnd() - .5);
+      ids.forEach((id, i) => { const q = Math.min(vsQtyRange(st, id, plan).max, Math.ceil(want / (ids.length - i))); if (q > 0) { plan.push({ id, qty: q }); want -= q; } });
+    });
+  }
+  const normals = st.hand.filter(i => vsKind(i) === 'normal').sort(() => rnd() - .5).slice(0, 2);
+  let rest = Math.min(Math.max(1, target - vsSum(plan)), vsWaveCap(st) - vsSum(plan));
+  if (rest > 0) normals.forEach((id, i) => { const q = i === normals.length - 1 ? rest : Math.max(1, Math.floor(rest / 2)); plan.push({ id, qty: q }); rest -= q; });
   return plan.filter(p => p.qty > 0);
 }
 
-// Kirim rencana wave ini: kurangi jatah, maju ke wave berikutnya, lalu kembalikan antrean id monster (urut sesuai kartu).
+// Kirim rencana wave ini: kurangi jatah, maju ke wave berikutnya, lalu kembalikan antrean id monster (urutan keluar diacak).
 function vsSendPlan(st, plan) {
   vsCheckPlan(st, plan);
   plan.forEach(p => { st.left -= p.qty; if (vsKind(p.id) === 'elite') st.eliteLeft -= p.qty; if (vsKind(p.id) === 'boss') st.bossLeft -= p.qty; st.sent.push({ wave: st.wave, id: p.id, qty: p.qty }); });
   st.wave++; st.hand = [];
-  return plan.flatMap(p => Array(p.qty).fill(p.id));
+  const q = plan.flatMap(p => Array(p.qty).fill(p.id));
+  for (let i = q.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1));[q[i], q[j]] = [q[j], q[i]]; }   // urutan keluar diacak (bukan per kartu), jumlah tiap jenis tetap
+  return q;
 }
 
 // ---- Alur pertandingan: 2 babak, peran ditukar ----
@@ -169,3 +193,4 @@ function vsJudge(res) {
   }
   return { winner: 'draw', by: null, label: '', mine: '', theirs: '' };
 }
+const vsFinalWinner = res => vsJudge(res).winner;

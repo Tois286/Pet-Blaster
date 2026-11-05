@@ -140,7 +140,7 @@ class Battle extends Base {
   }
   showCards() {
     const sh = a => Phaser.Utils.Array.Shuffle([...a]);
-    const petCards = this.pets.filter(p => !p.on && !p.fused).map(p => ({ img: 'assets/pets/' + p.el + '1.png', n: 'Panggil ' + EVO[p.el][0], d: 'Skill: ' + SK[p.el][0].n, go: b => b.addPet(p.el) }));
+    const petCards = this.pets.filter(p => !p.on && !p.fused && !p.banned).map(p => ({ img: 'assets/pets/' + p.el + '1.png', n: 'Panggil ' + EVO[p.el][0], d: 'Skill: ' + SK[p.el][0].n, go: b => b.addPet(p.el) }));
     const upCards = this.pets.filter(p => p.on && p.stage < 3).flatMap(p => PET_CARDS.filter(c => c.ok(p)).map(c => ({
       img: 'assets/pets/' + p.el + p.stage + '.png', n: EVO[p.el][p.stage - 1] + ': ' + c.n, d: c.d(p), tag: 'Evolusi ' + (p.prog + 1) + '/' + EVO_NEED[p.stage - 1], go: b => b.petCard(p, c)
     })));
@@ -1185,7 +1185,7 @@ class Battle extends Base {
     if (autoPlay && this.skillCd <= 0 && this.enemies.some(e => !e.dead && e.s.y > 10)) this.skill();   // auto play: ultimate dipakai begitu siap dan ada musuh   // waktu buff ikut kecepatan game (x2)
     const sb = $('skillBtn'), st = this.skillCd > 0 ? Math.ceil(this.skillCd / 1000) + 's' : '';   // siap = tampil gambar ikon dari CSS (.skill), cooldown = hitungan detik
     if (sb.textContent !== st) { sb.textContent = st; sb.disabled = this.skillCd > 0; }
-    if (!this.reloading && this.shotT >= Math.max(120, 700 / this.rate) / (this.buffT > 0 ? SKILL_BUFF : 1) / (this.manual ? 2 : 1)) { this.shotT = 0; this.fire(); }
+    if (!this.reloading && this.shotT >= Math.max(120, 700 / this.rate) / (this.buffT > 0 ? SKILL_BUFF : 1)) { this.shotT = 0; this.fire(); }   // menekan layar tidak lagi mempercepat tembakan
     for (const b of this.bullets) { b.s.x += b.vx * dt; b.s.y += b.vy * dt; this.bulletFx(b, dt); }
     for (const e of this.enemies) {
       if (e.dead) continue;

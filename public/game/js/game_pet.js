@@ -44,7 +44,7 @@ const GOLD_CHANCE = .10, GOLD_PITY = .03;
 const XP_BASE = 150, XP_GROWTH = 1.1, XP_GAIN = 1.3, ISLAND_XP = 2, XP_CARDS = 3;
 // Evolusi pet: jumlah kartu milik pet itu sendiri yang dibutuhkan. Evolusi 1 -> 2 butuh 4 kartu, lalu 2 -> 3 butuh 6 kartu baru.
 const EVO_NEED = [4, 6];
-const PET_Y = 568, PET_SLOTS = [151, 239, 95, 295];   // urutan: api, air, tanah, angin. Kaki pet berpijak di jalan kayu benteng arena baru (y 540-572, x 63-325); tengah (x 195) dikosongkan untuk Tois
+let PET_Y = 568; const PET_SLOTS = [151, 239, 95, 295];   // urutan: api, air, tanah, angin. Kaki pet berpijak di jalan kayu benteng arena baru (y 540-572, x 63-325); tengah (x 195) dikosongkan untuk Tois
 // ---- Naga Fusion Api + Air di pertempuran. Syarat pemanggilan: (1) pet Api dan Air sama-sama evolusi 3, (2) mendapatkan KARTU EMAS Fusion saat naik level.
 // Bila kartu emas dipilih: pet Api dan Air menghilang, lalu naga turun dari atas ke rumput tepat di depan tembok benteng, di tengah layar.
 // Uji cepat lewat URL: ?naga=1 = Api dan Air langsung evolusi 3 (kartu emas muncul di naik level pertama); ?naga=2 = naga langsung muncul.

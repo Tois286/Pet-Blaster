@@ -32,6 +32,7 @@ const MON = {
 // Monster wave normal wajib mengikuti elemen pulau. Boss ditangani terpisah oleh ISLANDS.bossPool.
 // Terra = tanah/hutan (saat ini roster hutan belum tersedia, gunakan monster tanah).
 // Aquaria = air, Ignis = api, Zephyria = angin.
+const POOL = [[11, 12, 13, 14, 15, 22], [6, 7, 8, 9, 10, 21], [1, 2, 3, 4, 5], [16, 17, 18, 19, 20]];
 const BOSS = { 5: 10, 10: 5 };
 // Monster JARAK JAUH: tidak jalan sampai tembok, berhenti 'stop' px di depan tembok lalu menembakkan proyektil ke benteng.
 // tex = tekstur proyektil, col = warna, sc = skala, v = kecepatan (px/ms), arc = tinggi lengkung lemparan, spin = putaran, n = jumlah proyektil,

@@ -35,12 +35,6 @@ const VS_RULES = {
 
 const vsOpposite = role => role === VS_ROLE.ATTACK ? VS_ROLE.DEFEND : VS_ROLE.ATTACK;
 
-// Peran sisi A pada babak ke-round (mulai 0). firstA = peran sisi A di babak 0 (bila kosong, diundi).
-function vsRoleOfSideA(round, firstA) {
-  const f = firstA || (Math.random() < .5 ? VS_ROLE.ATTACK : VS_ROLE.DEFEND);
-  return VS_RULES.swapEachRound && round % 2 ? vsOpposite(f) : f;
-}
-
 // Arena untuk satu pemain: semua peran memakai arena panjang yang sama; yang berbeda hanya posisi awal kamera (lihat VsBattle).
 function vsArenaFor(mode, role) {
   if (!VS_MODES[mode]) throw new Error('Mode VS tidak dikenal: ' + mode);
@@ -175,4 +169,3 @@ function vsJudge(res) {
   }
   return { winner: 'draw', by: null, label: '', mine: '', theirs: '' };
 }
-const vsFinalWinner = res => vsJudge(res).winner;

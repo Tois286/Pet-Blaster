@@ -5,24 +5,26 @@ Teknologi: **Phaser 3 + JavaScript** (klien), **CodeIgniter 4 + PHP** (API), **M
 
 Paket ini berisi file kustom saja. File ini ditumpuk di atas proyek CodeIgniter 4 yang baru.
 
-## Isi paket
+## Struktur proyek
 ```
-app/Config/Routes.php                 Route API (menimpa Routes.php bawaan appstarter)
-app/Controllers/Api/ApiController.php Basis: respons JSON, body, user id sesi
-app/Controllers/Api/AuthApi.php       register, login (dengan throttle), logout
-app/Controllers/Api/GameApi.php       profile, upgrade, battle/start, battle/finish
-database/pet_blaster.sql              Tabel game_users, game_progress, game_sessions
-env.example                           Contoh konfigurasi .env
-public/game/                          index.html, css/game.css, js/game.js, assets/
+app/                 Kode server CodeIgniter 4 (route API, controller, library, perintah spark)
+database/            pet_blaster.sql (skema lengkap) dan migration_v4-v8.sql (database lama)
+public/game/         Game: index.html, css/, js/ (modul game_*.js), assets/
+tools/               Skrip pembuat sprite (tidak dipakai saat game berjalan)
+env.example          Contoh .env untuk pengembangan lokal
+env.production.example  Contoh .env untuk server production
+DEPLOY.md            Panduan deploy lengkap
 ```
 
-## Cara memasang
-1. Pastikan PHP, Composer, dan MySQL tersedia (misalnya lewat Laragon).
-2. Buat proyek: `composer create-project codeigniter4/appstarter pet-blaster`
-3. Ekstrak zip ini ke dalam folder `pet-blaster` dan izinkan penimpaan `app/Config/Routes.php`.
-4. Jalankan `database/pet_blaster.sql` lewat phpMyAdmin atau MySQL client.
-5. Salin `env.example` menjadi `.env`, lalu sesuaikan username/password database.
-6. Jalankan `php spark serve`, lalu buka `http://localhost:8080/game/`.
+## Menjalankan secara lokal
+1. Pastikan PHP 8.2+, Composer, dan MySQL tersedia (misalnya lewat Laragon).
+2. `composer install`
+3. Buat database, lalu impor `database/pet_blaster.sql` lewat phpMyAdmin atau MySQL client.
+4. Salin `env.example` menjadi `.env`, lalu sesuaikan username/password database.
+5. Jalankan `php spark serve`, lalu buka `http://localhost:8080/`.
+
+Database lama yang perlu disusul ke skema terbaru: `php spark game:migrate`.
+Untuk deploy ke server, ikuti `DEPLOY.md`.
 
 ## Konsep game
 - **Karakter:** Riko, hewan penjaga yang menembak otomatis. Musuh: 20 monster elemen (lihat v10).

@@ -37,9 +37,6 @@ class ShopApi extends ApiController
             return [null, null, $this->fail('Silakan login.', 401)];
         }
         $db = db_connect();
-        if (!Shop::ensureSchema($db)) {
-            return [null, null, $this->fail('Database Toko belum siap. Jalankan database/migration_v8.sql.', 500)];
-        }
         return [$uid, $db, null];
     }
 

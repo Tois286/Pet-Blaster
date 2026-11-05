@@ -8,6 +8,10 @@ class AuthApi extends ApiController
 {
     public function register()
     {
+        // Batasi pembuatan akun: 5 kali per jam per IP (mencegah spam akun).
+        if (!service('throttler')->check('register_' . md5($this->request->getIPAddress()), 5, HOUR)) {
+            return $this->fail('Terlalu banyak pendaftaran dari jaringan ini. Coba lagi nanti.', 429);
+        }
         $d = $this->body();
         $username = trim((string) ($d['username'] ?? ''));
         $email    = trim((string) ($d['email'] ?? ''));
@@ -26,7 +30,6 @@ class AuthApi extends ApiController
             return $this->fail('Username/email sudah digunakan.', 409);
         }
 
-        $hasPublicId = PublicId::ensureColumn($db);   // sebelum transaksi: ALTER TABLE meng-commit otomatis
         $db->transBegin();
         try {
             $db->table('game_users')->insert([
@@ -35,11 +38,9 @@ class AuthApi extends ApiController
                 'password_hash' => password_hash($password, PASSWORD_DEFAULT),
             ]);
             $uid = (int) $db->insertID();
-            if ($hasPublicId) {
-                // ID 10 karakter dari nomor urut akun + tanggal/jam pendaftaran (created_at yang baru saja dicatat database)
-                $created = $db->query('SELECT created_at FROM game_users WHERE id = ?', [$uid])->getRowArray();
-                $db->query('UPDATE game_users SET public_id = ? WHERE id = ?', [PublicId::make($uid, (string) ($created['created_at'] ?? '')), $uid]);
-            }
+            // ID 10 karakter dari nomor urut akun + tanggal/jam pendaftaran (created_at yang baru saja dicatat database)
+            $created = $db->query('SELECT created_at FROM game_users WHERE id = ?', [$uid])->getRowArray();
+            $db->query('UPDATE game_users SET public_id = ? WHERE id = ?', [PublicId::make($uid, (string) ($created['created_at'] ?? '')), $uid]);
             $db->table('game_progress')->insert(['user_id' => $uid, 'last_claim' => time()]);
             if ($db->transStatus() === false) {
                 throw new \RuntimeException('Gagal menyimpan akun.');

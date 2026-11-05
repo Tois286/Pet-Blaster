@@ -78,7 +78,7 @@ class Filters extends BaseFilters
         ],
         'after' => [
             // 'honeypot',
-            // 'secureheaders',
+            'secureheaders',   // X-Frame-Options, X-Content-Type-Options, Referrer-Policy, dll.
         ],
     ];
 

@@ -1,0 +1,17 @@
+# Pengaman bila server TERPAKSA memakai folder proyek ini sebagai document root.
+# Cara yang benar tetap: arahkan document root ke folder  public/  (lihat DEPLOY.md).
+# File ini tidak dipakai bila document root sudah public/.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Blokir file/folder tersembunyi (.env, .git, dll.) dan folder internal
+    RewriteRule (^|/)\.(?!well-known) - [F,L]
+    RewriteRule ^(app|writable|tests|database|tools|vendor|builds|backup-[^/]*)(/|$) - [F,L,NC]
+    # Blokir file di root proyek (kode, konfigurasi, dump SQL, catatan)
+    RewriteRule ^[^/]+\.(sql|md|txt|json|lock|php|dist|example)$ - [F,L,NC]
+    RewriteRule ^(env|env\..*|spark|builds)$ - [F,L,NC]
+
+    # Selain itu, layani dari public/
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>

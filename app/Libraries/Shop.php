@@ -5,7 +5,7 @@ namespace App\Libraries;
 /**
  * Katalog + logika Toko (Goodbye, Mie Kari, outfit/skin) dan Lotre Tarik. Semua harga, hadiah, dan pengocokan papan dihitung di sini
  * (server), jadi pemain tidak bisa mengubahnya dari browser. Data tersimpan di tabel game_inventory, game_outfits, game_lotre_boards,
- * game_purchases dan kolom game_progress.worn_outfit (lihat database/migration_v8.sql).
+ * game_purchases dan kolom game_progress.worn_outfit (disiapkan oleh `php spark game:migrate`, lihat SchemaUpdater).
  *
  * PENTING: katalog di bawah harus sama dengan tabel di game_ui.js (GOODBYE, NOODLE, OUTFITS) dan game_lotre.js (LOTRE.prizes).
  * JS hanya untuk tampilan; harga dan hadiah asli selalu dari file ini.
@@ -131,78 +131,6 @@ class Shop
             [$b[$i], $b[$j]] = [$b[$j], $b[$i]];
         }
         return $b;
-    }
-
-    // ---- Skema ----
-    private static bool $schemaChecked = false;
-
-    // Menyiapkan tabel/kolom jika database lama belum dimigrasi (database/migration_v8.sql). Jangan dipanggil di dalam transaksi
-    // (ALTER/CREATE TABLE meng-commit otomatis). Mengembalikan false jika gagal.
-    public static function ensureSchema($db): bool
-    {
-        if (self::$schemaChecked) {
-            return true;
-        }
-        try {
-            if (!$db->fieldExists('worn_outfit', 'game_progress')) {
-                $db->query("ALTER TABLE game_progress ADD COLUMN worn_outfit VARCHAR(30) NOT NULL DEFAULT 'base'");
-            }
-            $db->query(
-                'CREATE TABLE IF NOT EXISTS game_inventory (
-                    user_id BIGINT UNSIGNED NOT NULL,
-                    item_type VARCHAR(20) NOT NULL,
-                    item_id VARCHAR(30) NOT NULL,
-                    qty INT UNSIGNED NOT NULL DEFAULT 0,
-                    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                    PRIMARY KEY (user_id, item_type, item_id),
-                    CONSTRAINT fk_inventory_user FOREIGN KEY (user_id) REFERENCES game_users(id) ON DELETE CASCADE
-                )'
-            );
-            $db->query(
-                'CREATE TABLE IF NOT EXISTS game_outfits (
-                    user_id BIGINT UNSIGNED NOT NULL,
-                    outfit_id VARCHAR(30) NOT NULL,
-                    source VARCHAR(20) NOT NULL DEFAULT \'shop\',
-                    acquired_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    PRIMARY KEY (user_id, outfit_id),
-                    CONSTRAINT fk_outfit_user FOREIGN KEY (user_id) REFERENCES game_users(id) ON DELETE CASCADE
-                )'
-            );
-            $db->query(
-                'CREATE TABLE IF NOT EXISTS game_lotre_boards (
-                    user_id BIGINT UNSIGNED NOT NULL PRIMARY KEY,
-                    sig INT UNSIGNED NOT NULL,
-                    board TEXT NOT NULL,
-                    torn TEXT NOT NULL,
-                    rounds INT UNSIGNED NOT NULL DEFAULT 0,
-                    last_n TINYINT UNSIGNED NULL DEFAULT NULL,
-                    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                    CONSTRAINT fk_lotre_user FOREIGN KEY (user_id) REFERENCES game_users(id) ON DELETE CASCADE
-                )'
-            );
-            $db->query(
-                'CREATE TABLE IF NOT EXISTS game_purchases (
-                    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                    user_id BIGINT UNSIGNED NOT NULL,
-                    kind VARCHAR(20) NOT NULL,
-                    item VARCHAR(40) NOT NULL,
-                    qty INT UNSIGNED NOT NULL DEFAULT 1,
-                    coins_spent BIGINT UNSIGNED NOT NULL DEFAULT 0,
-                    gems_spent BIGINT UNSIGNED NOT NULL DEFAULT 0,
-                    coins_won BIGINT UNSIGNED NOT NULL DEFAULT 0,
-                    gems_won BIGINT UNSIGNED NOT NULL DEFAULT 0,
-                    detail VARCHAR(120) NULL DEFAULT NULL,
-                    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                    KEY idx_purchases_user (user_id, created_at),
-                    CONSTRAINT fk_purchase_user FOREIGN KEY (user_id) REFERENCES game_users(id) ON DELETE CASCADE
-                )'
-            );
-            self::$schemaChecked = true;
-            return true;
-        } catch (\Throwable $e) {
-            log_message('error', 'Skema Toko gagal disiapkan: {m}', ['m' => $e->getMessage()]);
-            return false;
-        }
     }
 
     // ---- Pembaca ----

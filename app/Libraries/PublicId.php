@@ -50,21 +50,6 @@ class PublicId
             . str_pad((string) $mi, 2, '0', STR_PAD_LEFT);
     }
 
-    // Menambah kolom public_id (+ indeks unik) bila database lama belum dimigrasi (database/migration_v7.sql).
-    // ALTER TABLE meng-commit otomatis, jadi jangan dipanggil di dalam transaksi. Mengembalikan false jika gagal.
-    public static function ensureColumn($db): bool
-    {
-        try {
-            if (!$db->fieldExists('public_id', 'game_users')) {
-                $db->query('ALTER TABLE game_users ADD COLUMN public_id CHAR(10) NULL DEFAULT NULL, ADD UNIQUE KEY uq_game_users_public_id (public_id)');
-            }
-            return true;
-        } catch (\Throwable $e) {
-            log_message('error', 'Kolom public_id gagal dibuat: {m}', ['m' => $e->getMessage()]);
-            return false;
-        }
-    }
-
     // Mengisi public_id akun lama yang masih kosong (dari id + created_at masing-masing). Aman dipanggil berulang;
     // akun yang sudah punya ID tidak disentuh. Maksimal $limit akun per panggilan.
     public static function backfill($db, int $limit = 500): void

@@ -33,22 +33,6 @@ class GameApi extends ApiController
     // Biaya koin untuk naik dari bintang N ke N+1 (indeks = bintang saat ini). Ubah juga STAR_COST di game.js (hanya tampilan).
     private const PET_STAR_COST = [1 => 500, 2 => 1500, 3 => 4000, 4 => 10000];
 
-    // Menambah kolom bintang jika database lama belum dimigrasi (database/migration_v5.sql). Mengembalikan false jika gagal.
-    private function ensurePetStarColumns($db): bool
-    {
-        try {
-            foreach (self::PET_ELEMENTS as $el) {
-                if (!$db->fieldExists('star_' . $el, 'game_progress')) {
-                    $db->query('ALTER TABLE game_progress ADD COLUMN star_' . $el . ' TINYINT UNSIGNED NOT NULL DEFAULT 1');
-                }
-            }
-            return true;
-        } catch (\Throwable $e) {
-            log_message('error', 'Kolom bintang pet gagal dibuat: {m}', ['m' => $e->getMessage()]);
-            return false;
-        }
-    }
-
     // ---- Sistem gem ----
     // Gem HANYA didapat saat bos stage 5, 10, 15, 20 (dan stage 25 = Boss Final) dikalahkan, yaitu saat stage itu dimenangkan.
     // Pulau 1 (Terra): stage 5/10/15/20 = 50 gem, stage 25 = 100 gem.
@@ -74,35 +58,6 @@ class GameApi extends ApiController
             : $r['base'] + $r['island'] * $island;
     }
 
-    // Menyiapkan tabel/kolom gem jika database lama belum dimigrasi (database/migration_v6.sql). Mengembalikan false jika gagal;
-    // dalam kasus itu game tetap jalan normal, hanya saja gem tidak diberikan. Jangan dipanggil di dalam transaksi (ALTER TABLE meng-commit otomatis).
-    private function ensureGemSchema($db): bool
-    {
-        try {
-            if (!$db->fieldExists('gems', 'game_progress')) {
-                $db->query('ALTER TABLE game_progress ADD COLUMN gems BIGINT UNSIGNED NOT NULL DEFAULT 0');
-            }
-            if (!$db->fieldExists('island', 'game_sessions')) {
-                $db->query('ALTER TABLE game_sessions ADD COLUMN island TINYINT UNSIGNED NULL DEFAULT NULL, ADD COLUMN stage TINYINT UNSIGNED NULL DEFAULT NULL, ADD COLUMN gems_awarded INT UNSIGNED NOT NULL DEFAULT 0');
-            }
-            $db->query(
-                'CREATE TABLE IF NOT EXISTS game_boss_clears (
-                    user_id BIGINT UNSIGNED NOT NULL,
-                    island TINYINT UNSIGNED NOT NULL,
-                    stage TINYINT UNSIGNED NOT NULL,
-                    gems INT UNSIGNED NOT NULL,
-                    cleared_at INT UNSIGNED NOT NULL,
-                    PRIMARY KEY (user_id, island, stage),
-                    CONSTRAINT fk_bossclear_user FOREIGN KEY (user_id) REFERENCES game_users(id) ON DELETE CASCADE
-                )'
-            );
-            return true;
-        } catch (\Throwable $e) {
-            log_message('error', 'Skema gem gagal disiapkan: {m}', ['m' => $e->getMessage()]);
-            return false;
-        }
-    }
-
     public function profile()
     {
         $uid = $this->userId();
@@ -110,11 +65,6 @@ class GameApi extends ApiController
             return $this->fail('Silakan login.', 401);
         }
         $db = db_connect();
-        $this->ensurePetStarColumns($db);
-        $gemOk = $this->ensureGemSchema($db);
-        if (PublicId::ensureColumn($db)) {
-            PublicId::backfill($db);   // akun lama (sebelum ada public_id) diberi ID dari nomor urut + tanggal/jam daftarnya
-        }
         $user = $db->table('game_users')->select('username')->where('id', $uid)->get()->getRowArray();
         $pub = null;
         try {
@@ -129,17 +79,15 @@ class GameApi extends ApiController
         }
         // Bos yang gemnya sudah diambil, format "pulau-stage" (pulau dari 0). Dipakai tampilan untuk menandai hadiah yang sudah didapat.
         $gemClears = [];
-        if ($gemOk) {
-            try {
-                foreach ($db->table('game_boss_clears')->select('island, stage')->where('user_id', $uid)->get()->getResultArray() as $c) {
-                    $gemClears[] = (int) $c['island'] . '-' . (int) $c['stage'];
-                }
-            } catch (\Throwable $e) {
-                log_message('error', 'Daftar bos gagal dibaca: {m}', ['m' => $e->getMessage()]);
+        try {
+            foreach ($db->table('game_boss_clears')->select('island, stage')->where('user_id', $uid)->get()->getResultArray() as $c) {
+                $gemClears[] = (int) $c['island'] . '-' . (int) $c['stage'];
             }
+        } catch (\Throwable $e) {
+            log_message('error', 'Daftar bos gagal dibaca: {m}', ['m' => $e->getMessage()]);
         }
-        // Barang Toko, outfit/skin, dan papan Lotre tersimpan di database (Shop::state). Bila skema belum siap, game tetap jalan tanpa data Toko.
-        $shop = Shop::ensureSchema($db) ? Shop::state($db, $uid) : [];
+        // Barang Toko, outfit/skin, dan papan Lotre tersimpan di database (Shop::state). Skema disiapkan sekali lewat `php spark game:migrate`.
+        $shop = Shop::state($db, $uid);
         return $this->respond(array_merge(
             ['success' => true, 'username' => $user['username'], 'progress' => $progress, 'afk' => $this->afkPending($progress), 'gemClears' => $gemClears, 'publicId' => $pub],
             $shop
@@ -246,9 +194,6 @@ class GameApi extends ApiController
         $col = 'star_' . $el;
 
         $db = db_connect();
-        if (!$this->ensurePetStarColumns($db)) {
-            return $this->fail('Database belum diperbarui. Jalankan database/migration_v5.sql.', 500);
-        }
         $db->transBegin();
         try {
             $p = $db->query('SELECT * FROM game_progress WHERE user_id = ? FOR UPDATE', [$uid])->getRowArray();
@@ -295,7 +240,7 @@ class GameApi extends ApiController
         $d = $this->body();
         $island = is_numeric($d['island'] ?? null) ? (int) $d['island'] : -1;
         $stage  = is_numeric($d['stage'] ?? null) ? (int) $d['stage'] : -1;
-        if ($island >= 0 && $island < self::ISLAND_COUNT && $stage >= 1 && $stage <= self::STAGES_PER_ISLAND && $this->ensureGemSchema($db)) {
+        if ($island >= 0 && $island < self::ISLAND_COUNT && $stage >= 1 && $stage <= self::STAGES_PER_ISLAND) {
             $row['island'] = $island;
             $row['stage']  = $stage;
         }
